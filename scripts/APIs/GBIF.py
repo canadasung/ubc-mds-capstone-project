@@ -1,16 +1,28 @@
 import requests
 
+# Maps GBIF rank strings to output category keys
+_RANK_CATEGORIES = {
+    "SUBSPECIES": "subspecies",
+    "VARIETY": "varieties",
+    "FORM": "forms",
+    "SPECIES": "synonyms",
+}
 
-def get_gbif_synonyms(species_name: str) -> list[str]:
+
+def get_gbif_synonyms(species_name: str) -> dict:
     """
-    Given a species name, returns a dict where:
-      - keys are distinct species-level names (2-token canonical names)
-      - values are lists of subspecies/variety synonyms that fall under that key
+    Given a species name, returns a dict of species-level synonym names from GBIF.
 
-    Returns a plain string message if no backbone match is found.
+    Keys are the accepted species name and all GBIF synonyms at SPECIES rank.
+    Values are empty lists (placeholders for rank categories to be added).
+    Returns an empty dict if no backbone match is found.
+
+    Note: rank category data (subspecies, varieties, forms, etc.) is in-progress
+    and will be populated in the empty lists in a future update.
+
+    Example:
+        {"Amanita muscaria": [], "Agaricus muscarius": []}
     """
-
-    # Step 1: Match the name to the GBIF Backbone
     match_resp = requests.get(
         "https://api.gbif.org/v1/species/match",
         params={"name": species_name, "strict": "true"},
@@ -19,54 +31,40 @@ def get_gbif_synonyms(species_name: str) -> list[str]:
     match_data = match_resp.json()
 
     if match_data.get("matchType") == "NONE":
-        return f"No backbone match found for '{species_name}'"
+        return {}
 
+    accepted_name = match_data.get("species", species_name)
     usage_key = match_data["usageKey"]
 
-    # Step 2: Fetch synonyms using the backbone usageKey
     synonyms_resp = requests.get(
         f"https://api.gbif.org/v1/species/{usage_key}/synonyms",
         params={"limit": 100},
     )
     synonyms_resp.raise_for_status()
-    synonyms_data = synonyms_resp.json()
 
-    canonical_names: list[str] = list(
-        dict.fromkeys(r["canonicalName"] for r in synonyms_data.get("results", []))
-    )
-    # Step 3: Separate species-level names (2 tokens) from infraspecific ones (3+ tokens)
-    species_keys: list[str] = []
-    infraspecific: list[str] = []
+    synonyms: list[str] = [accepted_name]
 
-    for name in canonical_names:
-        if len(name.split()) == 2:
-            species_keys.append(name)
-        else:
-            infraspecific.append(name)
+    for result in synonyms_resp.json().get("results", []):
+        rank = result.get("rank", "")
+        canonical = result.get("canonicalName", "")
+        if not canonical or rank != "SPECIES":
+            continue
+        if canonical not in synonyms:
+            synonyms.append(canonical)
 
-    # Step 4: Build the dict — every species key starts with an empty list
-    result: dict[str, list[str]] = {key: [] for key in species_keys}
+        # category = _RANK_CATEGORIES[rank]
+        # epithet = canonical.removeprefix(accepted_name).strip()
+        # if not epithet:
+        #     epithet = canonical
+        # categories.setdefault(category, [])
+        # if epithet not in categories[category]:
+        #     categories[category].append(epithet)
 
-    # Step 5: Assign each infraspecific name under its matching species key
-    # (matched by "Genus species" prefix)
-    for sub in infraspecific:
-        tokens = sub.split()
-        parent = f"{tokens[0]} {tokens[1]}"
-        if parent in result:
-            result[parent].append(sub)
-        else:
-            # Parent species wasn't in the synonym list — add it on the fly
-            result[parent] = [sub]
-
-    return result
+    return {name: [] for name in synonyms}
 
 
 if __name__ == "__main__":
     import json
 
     result = get_gbif_synonyms("Amanita muscaria")
-
-    if isinstance(result, str):
-        print(result)
-    else:
-        print(json.dumps(result, indent=2))
+    print(json.dumps(result, indent=2))
