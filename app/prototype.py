@@ -17,11 +17,16 @@ import pandas as pd
 import streamlit as st
 
 sys.path.append("../scripts/APIs")
+sys.path.append("../scripts/utils")
+
 from call_APIs import call_apis
+from fuzzy_search import fuzzy_search
 
 st.title("Species Name Synonym Search")
 
-query = st.text_input("Enter a species name", placeholder="e.g. Amanita muscaria")
+# If a "Did you mean?" suggestion was clicked on the previous run, pre-fill the input with it
+_default = st.session_state.pop("pending_query", "")
+query = st.text_input("Enter a species name", placeholder="e.g. Amanita muscaria", value=_default)
 
 source_labels = {
     "gbif": "GBIF",
@@ -71,7 +76,16 @@ if query:
                     unique_names.append(name_lower)
 
         if all(len(names) == 0 for names in source_names.values()):
-            st.write("No results found across any source.")
+            # No results, so try fuzzy search for suggestions
+            suggestions = fuzzy_search(query)
+            if suggestions:
+                st.write("No results found. Did you mean:")
+                for suggestion in suggestions:
+                    if st.button(suggestion):
+                        st.session_state.pending_query = suggestion
+                        st.rerun()
+            else:
+                st.write("No results found across any source.")
         else:
             rows = []
             for name in unique_names:
