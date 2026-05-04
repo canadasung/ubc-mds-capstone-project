@@ -12,11 +12,12 @@ To run:
 
 import json
 import sys
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
-sys.path.append("../scripts/APIs")
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts" / "APIs"))
 from call_APIs import call_apis
 
 st.title("Species Name Synonym Search")
