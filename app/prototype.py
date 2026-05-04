@@ -25,8 +25,10 @@ from utils.fuzzy_search import fuzzy_search
 st.title("Species Name Synonym Search")
 
 # If a "Did you mean?" suggestion was clicked on the previous run, pre-fill the input with it
-_default = st.session_state.pop("pending_query", "")
-query = st.text_input("Enter a species name", placeholder="e.g. Amanita muscaria", value=_default)
+if "pending_query" in st.session_state:
+    st.session_state["query_input"] = st.session_state.pop("pending_query")
+
+query = st.text_input("Enter a species name", placeholder="e.g. Amanita muscaria", key="query_input")
 
 source_labels = {
     "gbif": "GBIF",
