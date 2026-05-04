@@ -6,7 +6,7 @@ Repository for the UBC MDS DSCI 591 Group 8 Capstone Project in partnership with
 
 ## Executive Summary
 
-Taxonomy, including species names and ranks, is constantly changing with the advent of new scientific methods. Curators at the Beaty Biodiversity Museum have to keep track of all of these changes in order to keep the collections current, but finding and evaluating information can be time consuming. We propose creating a web app which synthesizes current information online regarding species name synonyms and taxonomy and provides it to curators, who can then decide which designation they'd like to incorporate into the museum's database.
+Taxonomy, including species names and ranks, is constantly changing with the advent of new scientific methods. Curators at the Beaty Biodiversity Museum have to keep track of all of these changes in order to keep the collections current, but finding and evaluating information can be time consuming. This web app synthesizes current information online regarding species name synonyms and taxonomy and provides it to curators, who can then decide which designation they'd like to incorporate into the museum's database.
 
 ---
 
