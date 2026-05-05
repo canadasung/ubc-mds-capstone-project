@@ -10,10 +10,11 @@ from typing import Literal
 from GBIF import get_gbif_synonyms
 from GenBank import get_genbank_synonyms
 from BryophytePortal import get_bryophyteportal_synonyms
+from Macroalgae import get_macroalgae_synonyms
 from MyCoPortal import get_mycoportal_synonyms
 from MushroomObs import get_mushroom_observer_synonyms
 
-Source = Literal["gbif", "genbank", "mushroomobs", "mycoportal", "bryophyteportal"]
+Source = Literal["gbif", "genbank", "mushroomobs", "mycoportal", "bryophyteportal", "macroalgae"]
 
 
 def main():
@@ -49,7 +50,7 @@ def call_apis(
     }
     """
     if sources is None:
-        sources = ["gbif", "genbank", "mushroomobs", "mycoportal", "bryophyteportal"]
+        sources = ["gbif", "genbank", "mushroomobs", "mycoportal", "bryophyteportal", "macroalgae"]
 
     results = {}
 
@@ -65,6 +66,8 @@ def call_apis(
                 results["mycoportal"] = get_mycoportal_synonyms(query)
             elif source == "bryophyteportal":
                 results["bryophyteportal"] = get_bryophyteportal_synonyms(query)
+            elif source == "macroalgae":
+                results["macroalgae"] = get_macroalgae_synonyms(query)
             else:
                 results[source] = f"Unknown source '{source}'"
         except Exception as e:

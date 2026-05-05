@@ -34,6 +34,7 @@ source_labels = {
     "mushroomobs": "Mushroom Observer",
     "mycoportal": "MyCoPortal",
     "bryophyteportal": "BryophytePortal",
+    "macroalgae": "Macroalgae",
 }
 
 with st.expander("Advanced filters"):
