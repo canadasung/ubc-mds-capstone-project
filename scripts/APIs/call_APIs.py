@@ -1,7 +1,7 @@
 """
 call_APIs.py — Unified API query interface
 
-Calls any combination of GBIF, GenBank, MushroomObserver, and MyCoPortal synonym APIs for a single species query and returns their results combined as a dict.
+Calls any combination of GBIF, GenBank, and MushroomObserver synonym APIs for a single species query and returns their results combined as a dict.
 """
 
 import json
@@ -29,8 +29,8 @@ def call_apis(
 
     Parameters:
     query   : Scientific name to search (e.g. "Amanita muscaria").
-    sources : Which APIs to call. Defaults to all four if omitted.
-              Valid values: "gbif", "genbank", "mushroomobs", "mycoportal".
+    sources : Which APIs to call. Defaults to all three if omitted.
+              Valid values: "gbif", "genbank", "mushroomobs".
 
     Returns a JSON string with a key per requested source. Each value is a dict
     whose keys are species-level synonym names (including the query itself) and
@@ -44,8 +44,7 @@ def call_apis(
     {
       "gbif":        {"Amanita muscaria": [], "Agaricus muscarius": []},
       "genbank":     {"Amanita muscaria": [], "Agaricus muscarius": []},
-      "mushroomobs": {"Amanita muscaria": [], "Agaricus muscarius": []},
-      "mycoportal":  {"Amanita muscaria": []}
+      "mushroomobs": {"Amanita muscaria": [], "Agaricus muscarius": []}
     }
     """
     if sources is None:
