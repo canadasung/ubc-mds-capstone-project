@@ -1,7 +1,7 @@
 """
 call_APIs.py — Unified API query interface
 
-Calls any combination of GBIF, GenBank, and MushroomObserver synonym APIs for a single species query and returns their results combined as a dict.
+Calls any combination of GBIF, GenBank, MushroomObserver, and MyCoPortal synonym APIs for a single species query and returns their results combined as a dict.
 """
 
 import json
@@ -9,9 +9,10 @@ from typing import Literal
 
 from GBIF import get_gbif_synonyms
 from GenBank import get_genbank_synonyms
+from MyCoPortal import get_mycoportal_synonyms
 from MushroomObs import get_mushroom_observer_synonyms
 
-Source = Literal["gbif", "genbank", "mushroomobs"]
+Source = Literal["gbif", "genbank", "mushroomobs", "mycoportal"]
 
 
 def main():
@@ -28,8 +29,8 @@ def call_apis(
 
     Parameters:
     query   : Scientific name to search (e.g. "Amanita muscaria").
-    sources : Which APIs to call. Defaults to all three if omitted.
-              Valid values: "gbif", "genbank", "mushroomobs".
+    sources : Which APIs to call. Defaults to all four if omitted.
+              Valid values: "gbif", "genbank", "mushroomobs", "mycoportal".
 
     Returns a JSON string with a key per requested source. Each value is a dict
     whose keys are species-level synonym names (including the query itself) and
@@ -43,11 +44,12 @@ def call_apis(
     {
       "gbif":        {"Amanita muscaria": [], "Agaricus muscarius": []},
       "genbank":     {"Amanita muscaria": [], "Agaricus muscarius": []},
-      "mushroomobs": {"Amanita muscaria": [], "Agaricus muscarius": []}
+      "mushroomobs": {"Amanita muscaria": [], "Agaricus muscarius": []},
+      "mycoportal":  {"Amanita muscaria": []}
     }
     """
     if sources is None:
-        sources = ["gbif", "genbank", "mushroomobs"]
+        sources = ["gbif", "genbank", "mushroomobs", "mycoportal"]
 
     results = {}
 
@@ -59,6 +61,8 @@ def call_apis(
                 results["genbank"] = get_genbank_synonyms(query)
             elif source == "mushroomobs":
                 results["mushroomobs"] = get_mushroom_observer_synonyms(query)
+            elif source == "mycoportal":
+                results["mycoportal"] = get_mycoportal_synonyms(query)
             else:
                 results[source] = f"Unknown source '{source}'"
         except Exception as e:

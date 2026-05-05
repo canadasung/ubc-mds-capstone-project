@@ -32,6 +32,7 @@ source_labels = {
     "gbif": "GBIF",
     "genbank": "GenBank",
     "mushroomobs": "Mushroom Observer",
+    "mycoportal": "MyCoPortal",
 }
 
 with st.expander("Advanced filters"):
