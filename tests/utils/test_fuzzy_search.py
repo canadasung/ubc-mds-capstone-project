@@ -92,7 +92,11 @@ class TestFuzzySearch:
 
     # 6. Duplicate names from suggest are removed
     def test_suggestions_are_deduplicated(self):
-        match = make_response({"matchType": "NONE"})
+        match = make_response({
+            "matchType": "FUZZY",
+            "species": "Amanita muscaria",
+            "canonicalName": "Amanita muscaria",
+        })
         suggest = make_response([
             {"canonicalName": "Amanita muscaria"},
             {"canonicalName": "Amanita muscaria"},  # duplicate

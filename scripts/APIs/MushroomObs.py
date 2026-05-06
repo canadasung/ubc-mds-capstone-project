@@ -62,9 +62,9 @@ def get_mushroom_observer_synonyms(species_name: str) -> dict:
         {"Amanita muscaria": [], "Agaricus muscarius": []}
     """
 
-    # Empty string or white spaces return []
+    # Empty string or white spaces return {}
     if not species_name or not species_name.strip():
-        return[]
+        return {}
 
     resp = requests.get(
         f"{BASE_URL}/names",
