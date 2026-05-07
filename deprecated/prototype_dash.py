@@ -4,15 +4,12 @@ To run: python app_dash.py
 """
 import json
 import sys
-import os
+from pathlib import Path
 from dash import Dash, html, dcc, dash_table, Input, Output
 
-# Path setup matching original Streamlit implementation
-script_dir = os.path.dirname(os.path.abspath(__file__))
-api_path = os.path.join(script_dir, "..", "scripts", "APIs")
-sys.path.append(api_path)
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from call_APIs import call_apis
+from scripts.APIs.call_APIs import call_apis
 
 source_labels = {
     "gbif": "GBIF",
