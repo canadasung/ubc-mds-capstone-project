@@ -15,9 +15,10 @@ import pytest
 from scripts.APIs.GenBank import get_genbank_synonyms
 from test_API import ApiContractTests
 
+_email = os.environ.get("ENTREZ_EMAIL", "")
 requires_email = pytest.mark.skipif(
-    not os.environ.get("ENTREZ_EMAIL"),
-    reason="ENTREZ_EMAIL not set — tests require a configured .env file",
+    not _email or _email == "your_email@example.com",
+    reason="ENTREZ_EMAIL not set or is still the placeholder — tests require a real email address",
 )
 
 pytestmark = requires_email

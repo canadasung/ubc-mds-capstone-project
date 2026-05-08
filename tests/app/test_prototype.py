@@ -18,9 +18,10 @@ from paths import APP
 
 APP_PATH = str(APP / "prototype.py")
 
+_email = os.environ.get("ENTREZ_EMAIL", "")
 requires_email = pytest.mark.skipif(
-    not os.environ.get("ENTREZ_EMAIL"),
-    reason="ENTREZ_EMAIL not set — GenBank tests require a configured .env file",
+    not _email or _email == "your_email@example.com",
+    reason="ENTREZ_EMAIL not set or is still the placeholder — GenBank tests require a real email address",
 )
 
 
