@@ -9,8 +9,6 @@ Run from the repo root:
     pytest tests/app/test_prototype.py -v
 """
 
-import os
-
 import pytest
 from streamlit.testing.v1 import AppTest
 
@@ -18,11 +16,7 @@ from paths import APP
 
 APP_PATH = str(APP / "prototype.py")
 
-_email = os.environ.get("ENTREZ_EMAIL", "")
-requires_email = pytest.mark.skipif(
-    not _email or _email == "your_email@example.com",
-    reason="ENTREZ_EMAIL not set or is still the placeholder — GenBank tests require a real email address",
-)
+requires_email = pytest.mark.usefixtures("require_entrez_email")
 
 
 def _make_app() -> AppTest:
