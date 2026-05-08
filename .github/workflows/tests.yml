@@ -1,14 +1,15 @@
 name: Tests
 
 on:
-  push:
-    branches: ["**"]
   pull_request:
     branches: [main, dev]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
 
     steps:
       - name: Check out repository
@@ -33,4 +34,11 @@ jobs:
           pytest -v \
             tests/APIs/ \
             tests/app/test_prototype.py \
-            --ignore=tests/APIs/test_API.py
+            --ignore=tests/APIs/test_API.py \
+            --junitxml=test-results.xml
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: test-results.xml
