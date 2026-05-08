@@ -4,11 +4,7 @@
 # but it means these tests will not catch changes to the GBIF API response format.
 # For that, integration tests against the real API would be needed.
 
-import sys
-import os
 from unittest.mock import patch, Mock
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from scripts.utils.fuzzy_search import fuzzy_search
 

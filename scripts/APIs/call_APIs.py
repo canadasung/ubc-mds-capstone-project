@@ -5,11 +5,16 @@ Calls any combination of GBIF, GenBank, and MushroomObserver synonym APIs for a 
 """
 
 import json
+import sys
+from pathlib import Path
 from typing import Literal
 
-from GBIF import get_gbif_synonyms
-from GenBank import get_genbank_synonyms
-from MushroomObs import get_mushroom_observer_synonyms
+if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).parents[2]))
+
+from scripts.APIs.GBIF import get_gbif_synonyms
+from scripts.APIs.GenBank import get_genbank_synonyms
+from scripts.APIs.MushroomObs import get_mushroom_observer_synonyms
 
 Source = Literal["gbif", "genbank", "mushroomobs"]
 
