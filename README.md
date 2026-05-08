@@ -66,7 +66,15 @@ conda env create -f environment.yml
 conda activate mds-project
 ```
 
-### 3. Set up environment variables
+### 3. Install the project package
+
+```bash
+pip install -e .
+```
+
+This makes the `scripts` package importable from anywhere — notebooks, the app, and tests — without any path configuration.
+
+### 4. Set up environment variables
 
 This project uses a `.env` file for secrets and credentials:
 
@@ -77,6 +85,7 @@ This project uses a `.env` file for secrets and credentials:
 ```
 
 1. Open `.env` and replace the placeholder values with your own (see comments in the file for details).
+
 2. Never commit `.env` — it is listed in `.gitignore`.
 
 ---
