@@ -4,16 +4,13 @@ To run: shiny run app_shiny.py --reload
 """
 import json
 import sys
-import os
+from pathlib import Path
 import pandas as pd
 from shiny import App, render, ui, reactive
 
-# Path setup matching original Streamlit implementation
-script_dir = os.path.dirname(os.path.abspath(__file__))
-api_path = os.path.join(script_dir, "..", "scripts", "APIs")
-sys.path.append(api_path)
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from call_APIs import call_apis
+from scripts.APIs.call_APIs import call_apis
 
 source_labels = {
     "gbif": "GBIF",
