@@ -7,13 +7,9 @@ Run from the home directory:
     pytest tests/APIs/test_GBIF.py::TestGBIFContract -v
 """
 
-import sys
-from pathlib import Path
-
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parents[2] / "scripts" / "APIs"))
-from GBIF import get_gbif_synonyms
+from scripts.APIs.GBIF import get_gbif_synonyms
 from test_API import ApiContractTests
 
 
