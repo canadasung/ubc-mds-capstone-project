@@ -10,8 +10,9 @@ from typing import Literal
 from scripts.APIs.GBIF import get_gbif_synonyms
 from scripts.APIs.GenBank import get_genbank_synonyms
 from scripts.APIs.MushroomObs import get_mushroom_observer_synonyms
+from scripts.APIs.MyCoPortal import get_mycoportal_synonyms
 
-Source = Literal["gbif", "genbank", "mushroomobs"]
+Source = Literal["gbif", "genbank", "mushroomobs", "mycoportal"]
 
 
 def main():
@@ -47,7 +48,7 @@ def call_apis(
     }
     """
     if sources is None:
-        sources = ["gbif", "genbank", "mushroomobs"]
+        sources = ["gbif", "genbank", "mushroomobs", "mycoportal"]
 
     results = {}
 
@@ -59,6 +60,8 @@ def call_apis(
                 results["genbank"] = get_genbank_synonyms(query)
             elif source == "mushroomobs":
                 results["mushroomobs"] = get_mushroom_observer_synonyms(query)
+            elif source == "mycoportal":
+                results["mycoportal"] = get_mycoportal_synonyms(query)
             else:
                 results[source] = f"Unknown source '{source}'"
         except Exception as e:
