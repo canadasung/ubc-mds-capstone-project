@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       checks: write
+      contents: read
       pull-requests: write
 
     steps:
@@ -35,10 +36,10 @@ jobs:
             tests/APIs/ \
             tests/app/test_prototype.py \
             --ignore=tests/APIs/test_API.py \
-            --junitxml=test-results.xml
+            --junitxml=$GITHUB_WORKSPACE/test-results.xml
 
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
-          files: test-results.xml
+          files: ${{ github.workspace }}/test-results.xml
