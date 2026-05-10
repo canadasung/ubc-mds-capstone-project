@@ -1,9 +1,9 @@
 """
 prototype.py — Streamlit app for fungal species synonym search
 
-Provides a search interface that queries GBIF, GenBank, and MushroomObserver
-for species-level synonyms of a given fungal species name, and displays the
-results from each API side by side.
+Provides a search interface that queries GBIF, GenBank, MushroomObserver,
+MyCoPortal, IndexFungorum, and Catalogue of Life for species-level synonyms
+of a given fungal species name, and displays the results from each API side by side.
 
 To run:
     cd app/
@@ -31,6 +31,8 @@ source_labels = {
     "genbank": "GenBank",
     "mushroomobs": "Mushroom Observer",
     "mycoportal": "MyCoPortal",
+    "indexfungorum": "Index Fungorum",
+    "col": "Catalogue of Life",
 }
 
 with st.expander("Advanced filters"):
