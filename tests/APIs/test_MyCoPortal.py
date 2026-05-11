@@ -29,3 +29,11 @@ class TestMyCoPortalContract(ApiContractTests):
     @pytest.fixture
     def valid_species_no_synonyms(self):
         return "Amanita muscaria"
+
+    def test_synonym_query_includes_accepted_name(self):
+        """Querying with a synonym name must include the accepted name in the result."""
+        result = get_mycoportal_synonyms("Agaricus dryophilus")
+        assert "Gymnopus dryophilus" in result, (
+            f"Expected 'Gymnopus dryophilus' (accepted name) in result for "
+            f"'Agaricus dryophilus' query, got: {list(result.keys())}"
+        )

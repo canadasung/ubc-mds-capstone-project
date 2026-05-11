@@ -4,11 +4,7 @@
 # but it means these tests will not catch changes to the GBIF API response format.
 # For that, integration tests against the real API would be needed.
 
-import sys
-import os
 from unittest.mock import patch, Mock
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from scripts.utils.fuzzy_search import fuzzy_search
 
@@ -92,7 +88,11 @@ class TestFuzzySearch:
 
     # 6. Duplicate names from suggest are removed
     def test_suggestions_are_deduplicated(self):
-        match = make_response({"matchType": "NONE"})
+        match = make_response({
+            "matchType": "FUZZY",
+            "species": "Amanita muscaria",
+            "canonicalName": "Amanita muscaria",
+        })
         suggest = make_response([
             {"canonicalName": "Amanita muscaria"},
             {"canonicalName": "Amanita muscaria"},  # duplicate

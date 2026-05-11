@@ -9,13 +9,10 @@ Run from the home directory:
 """
 
 import os
-import sys
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parents[2] / "scripts" / "APIs"))
-from GenBank import get_genbank_synonyms
+from scripts.APIs.GenBank import get_genbank_synonyms
 from test_API import ApiContractTests
 
 requires_email = pytest.mark.skipif(
