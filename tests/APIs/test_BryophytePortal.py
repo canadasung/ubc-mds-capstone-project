@@ -29,3 +29,11 @@ class TestBryophytePortalContract(ApiContractTests):
     @pytest.fixture
     def valid_species_no_synonyms(self):
         return "Fissidens aphelotaxifolius"
+
+    def test_synonym_query_includes_accepted_name(self):
+        """Querying with a synonym name must include the accepted name in the result."""
+        result = get_bryophyteportal_synonyms("Marchantia alpestris")
+        assert "Marchantia polymorpha" in result, (
+            f"Expected 'Marchantia polymorpha' (accepted name) in result for "
+            f"'Marchantia alpestris' query, got: {list(result.keys())}"
+        )
