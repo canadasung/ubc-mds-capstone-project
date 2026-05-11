@@ -51,18 +51,19 @@ def _get_tid(species_name: str) -> int | None:
     return None
 
 
-def _resolve_accepted_tid(tid: int) -> int:
+def _resolve_accepted_tid(tid: int) -> tuple[int, str | None]:
     """
-    Return the accepted taxon's tid.
-    If the taxon is already accepted, returns the same tid.
-    If it's a synonym, returns the accepted taxon's tid.
+    Return (accepted_tid, accepted_name).
+    If the taxon is already accepted, returns (tid, None).
+    If it's a synonym, returns the accepted taxon's tid and scientificName.
     """
     resp = requests.get(f"{BASE_URL}/api/v2/taxonomy/{tid}", headers=_HEADERS)
     resp.raise_for_status()
     data = resp.json()
     if data.get("status") == "synonym":
-        return data["accepted"]["tid"]
-    return tid
+        accepted = data["accepted"]
+        return accepted["tid"], accepted["scientificName"]
+    return tid, None
 
 
 def _scrape_synonyms(accepted_tid: int) -> list[str]:
@@ -113,11 +114,15 @@ def get_bryophyteportal_synonyms(species_name: str) -> dict:
     if tid is None:
         return {}
 
-    accepted_tid = _resolve_accepted_tid(tid)
+    accepted_tid, accepted_name = _resolve_accepted_tid(tid)
     synonym_names = _scrape_synonyms(accepted_tid)
 
     seen: set[str] = {species_name}
     synonyms = [species_name]
+    # When the query is a synonym, include the accepted name so lookup is bidirectional
+    if accepted_name and accepted_name not in seen:
+        seen.add(accepted_name)
+        synonyms.append(accepted_name)
     for name in synonym_names:
         if name not in seen:
             seen.add(name)
