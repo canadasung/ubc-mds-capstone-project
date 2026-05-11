@@ -10,6 +10,12 @@ new API.
 import re
 
 import pytest
+import requests.exceptions
+
+_NETWORK_ERRORS = (
+    requests.exceptions.ConnectionError,
+    requests.exceptions.Timeout,
+)
 
 _RANK_ABBREV_PATTERN = re.compile(
     r"\b(var\.|subsp\.|ssp\.|f\.|fo\.|form\.|subg\.|subgen\.|sect\.|subsect\.|cv\.)\s",
@@ -56,20 +62,32 @@ class ApiContractTests:
 
     @pytest.fixture(scope="class")
     def _result_with_synonyms(self, api_fn, valid_species_with_synonyms):
-        return api_fn(valid_species_with_synonyms)
+        try:
+            return api_fn(valid_species_with_synonyms)
+        except _NETWORK_ERRORS as e:
+            pytest.skip(f"API unreachable: {e}")
 
     @pytest.fixture(scope="class")
     def _result_with_synonyms_2(self, api_fn, valid_species_with_synonyms):
         """Second independent call — only used by the consistency test."""
-        return api_fn(valid_species_with_synonyms)
+        try:
+            return api_fn(valid_species_with_synonyms)
+        except _NETWORK_ERRORS as e:
+            pytest.skip(f"API unreachable: {e}")
 
     @pytest.fixture(scope="class")
     def _result_no_synonyms(self, api_fn, valid_species_no_synonyms):
-        return api_fn(valid_species_no_synonyms)
+        try:
+            return api_fn(valid_species_no_synonyms)
+        except _NETWORK_ERRORS as e:
+            pytest.skip(f"API unreachable: {e}")
 
     @pytest.fixture(scope="class")
     def _result_nonexistent(self, api_fn, nonexistent_species):
-        return api_fn(nonexistent_species)
+        try:
+            return api_fn(nonexistent_species)
+        except _NETWORK_ERRORS as e:
+            pytest.skip(f"API unreachable: {e}")
 
     # --- Network health ---
 
@@ -213,5 +231,5 @@ class ApiContractTests:
         try:
             result = api_fn(valid_species_with_synonyms.lower())
             assert isinstance(result, dict)
-        except ValueError:
+        except (ValueError, *_NETWORK_ERRORS):
             pass
