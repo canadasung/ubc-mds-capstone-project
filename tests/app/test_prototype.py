@@ -10,12 +10,13 @@ Run from the repo root:
 """
 
 import os
-from pathlib import Path
 
 import pytest
 from streamlit.testing.v1 import AppTest
 
-APP_PATH = str(Path(__file__).parents[2] / "app" / "prototype.py")
+from paths import APP
+
+APP_PATH = str(APP / "prototype.py")
 
 requires_email = pytest.mark.skipif(
     not os.environ.get("ENTREZ_EMAIL"),
