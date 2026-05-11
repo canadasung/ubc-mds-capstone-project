@@ -60,4 +60,6 @@ jobs:
 
       - name: Run app tests
         shell: bash -el {0}
+        env:
+          ENTREZ_EMAIL: ${{ secrets.ENTREZ_EMAIL }}
         run: pytest -v tests/app/test_prototype.py
