@@ -29,3 +29,11 @@ class TestMacroalgaeContract(ApiContractTests):
     @pytest.fixture
     def valid_species_no_synonyms(self):
         return "Ulva ranunculata"
+
+    def test_synonym_query_includes_accepted_name(self):
+        """Querying with a synonym name must include the accepted name in the result."""
+        result = get_macroalgae_synonyms("Phyllona lactuca")
+        assert "Ulva lactuca" in result, (
+            f"Expected 'Ulva lactuca' (accepted name) in result for "
+            f"'Phyllona lactuca' query, got: {list(result.keys())}"
+        )
