@@ -8,7 +8,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     permissions:
-      checks: write
       contents: read
       pull-requests: write
 
@@ -35,11 +34,4 @@ jobs:
           pytest -v \
             tests/APIs/ \
             tests/app/test_prototype.py \
-            --ignore=tests/APIs/test_API.py \
-            --junitxml=$GITHUB_WORKSPACE/test-results.xml
-
-      - name: Publish test results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: always()
-        with:
-          files: ${{ github.workspace }}/test-results.xml
+            --ignore=tests/APIs/test_API.py
