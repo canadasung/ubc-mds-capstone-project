@@ -20,18 +20,29 @@ def main():
     print(json.dumps(result, indent=2))
 
 
+def _binomial(label: str) -> str:
+    """Return just the first two words (genus + species epithet) from a full name label."""
+    parts = label.strip().split()
+    return " ".join(parts[:2]) if len(parts) >= 2 else label.strip()
+
+
 def get_checklistbank_synonyms(species_name: str) -> dict:
     """
     Given a species name, returns a dict of species-level synonym names from
     the Catalogue of Life via ChecklistBank.
 
-    Keys are the accepted species name and all COL synonyms at SPECIES rank.
+    Keys are the accepted species name and all COL synonyms at SPECIES rank,
+    truncated to genus + epithet only (e.g. "Amanita muscaria" not
+    "Amanita muscaria (L.) Lam.").
     Values are empty lists (placeholders for rank categories to be added).
     Returns an empty dict if no match is found.
 
     Example:
         {"Amanita muscaria": [], "Agaricus muscarius": []}
     """
+    if not species_name or not species_name.strip():
+        return {}
+
     # Step 1: Match the species name to get the taxon ID
     match_resp = requests.get(
         f"{CLB_BASE}/dataset/{DATASET}/match/nameusage",
@@ -44,7 +55,7 @@ def get_checklistbank_synonyms(species_name: str) -> dict:
         return {}
 
     usage = match_data["usage"]
-    accepted_name = usage.get("label", species_name)
+    accepted_name = _binomial(usage.get("label", species_name))
     taxon_id = usage.get("id")
 
     if not taxon_id:
@@ -69,7 +80,7 @@ def get_checklistbank_synonyms(species_name: str) -> dict:
         all_items += group
 
     for item in all_items:
-        name = item.get("label", "").strip()
+        name = _binomial(item.get("label", "").strip())
         rank = item.get("name", {}).get("rank", "")
         if name and rank == "species" and name not in synonyms:
             synonyms.append(name)

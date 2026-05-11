@@ -7,9 +7,13 @@ Run from the home directory:
     pytest tests/APIs/test_COL.py::TestCOLContract -v
 """
 
+import sys
+from pathlib import Path
+ 
 import pytest
-
-from scripts.APIs.COL import get_checklistbank_synonyms
+ 
+sys.path.insert(0, str(Path(__file__).parents[2] / "scripts" / "APIs"))
+from COL import get_checklistbank_synonyms
 from test_API import ApiContractTests
 
 
