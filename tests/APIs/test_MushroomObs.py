@@ -14,14 +14,14 @@ from scripts.APIs.MushroomObs import get_mushroom_observer_synonyms
 
 
 class TestMushroomObsContract(ApiContractTests):
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def api_fn(self):
         return get_mushroom_observer_synonyms
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def valid_species_with_synonyms(self):
         return "Amanita muscaria"
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def valid_species_no_synonyms(self):
         return "Candelariella antennaria"
