@@ -2,31 +2,49 @@
 prototype_timeline.py — Streamlit app for fungal species synonym search with timeline visualization
 
 Displays synonyms as an interactive timeline where each bubble represents a synonym
-positioned at its year of first publication. Clicking a bubble opens an info card.
+positioned at its year of first publication. Clicking a bubble expands it into an
+info card directly on the timeline.
 
 To run:
     cd app/
     streamlit run prototype_timeline.py
 """
 
+import textwrap
+
 import plotly.graph_objects as go
 import streamlit as st
+
+
+def _field(label: str, value: str, wrap_width: int = 22) -> str:
+    """Format a label+value pair with continuation lines indented to align under the value."""
+    indent = "&nbsp;" * (len(label) + 2)  # +2 for the two-space separator
+    lines = textwrap.wrap(value, wrap_width)
+    value_text = ("<br>" + indent).join(lines) if lines else value
+    return f"<span style='color:#aaaaaa'>{label}</span>  {value_text}"
+
 
 MOCK_DATA = {
     "Amanita muscaria": {
         "author": "John Doe",
         "publication_year": 1860,
-        "publication_name": "New Book of Mushrooms",
+        "publication_name": "New Book of Mushrooms Worldwide",
+        "source": {"name": "GBIF", "url": "https://www.gbif.org/species/8168319"},
     },
     "Agaricus muscarius": {
         "author": "Jane Doe",
         "publication_year": 1753,
         "publication_name": "Old Book of Mushrooms",
+        "source": {"name": "GBIF", "url": "https://www.gbif.org/species/5451774"},
     },
     "Other Synonym": {
         "author": "Jack Doe",
         "publication_year": 1950,
         "publication_name": "Mushrooms of BC",
+        "source": {
+            "name": "Wikipedia",
+            "url": "https://en.wikipedia.org/wiki/Amanita_muscaria",
+        },
     },
 }
 
@@ -39,17 +57,16 @@ def mock_call_apis() -> list[dict]:
 def build_timeline(synonyms: list[dict]) -> go.Figure:
     sorted_syns = sorted(synonyms, key=lambda s: s["publication_year"])
     years = [s["publication_year"] for s in sorted_syns]
-    names = [s["name"] for s in sorted_syns]
 
     # Stagger y positions above/below the timeline to reduce label overlap
-    y_pos = [0.35 if i % 2 == 0 else -0.35 for i in range(len(sorted_syns))]
-    text_pos = ["top center" if y > 0 else "bottom center" for y in y_pos]
+    y_pos = [0.5 if i % 2 == 0 else -0.5 for i in range(len(sorted_syns))]
 
     fig = go.Figure()
 
+    year_min = min(years) - 30
+    year_max = max(years) + 30
+
     # Horizontal timeline bar
-    year_min = min(years) - 15
-    year_max = max(years) + 15
     fig.add_shape(
         type="line",
         x0=year_min,
@@ -59,48 +76,45 @@ def build_timeline(synonyms: list[dict]) -> go.Figure:
         line=dict(color="#bdc3c7", width=2),
     )
 
-    # Vertical tick lines from timeline to each bubble
+    # Vertical tick lines from timeline bar to each card
     for year, y in zip(years, y_pos):
+        tick_end = 0.18 if y > 0 else -0.18
         fig.add_shape(
             type="line",
             x0=year,
             x1=year,
             y0=0,
-            y1=y,
+            y1=tick_end,
             line=dict(color="#bdc3c7", width=1, dash="dot"),
         )
 
-    fig.add_trace(
-        go.Scatter(
-            x=years,
-            y=y_pos,
-            mode="markers+text",
-            text=names,
-            textposition=text_pos,
-            textfont=dict(size=11),
-            marker=dict(
-                size=18,
-                color="#3498db",
-                line=dict(color="white", width=2),
-            ),
-            customdata=[
-                [s["name"], s["publication_year"], s["author"], s["publication_name"]]
-                for s in sorted_syns
-            ],
-            hovertemplate=(
-                "<b>%{customdata[0]}</b><br>"
-                "Year: %{customdata[1]}<br>"
-                "Author: %{customdata[2]}<br>"
-                "Publication: %{customdata[3]}<br>"
-                "<extra></extra>"
-            ),
-            selected=dict(marker=dict(size=24)),
-            unselected=dict(marker=dict(opacity=0.5)),
+    # Info card annotation for each synonym
+    for syn, year, y in zip(sorted_syns, years, y_pos):
+        name_lines = textwrap.wrap(syn["name"], 22)
+        text = (
+            f"<b>{'<br>'.join(name_lines)}</b><br>"
+            f"{_field('Year', str(syn['publication_year']))}<br>"
+            f"{_field('Author', syn['author'])}<br>"
+            f"{_field('Publication', syn['publication_name'])}<br>"
+            f"<span style='color:#aaaaaa'>Source</span>  <a href='{syn['source']['url']}' target='_blank'>{syn['source']['name']}</a>"
         )
-    )
+        fig.add_annotation(
+            x=year,
+            y=y,
+            text=text,
+            showarrow=False,
+            bgcolor="white",
+            bordercolor="#3498db",
+            borderwidth=2,
+            borderpad=12,
+            font=dict(size=11, color="#333333", family="Courier New, monospace"),
+            align="left",
+            xanchor="center",
+            yanchor="middle",
+        )
 
     fig.update_layout(
-        height=380,
+        height=480,
         margin=dict(l=20, r=20, t=30, b=20),
         xaxis=dict(
             title="Year of Publication",
@@ -110,12 +124,12 @@ def build_timeline(synonyms: list[dict]) -> go.Figure:
         ),
         yaxis=dict(
             visible=False,
-            range=[-1.1, 1.1],
+            range=[-1.4, 1.4],
         ),
         plot_bgcolor="white",
         paper_bgcolor="white",
         showlegend=False,
-        dragmode="select",
+        dragmode="pan",
     )
 
     return fig
@@ -143,35 +157,4 @@ if query:
         st.markdown(f"**{len(synonyms)} synonyms found** for *{query.strip().title()}*")
 
         fig = build_timeline(synonyms)
-        event = st.plotly_chart(
-            fig,
-            use_container_width=True,
-            on_select="rerun",
-            selection_mode="points",
-            key="timeline_chart",
-        )
-
-        st.caption("Click a bubble to view details.")
-
-        # Info card for selected point
-        if event and event.selection and event.selection.points:
-            pt = event.selection.points[0]
-            name, year, author, publication_name = pt["customdata"]
-
-            st.divider()
-            st.markdown(
-                f"""
-<div style="border:1px solid #e0e0e0; border-radius:10px; padding:20px; background:#fafafa;">
-  <h3 style="margin-top:0"><em>{name}</em></h3>
-  <table style="border-collapse:collapse; width:100%;">
-    <tr><td style="padding:4px 12px 4px 0; color:#666; width:140px;">Year published</td>
-        <td style="padding:4px 0"><strong>{year}</strong></td></tr>
-    <tr><td style="padding:4px 12px 4px 0; color:#666;">Author</td>
-        <td style="padding:4px 0">{author}</td></tr>
-    <tr><td style="padding:4px 12px 4px 0; color:#666;">Publication</td>
-        <td style="padding:4px 0">{publication_name}</td></tr>
-  </table>
-</div>
-""",
-                unsafe_allow_html=True,
-            )
+        st.plotly_chart(fig, use_container_width=True)
