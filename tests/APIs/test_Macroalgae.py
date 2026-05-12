@@ -18,15 +18,15 @@ from test_API import ApiContractTests
 
 
 class TestMacroalgaeContract(ApiContractTests):
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def api_fn(self):
         return get_macroalgae_synonyms
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def valid_species_with_synonyms(self):
         return "Ulva lactuca"
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def valid_species_no_synonyms(self):
         return "Ulva ranunculata"
 
