@@ -35,6 +35,7 @@ source_labels = {
     "genbank": "GenBank",
     "mushroomobs": "Mushroom Observer",
     "mycoportal": "MyCoPortal",
+    "bryophyteportal": "BryophytePortal",
     "indexfungorum": "Index Fungorum",
     "col": "Catalogue of Life",
 }

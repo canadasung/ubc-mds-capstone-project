@@ -7,18 +7,27 @@ Calls any combination of GBIF, GenBank, and MushroomObserver synonym APIs for a 
 import json
 from typing import Literal
 
+from scripts.APIs.BryophytePortal import get_bryophyteportal_synonyms
+from scripts.APIs.COL import get_checklistbank_synonyms
 from scripts.APIs.GBIF import get_gbif_synonyms
 from scripts.APIs.GenBank import get_genbank_synonyms
+from scripts.APIs.IndexFungorum import get_indexfungorum_synonyms
 from scripts.APIs.MushroomObs import get_mushroom_observer_synonyms
 from scripts.APIs.MyCoPortal import get_mycoportal_synonyms
-from scripts.APIs.IndexFungorum import get_indexfungorum_synonyms
-from scripts.APIs.COL import get_checklistbank_synonyms
 
-Source = Literal["gbif", "genbank", "mushroomobs", "mycoportal", "indexfungorum", "col"]
+Source = Literal[
+    "gbif",
+    "genbank",
+    "mushroomobs",
+    "mycoportal",
+    "bryophyteportal",
+    "indexfungorum",
+    "col",
+]
 
 
 def main():
-    result = call_apis("Amanita muscaria")
+    result = call_apis("Amanita muscaria", sources=["gbif", "genbank", "mushroomobs"])
     print(result)
 
 
@@ -49,10 +58,11 @@ def call_apis(
       "mushroomobs": {"Amanita muscaria": [], "Agaricus muscarius": []}
     }
     """
-    if sources is None:
-        sources = ["gbif", "genbank", "mushroomobs", "mycoportal"]
 
     results = {}
+
+    if sources is None:
+        return json.dumps(results, indent=2)
 
     for source in sources:
         try:
@@ -64,6 +74,8 @@ def call_apis(
                 results["mushroomobs"] = get_mushroom_observer_synonyms(query)
             elif source == "mycoportal":
                 results["mycoportal"] = get_mycoportal_synonyms(query)
+            elif source == "bryophyteportal":
+                results["bryophyteportal"] = get_bryophyteportal_synonyms(query)
             elif source == "indexfungorum":
                 results["indexfungorum"] = get_indexfungorum_synonyms(query)
             elif source == "col":
