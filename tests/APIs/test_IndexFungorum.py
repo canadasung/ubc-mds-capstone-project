@@ -9,23 +9,23 @@ Run from the home directory:
 
 import sys
 from pathlib import Path
- 
+
 import pytest
- 
+
 sys.path.insert(0, str(Path(__file__).parents[2] / "scripts" / "APIs"))
 from IndexFungorum import get_indexfungorum_synonyms
 from test_API import ApiContractTests
 
 
 class TestIndexFungorumContract(ApiContractTests):
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def api_fn(self):
         return get_indexfungorum_synonyms
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def valid_species_with_synonyms(self):
         return "Amanita muscaria"
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def valid_species_no_synonyms(self):
         return "Candelariella antennaria"
