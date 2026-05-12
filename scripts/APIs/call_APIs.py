@@ -12,8 +12,10 @@ from scripts.APIs.GenBank import get_genbank_synonyms
 from scripts.APIs.MushroomObs import get_mushroom_observer_synonyms
 from scripts.APIs.MyCoPortal import get_mycoportal_synonyms
 from scripts.APIs.BryophytePortal import get_bryophyteportal_synonyms
+from scripts.APIs.IndexFungorum import get_indexfungorum_synonyms
+from scripts.APIs.COL import get_checklistbank_synonyms
 
-Source = Literal["gbif", "genbank", "mushroomobs", "mycoportal", "bryophyteportal"]
+Source = Literal["gbif", "genbank", "mushroomobs", "mycoportal", "bryophyteportal", "indexfungorum", "col"]
 
 
 def main():
@@ -65,6 +67,10 @@ def call_apis(
                 results["mycoportal"] = get_mycoportal_synonyms(query)
             elif source == "bryophyteportal":
                 results["bryophyteportal"] = get_bryophyteportal_synonyms(query)
+            elif source == "indexfungorum":
+                results["indexfungorum"] = get_indexfungorum_synonyms(query)
+            elif source == "col":
+                results["col"] = get_checklistbank_synonyms(query)
             else:
                 results[source] = f"Unknown source '{source}'"
         except Exception as e:

@@ -26,6 +26,7 @@ def get_gbif_synonyms(species_name: str) -> dict:
     match_resp = requests.get(
         "https://api.gbif.org/v1/species/match",
         params={"name": species_name, "strict": "true"},
+        timeout=30,
     )
     match_resp.raise_for_status()
     match_data = match_resp.json()
@@ -39,6 +40,7 @@ def get_gbif_synonyms(species_name: str) -> dict:
     synonyms_resp = requests.get(
         f"https://api.gbif.org/v1/species/{usage_key}/synonyms",
         params={"limit": 100},
+        timeout=30,
     )
     synonyms_resp.raise_for_status()
 
