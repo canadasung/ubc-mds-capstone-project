@@ -11,3 +11,5 @@ dependencies:
   - streamlit
   - pytest
   - pip
+  - pip:
+    - -e . # install scripts as an editable package so that the scripts files are importable from anywhere — notebooks, the app, and tests — without any path configuration.
