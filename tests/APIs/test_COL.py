@@ -1,22 +1,22 @@
 """
-test_GBIF.py — Contract tests for GBIF.get_gbif_synonyms.
+test_COL.py — Contract tests for COL.get_checklistbank_synonyms.
 
-All tests make real calls to the GBIF API (no authentication required).
+All tests make real HTTP calls to the ChecklistBank API (no authentication required).
 
 Run from the home directory:
-    pytest tests/APIs/test_GBIF.py::TestGBIFContract -v
+    pytest tests/APIs/test_COL.py::TestCOLContract -v
 """
 
 import pytest
-
-from scripts.APIs.GBIF import get_gbif_synonyms
 from test_API import ApiContractTests
 
+from scripts.APIs.COL import get_checklistbank_synonyms
 
-class TestGBIFContract(ApiContractTests):
+
+class TestCOLContract(ApiContractTests):
     @pytest.fixture(scope="class")
     def api_fn(self):
-        return get_gbif_synonyms
+        return get_checklistbank_synonyms
 
     @pytest.fixture(scope="class")
     def valid_species_with_synonyms(self):

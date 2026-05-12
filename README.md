@@ -20,8 +20,6 @@ This project was developed as part of the UBC Master of Data Science (MDS) DSCI 
 
 ## Project Structure
 
-## Project Structure
-
 ```
 ubc-mds-project/
 ├── app/
@@ -74,19 +72,32 @@ pip install -e .
 
 This makes the `scripts` package importable from anywhere — notebooks, the app, and tests — without any path configuration.
 
-### 4. Set up environment variables
+### 4. Set up credentials
+
+#### Local development
 
 This project uses a `.env` file for secrets and credentials:
 
-1. Copy the example file, `.env.example`, into a file named `.env`:
+1. Copy the example file into `.env`:
 
 ```bash
-   cp .env.example .env
+cp .env.example .env
 ```
 
 1. Open `.env` and replace the placeholder values with your own (see comments in the file for details).
 
-2. Never commit `.env` — it is listed in `.gitignore`.
+1. Never commit `.env` — it is listed in `.gitignore`.
+
+#### CI (GitHub Actions)
+
+The GenBank tests require an `ENTREZ_EMAIL` environment variable. To enable these tests in CI, add it as a repository secret:
+
+1. Go to your repository on GitHub → **Settings** → **Secrets and variables** → **Actions**
+2. Click **New repository secret**
+3. Set **Name** to `ENTREZ_EMAIL` and **Secret** to your email address
+4. Click **Add secret**
+
+If the secret is not set, the GenBank tests will be skipped automatically rather than failing.
 
 ---
 
