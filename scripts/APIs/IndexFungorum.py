@@ -11,6 +11,7 @@ Uses two HTTP GET calls:
 Main entry point: get_indexfungorum_synonyms(query)
 """
 
+import time
 import xml.etree.ElementTree as ET
 
 import requests
@@ -52,6 +53,7 @@ def _name_search(species_name: str) -> int | None:
             "AnywhereInText": "false",
             "MaxNumber": "10",
         },
+        timeout=30,
     )
     resp.raise_for_status()
 
@@ -78,6 +80,7 @@ def _names_by_current_key(key: int) -> list[str]:
     resp = requests.get(
         f"{IF_BASE}/NamesByCurrentKey",
         params={"CurrentKey": str(key)},
+        timeout=30,
     )
     resp.raise_for_status()
 
@@ -106,6 +109,7 @@ def get_indexfungorum_synonyms(species_name: str) -> dict:
     if key is None:
         return {}
 
+    time.sleep(0.5)
     synonym_names = _names_by_current_key(key)
 
     synonyms = [species_name] + [

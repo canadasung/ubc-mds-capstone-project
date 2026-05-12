@@ -69,6 +69,7 @@ def get_mushroom_observer_synonyms(species_name: str) -> dict:
     resp = requests.get(
         f"{BASE_URL}/names",
         params={"name": species_name, "format": "json", "detail": "high"},
+        timeout=30,
     )
     resp.raise_for_status()
     data = resp.json()

@@ -47,6 +47,7 @@ def get_checklistbank_synonyms(species_name: str) -> dict:
     match_resp = requests.get(
         f"{CLB_BASE}/dataset/{DATASET}/match/nameusage",
         params={"q": species_name},
+        timeout=30,
     )
     match_resp.raise_for_status()
     match_data = match_resp.json()
@@ -64,6 +65,7 @@ def get_checklistbank_synonyms(species_name: str) -> dict:
     # Step 2: Fetch synonyms for the matched taxon
     syn_resp = requests.get(
         f"{CLB_BASE}/dataset/{DATASET}/taxon/{taxon_id}/synonyms",
+        timeout=30,
     )
     syn_resp.raise_for_status()
     syn_data = syn_resp.json()

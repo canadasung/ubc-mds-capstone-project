@@ -86,6 +86,7 @@ def _esearch_ids(term):
                 "retmode": "json",
                 "email": ENTREZ_EMAIL,
             },
+            timeout=30,
         )
         .json()
         .get("esearchresult", {})
@@ -105,6 +106,7 @@ def _efetch_taxa(ids):
             "retmode": "xml",
             "email": ENTREZ_EMAIL,
         },
+        timeout=30,
     )
     time.sleep(0.4)
     try:

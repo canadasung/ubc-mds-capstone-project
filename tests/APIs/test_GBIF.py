@@ -14,14 +14,14 @@ from test_API import ApiContractTests
 
 
 class TestGBIFContract(ApiContractTests):
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def api_fn(self):
         return get_gbif_synonyms
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def valid_species_with_synonyms(self):
         return "Amanita muscaria"
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def valid_species_no_synonyms(self):
         return "Candelariella antennaria"
