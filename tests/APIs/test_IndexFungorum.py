@@ -7,14 +7,10 @@ Run from the home directory:
     pytest tests/APIs/test_IndexFungorum.py::TestIndexFungorumContract -v
 """
 
-import sys
-from pathlib import Path
-
 import pytest
-
-sys.path.insert(0, str(Path(__file__).parents[2] / "scripts" / "APIs"))
-from IndexFungorum import get_indexfungorum_synonyms
 from test_API import ApiContractTests
+
+from scripts.APIs.IndexFungorum import get_indexfungorum_synonyms
 
 
 class TestIndexFungorumContract(ApiContractTests):
