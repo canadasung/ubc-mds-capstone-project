@@ -23,7 +23,7 @@ _RANK_ABBREV_PATTERN = re.compile(
 )
 
 
-class ApiContractTests:
+class ApiTests:
     """
     Base class that enforces the output contract for every species synonym API.
 

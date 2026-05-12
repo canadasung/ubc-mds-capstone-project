@@ -11,12 +11,12 @@ Run from the home directory:
 import pytest
 
 from scripts.APIs.GenBank import get_genbank_synonyms
-from tests.APIs.API_Contract_Tests import ApiContractTests
+from tests.APIs.template_ApiTests import ApiTests
 
 pytestmark = pytest.mark.usefixtures("require_entrez_email")
 
 
-class TestGenBankContract(ApiContractTests):
+class TestGenBankContract(ApiTests):
     @pytest.fixture(scope="class")
     def api_fn(self):
         return get_genbank_synonyms

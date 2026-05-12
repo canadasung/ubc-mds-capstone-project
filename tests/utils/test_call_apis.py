@@ -4,7 +4,7 @@ test_call_apis.py — Unit tests for call_apis.
 All API functions are mocked; no network calls are made.
 
 Run from the home directory:
-    pytest tests/APIs/test_call_apis.py -v
+    pytest tests/utils/test_call_apis.py -v
 """
 
 import json
@@ -13,9 +13,9 @@ from unittest.mock import patch
 
 import pytest
 
-from scripts.APIs.call_APIs import Source, call_apis
+from scripts.utils.call_APIs import Source, call_apis
 
-_PATCH_BASE = "scripts.APIs.call_APIs"
+_PATCH_BASE = "scripts.utils.call_APIs"
 _MOCK_RESULT = {"Species name": [], "Synonym name": []}
 
 
@@ -50,7 +50,7 @@ class TestSourceRouting:
         missing = known_sources - set(self._SOURCE_TO_FN)
         assert not missing, (
             f"Sources {missing} are defined in call_APIs.Source but not covered by "
-            f"TestSourceRouting. Add new sources to _SOURCE_TO_FN in tests/APIs/test_call_apis.py."
+            f"TestSourceRouting. Add new sources to _SOURCE_TO_FN in tests/utils/test_call_apis.py."
         )
 
     @pytest.mark.parametrize("source,fn_name", _SOURCE_TO_FN.items())

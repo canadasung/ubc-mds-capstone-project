@@ -10,10 +10,10 @@ Run from the home directory:
 import pytest
 
 from scripts.APIs.BryophytePortal import get_bryophyteportal_synonyms
-from tests.APIs.API_Contract_Tests import ApiContractTests
+from tests.APIs.template_ApiTests import ApiTests
 
 
-class TestBryophytePortalContract(ApiContractTests):
+class TestBryophytePortalContract(ApiTests):
     @pytest.fixture(scope="class")
     def api_fn(self):
         return get_bryophyteportal_synonyms

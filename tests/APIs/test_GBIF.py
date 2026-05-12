@@ -10,10 +10,10 @@ Run from the home directory:
 import pytest
 
 from scripts.APIs.GBIF import get_gbif_synonyms
-from tests.APIs.API_Contract_Tests import ApiContractTests
+from tests.APIs.template_ApiTests import ApiTests
 
 
-class TestGBIFContract(ApiContractTests):
+class TestGBIFContract(ApiTests):
     @pytest.fixture(scope="class")
     def api_fn(self):
         return get_gbif_synonyms

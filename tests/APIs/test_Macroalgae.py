@@ -10,10 +10,10 @@ Run from the home directory:
 import pytest
 
 from scripts.APIs.Macroalgae import get_macroalgae_synonyms
-from tests.APIs.API_Contract_Tests import ApiContractTests
+from tests.APIs.template_ApiTests import ApiTests
 
 
-class TestMacroalgaeContract(ApiContractTests):
+class TestMacroalgaeContract(ApiTests):
     @pytest.fixture(scope="class")
     def api_fn(self):
         return get_macroalgae_synonyms

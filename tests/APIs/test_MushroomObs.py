@@ -10,10 +10,10 @@ Run from the home directory:
 import pytest
 
 from scripts.APIs.MushroomObs import get_mushroom_observer_synonyms
-from tests.APIs.API_Contract_Tests import ApiContractTests
+from tests.APIs.template_ApiTests import ApiTests
 
 
-class TestMushroomObsContract(ApiContractTests):
+class TestMushroomObsContract(ApiTests):
     @pytest.fixture(scope="class")
     def api_fn(self):
         return get_mushroom_observer_synonyms
