@@ -28,7 +28,9 @@ st.title("Species Name Synonym Search")
 if "pending_query" in st.session_state:
     st.session_state["query_input"] = st.session_state.pop("pending_query")
 
-query = st.text_input("Enter a species name", placeholder="e.g. Amanita muscaria", key="query_input")
+query = st.text_input(
+    "Enter a species name", placeholder="e.g. Amanita muscaria", key="query_input"
+)
 
 source_labels = {
     "gbif": "GBIF",
@@ -36,6 +38,7 @@ source_labels = {
     "mushroomobs": "Mushroom Observer",
     "mycoportal": "MyCoPortal",
     "bryophyteportal": "BryophytePortal",
+    "macroalgae": "Macroalgae",
     "indexfungorum": "Index Fungorum",
     "col": "Catalogue of Life",
 }
