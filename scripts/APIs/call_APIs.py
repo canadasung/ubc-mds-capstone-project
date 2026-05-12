@@ -29,7 +29,7 @@ Source = Literal[
 
 
 def main():
-    result = call_apis("Amanita muscaria")
+    result = call_apis("Amanita muscaria", sources=["gbif", "genbank", "mushroomobs"])
     print(result)
 
 
@@ -60,17 +60,11 @@ def call_apis(
       "mushroomobs": {"Amanita muscaria": [], "Agaricus muscarius": []}
     }
     """
-    if sources is None:
-        sources = [
-            "gbif",
-            "genbank",
-            "mushroomobs",
-            "mycoportal",
-            "bryophyteportal",
-            "macroalgae",
-        ]
 
     results = {}
+
+    if sources is None:
+        return json.dumps(results, indent=2)
 
     for source in sources:
         try:
