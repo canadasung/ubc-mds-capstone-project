@@ -8,9 +8,9 @@ Run from the home directory:
 """
 
 import pytest
-from test_API import ApiContractTests
 
 from scripts.APIs.MushroomObs import get_mushroom_observer_synonyms
+from tests.APIs.API_Contract_Tests import ApiContractTests
 
 
 class TestMushroomObsContract(ApiContractTests):

@@ -34,7 +34,7 @@ jobs:
         run: |
           pytest -v \
             tests/APIs/ \
-            --ignore=tests/APIs/test_API.py
+            --ignore=tests/APIs/API_Contract_Tests.py
 
   test-app:
     name: App Tests

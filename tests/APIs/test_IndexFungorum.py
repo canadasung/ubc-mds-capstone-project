@@ -8,9 +8,9 @@ Run from the home directory:
 """
 
 import pytest
-from test_API import ApiContractTests
 
 from scripts.APIs.IndexFungorum import get_indexfungorum_synonyms
+from tests.APIs.API_Contract_Tests import ApiContractTests
 
 
 class TestIndexFungorumContract(ApiContractTests):

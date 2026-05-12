@@ -10,7 +10,7 @@ Run from the home directory:
 import pytest
 
 from scripts.APIs.GBIF import get_gbif_synonyms
-from test_API import ApiContractTests
+from tests.APIs.API_Contract_Tests import ApiContractTests
 
 
 class TestGBIFContract(ApiContractTests):
