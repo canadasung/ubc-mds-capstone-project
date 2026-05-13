@@ -9,6 +9,8 @@ Main entry point: get_checklistbank_synonyms(query)
 
 import requests
 
+from scripts.utils.normalize_query_string import normalize_query_string
+
 CLB_BASE = "https://api.checklistbank.org"
 DATASET = "3LR"  # Latest COL release
 
@@ -42,6 +44,9 @@ def get_checklistbank_synonyms(species_name: str) -> dict:
     """
     if not species_name or not species_name.strip():
         return {}
+
+    # Normalize to ensure consistent API queries and dict keys
+    species_name = normalize_query_string(species_name)
 
     # Step 1: Match the species name to get the taxon ID
     match_resp = requests.get(

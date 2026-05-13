@@ -16,6 +16,8 @@ import xml.etree.ElementTree as ET
 
 import requests
 
+from scripts.utils.normalize_query_string import normalize_query_string
+
 IF_BASE = "https://www.indexfungorum.org/ixfwebservice/fungus.asmx"
 
 # Index Fungorum encodes spaces as _x0020_ in XML tag names
@@ -105,6 +107,9 @@ def get_indexfungorum_synonyms(species_name: str) -> dict:
     Example:
         {"Amanita muscaria": [], "Agaricus muscarius": []}
     """
+    # Normalize to ensure consistent API queries and dict keys
+    species_name = normalize_query_string(species_name)
+
     key = _name_search(species_name)
     if key is None:
         return {}

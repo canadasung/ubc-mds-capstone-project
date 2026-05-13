@@ -19,6 +19,8 @@ import xml.etree.ElementTree as ET
 import requests
 from dotenv import load_dotenv
 
+from scripts.utils.normalize_query_string import normalize_query_string
+
 load_dotenv()  # Read environment variables from .env file
 
 ENTREZ_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
@@ -131,6 +133,9 @@ def get_genbank_synonyms(query):
     Example:
         {"Amanita muscaria": [], "Agaricus muscarius": []}
     """
+    # Normalize to ensure consistent API queries and dict keys
+    query = normalize_query_string(query)
+
     # Fetch the primary taxon record for the query
     primary_ids = _esearch_ids(query)
     if not primary_ids:

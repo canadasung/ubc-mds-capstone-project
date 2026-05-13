@@ -2,6 +2,8 @@ import re
 
 import requests
 
+from scripts.utils.normalize_query_string import normalize_query_string
+
 BASE_URL = "https://mushroomobserver.org/api2"
 
 # Maps rank abbreviations found in MushroomObserver names to category keys.
@@ -65,6 +67,9 @@ def get_mushroom_observer_synonyms(species_name: str) -> dict:
     # Empty string or white spaces return {}
     if not species_name or not species_name.strip():
         return {}
+
+    # Normalize to ensure consistent API queries and dict keys
+    species_name = normalize_query_string(species_name)
 
     resp = requests.get(
         f"{BASE_URL}/names",
