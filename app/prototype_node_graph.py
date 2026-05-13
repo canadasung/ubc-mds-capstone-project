@@ -20,8 +20,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from pyvis.network import Network
 
-from scripts.APIs.call_APIs import call_apis
-
+from scripts.utils.call_APIs import call_apis
 
 # ---------------------------------------------------------------------------
 # Source configuration
@@ -35,55 +34,67 @@ from scripts.APIs.call_APIs import call_apis
 # ---------------------------------------------------------------------------
 
 SOURCE_LABELS = {
-    "gbif":            "GBIF",
-    "genbank":         "GenBank",
-    "mushroomobs":     "Mushroom Observer",
-    "mycoportal":      "MyCoPortal",
+    "gbif": "GBIF",
+    "genbank": "GenBank",
+    "mushroomobs": "Mushroom Observer",
+    "mycoportal": "MyCoPortal",
     "bryophyteportal": "Bryophyte Portal",
-    "macroalgae":      "Macroalgae Portal",
+    "macroalgae": "Macroalgae Portal",
 }
 
 # Use {} as the placeholder for the species name in each URL template.
 SOURCE_URLS = {
-    "gbif":            "https://www.gbif.org/search?q={}",
-    "genbank":         "https://www.ncbi.nlm.nih.gov/search/all/?term={}",
-    "mushroomobs":     None,
-    "mycoportal":      "https://mycoportal.org/portal/taxa/index.php?taxon={}",
+    "gbif": "https://www.gbif.org/search?q={}",
+    "genbank": "https://www.ncbi.nlm.nih.gov/search/all/?term={}",
+    "mushroomobs": None,
+    "mycoportal": "https://mycoportal.org/portal/taxa/index.php?taxon={}",
     "bryophyteportal": "https://bryophyteportal.org/portal/taxa/index.php?taxon={}",
-    "macroalgae":      "https://macroalgae.org/portal/taxa/index.php?taxon={}",
+    "macroalgae": "https://macroalgae.org/portal/taxa/index.php?taxon={}",
 }
+
 
 def _source_color(index: int, total: int, lightness: float = 0.38) -> str:
     """Evenly-spaced hue on the color wheel at full saturation."""
     r, g, b = colorsys.hls_to_rgb(index / total, lightness, 1.0)
     return "#{:02X}{:02X}{:02X}".format(int(r * 255), int(g * 255), int(b * 255))
 
+
 SOURCE_COLORS = {
-    src: _source_color(i, len(SOURCE_LABELS))
-    for i, src in enumerate(SOURCE_LABELS)
+    src: _source_color(i, len(SOURCE_LABELS)) for i, src in enumerate(SOURCE_LABELS)
 }
 
-def _derive_color(hex_color: str, sat_factor: float, lightness: float | None = None) -> str:
+
+def _derive_color(
+    hex_color: str, sat_factor: float, lightness: float | None = None
+) -> str:
     """Return a color derived from hex_color with adjusted HSL saturation and lightness.
 
     sat_factor multiplies the original saturation (0.5 = half, 0.25 = quarter, etc.).
     lightness, if given, overrides the original L value directly (0–1 scale).
     """
-    r, g, b = (int(hex_color.lstrip("#")[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+    r, g, b = (int(hex_color.lstrip("#")[i : i + 2], 16) / 255.0 for i in (0, 2, 4))
     h, l, s = colorsys.rgb_to_hls(r, g, b)
-    r2, g2, b2 = colorsys.hls_to_rgb(h, lightness if lightness is not None else l, s * sat_factor)
+    r2, g2, b2 = colorsys.hls_to_rgb(
+        h, lightness if lightness is not None else l, s * sat_factor
+    )
     return "#{:02X}{:02X}{:02X}".format(int(r2 * 255), int(g2 * 255), int(b2 * 255))
 
-DB_BG_COLORS   = {src: _derive_color(color, sat_factor=0.35)                for src, color in SOURCE_COLORS.items()}
-SYNONYM_COLORS = {src: _derive_color(color, sat_factor=0.25, lightness=0.75) for src, color in SOURCE_COLORS.items()}
+
+DB_BG_COLORS = {
+    src: _derive_color(color, sat_factor=0.35) for src, color in SOURCE_COLORS.items()
+}
+SYNONYM_COLORS = {
+    src: _derive_color(color, sat_factor=0.25, lightness=0.75)
+    for src, color in SOURCE_COLORS.items()
+}
 
 # Query node (the search term at the top left)
-QUERY_NODE_BG     = "#FFFFFF"
+QUERY_NODE_BG = "#FFFFFF"
 QUERY_NODE_BORDER = "#CCCCCC"
-QUERY_NODE_TEXT   = "#111111"
+QUERY_NODE_TEXT = "#111111"
 
 # DB nodes that failed to fetch
-ERROR_BG     = "#EEEEEE"
+ERROR_BG = "#EEEEEE"
 ERROR_BORDER = "#9E9E9E"
 
 
@@ -94,8 +105,8 @@ ERROR_BORDER = "#9E9E9E"
 # Synonym nodes extend to the right of their DB row at increasing x values.
 # ---------------------------------------------------------------------------
 
-ROW_HEIGHT    = 150  # vertical distance between each source row
-SYN_X_OFFSET  = 280  # x position of the first synonym in a row
+ROW_HEIGHT = 150  # vertical distance between each source row
+SYN_X_OFFSET = 280  # x position of the first synonym in a row
 SYN_X_SPACING = 110  # x distance between consecutive synonyms
 
 
@@ -175,11 +186,13 @@ CLICK_HANDLER_JS = """<script>
 # Data fetching
 # ---------------------------------------------------------------------------
 
+
 @st.cache_data(ttl=3600)
 def fetch_source(query: str, source: str) -> dict:
     """Fetch results for a single source. Cached independently so toggling a
     checkbox never re-queries sources that were already fetched."""
     return json.loads(call_apis(query, sources=[source]))
+
 
 def fetch(query: str, sources: tuple[str, ...]) -> dict:
     """Merge per-source results for all selected sources."""
@@ -192,6 +205,7 @@ def fetch(query: str, sources: tuple[str, ...]) -> dict:
 # ---------------------------------------------------------------------------
 # Graph construction
 # ---------------------------------------------------------------------------
+
 
 def _synonym_node_label(name: str) -> str:
     """Return an HTML label for a synonym node.
@@ -225,12 +239,13 @@ def build_graph(query: str, results: dict, expanded: set) -> str:
         label=f"<b>{query}</b>\n<i>Search Query</i>",
         color={
             "background": QUERY_NODE_BG,
-            "border":     QUERY_NODE_BORDER,
+            "border": QUERY_NODE_BORDER,
         },
         font={"color": QUERY_NODE_TEXT, "size": 16},
         widthConstraint={"minimum": 200, "maximum": 260},
         heightConstraint={"minimum": 64},
-        x=0, y=0,
+        x=0,
+        y=0,
         title=f"Query: {query}",
     )
 
@@ -239,9 +254,9 @@ def build_graph(query: str, results: dict, expanded: set) -> str:
     for source, label in SOURCE_LABELS.items():
         if source not in results:
             continue
-        data     = results[source]
+        data = results[source]
         is_error = isinstance(data, str)
-        count    = len(data) if isinstance(data, dict) else 0
+        count = len(data) if isinstance(data, dict) else 0
 
         db_x = 0
         db_y = ROW_HEIGHT * (row + 1)
@@ -249,24 +264,24 @@ def build_graph(query: str, results: dict, expanded: set) -> str:
 
         if is_error:
             db_label = f"<b>{label}</b>\n<code>error fetching results</code>"
-            bg       = ERROR_BG
-            border   = ERROR_BORDER
-            tooltip  = str(data)
+            bg = ERROR_BG
+            border = ERROR_BORDER
+            tooltip = str(data)
         elif count == 0:
             db_label = f"<b>{label}</b>\n<i>no results found</i>"
-            bg       = DB_BG_COLORS[source]
-            border   = SOURCE_COLORS[source]
-            tooltip  = f"{label}: no results found"
+            bg = DB_BG_COLORS[source]
+            border = SOURCE_COLORS[source]
+            tooltip = f"{label}: no results found"
         else:
-            noun     = "name" if count == 1 else "names"
+            noun = "name" if count == 1 else "names"
             db_label = f"<b>{label}</b>\n{count} {noun} found"
-            bg       = DB_BG_COLORS[source]
-            border   = SOURCE_COLORS[source]
-            tooltip  = f"{label}: {count} {noun} found"
+            bg = DB_BG_COLORS[source]
+            border = SOURCE_COLORS[source]
+            tooltip = f"{label}: {count} {noun} found"
 
         url_template = SOURCE_URLS.get(source)
         # Species names are plain Latin words, so replacing spaces is enough to make a valid URL
-        db_url       = url_template.format(query.replace(" ", "+")) if url_template else None
+        db_url = url_template.format(query.replace(" ", "+")) if url_template else None
         if not db_url and not is_error:
             tooltip += "\n(no direct link available for this source)"
 
@@ -275,12 +290,13 @@ def build_graph(query: str, results: dict, expanded: set) -> str:
             label=db_label,
             color={
                 "background": bg,
-                "border":     border,
+                "border": border,
             },
             font={"color": "#111111", "size": 14},
             widthConstraint={"minimum": 180, "maximum": 240},
             heightConstraint={"minimum": 64},
-            x=db_x, y=db_y,
+            x=db_x,
+            y=db_y,
             title=tooltip,
             url=db_url,
         )
@@ -291,9 +307,11 @@ def build_graph(query: str, results: dict, expanded: set) -> str:
 
         # Synonym nodes extend to the right of the DB node in this row
         for j, name in enumerate(data.keys()):
-            node_id  = f"{source}|{name}"
-            node_url = url_template.format(name.replace(" ", "+")) if url_template else None
-            tooltip  = name
+            node_id = f"{source}|{name}"
+            node_url = (
+                url_template.format(name.replace(" ", "+")) if url_template else None
+            )
+            tooltip = name
             if node_url:
                 tooltip += f"\n{node_url}"
             else:
@@ -304,7 +322,7 @@ def build_graph(query: str, results: dict, expanded: set) -> str:
                 label=_synonym_node_label(name),
                 color={
                     "background": SYNONYM_COLORS[source],
-                    "border":     SOURCE_COLORS[source],
+                    "border": SOURCE_COLORS[source],
                 },
                 font={"color": "#111111", "size": 13},
                 widthConstraint={"minimum": 160, "maximum": 220},
@@ -332,7 +350,8 @@ with st.sidebar:
 
     with st.expander("Databases", expanded=True):
         selected_sources = tuple(
-            src for src, label in SOURCE_LABELS.items()
+            src
+            for src, label in SOURCE_LABELS.items()
             if st.checkbox(label, value=True, key=f"src_{src}")
         )
 
@@ -349,7 +368,8 @@ with st.sidebar:
 
 # All sources that returned at least one result are shown expanded by default
 expanded = {
-    src for src in selected_sources
+    src
+    for src in selected_sources
     if isinstance(results.get(src), dict) and results[src]
 }
 
