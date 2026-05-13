@@ -31,10 +31,33 @@ jobs:
         shell: bash -el {0}
         env:
           ENTREZ_EMAIL: ${{ secrets.ENTREZ_EMAIL }}
-        run: |
-          pytest -v \
-            tests/APIs/ \
-            --ignore=tests/APIs/test_API.py
+        run: pytest -v tests/APIs/ # pytest will automatically discover all test files (i.e. test_*.py) in this directory and skip any non-test files (e.g. template_*.py)
+
+  test-utils:
+    name: Utils Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: mds-project
+          environment-file: environment.yml
+          auto-activate-base: false
+
+      - name: Install package in editable mode
+        shell: bash -el {0}
+        run: pip install -e .
+
+      - name: Run utils tests
+        shell: bash -el {0}
+        run: pytest -v tests/utils/ # pytest will automatically discover all test files (i.e. test_*.py) in this directory and skip any non-test files (e.g. template_*.py)
 
   test-app:
     name: App Tests
@@ -62,4 +85,4 @@ jobs:
         shell: bash -el {0}
         env:
           ENTREZ_EMAIL: ${{ secrets.ENTREZ_EMAIL }}
-        run: pytest -v tests/app/test_prototype.py
+        run: pytest -v tests/app/ # pytest will automatically discover all test files (i.e. test_*.py) in this directory and skip any non-test files (e.g. template_*.py)

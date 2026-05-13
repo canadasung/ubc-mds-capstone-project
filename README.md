@@ -23,26 +23,45 @@ This project was developed as part of the UBC Master of Data Science (MDS) DSCI 
 ```
 ubc-mds-project/
 ├── app/
-│   └── prototype.py          # Streamlit app entry point
-├── deprecated/
-│   └── AntWeb.py
+│   └── prototype.py              # Streamlit app entry point
+├── deprecated/               # files that are unused in the code base and may not be up to date
+│   └── ...
+├── notebooks/              # demonstrate usage of some scripts
+│   ├── APIs/
+│   │   ├── BryophytePortal.ipynb
+│   │   └── ...
+│   └── utils/
+│       └── fuzzy_search.ipynb
 ├── reports/
+│   ├── images/
 │   ├── planned_reports/
-│   │   └── inat-api-test.ipynb
 │   └── proposal.ipynb
-├── scripts/APIs/
-│   ├── planned_scripts/
-│   │   └── iNat.py
-│   ├── call_APIs.py
-│   ├── COL.py                # Catalogue of Life
-│   ├── GBIF.py
-│   ├── GenBank.py
-│   └── MushroomObs.py
+├── scripts/
+│   ├── APIs/
+│   │   ├── planned_scripts/              # scripts that are partially implemented and may be fully implemented in the future
+│   │   │   └── iNat.py
+│   │   ├── GBIF.py
+│   │   └── ...
+│   └── utils/
+│       ├── call_APIs.py          # aggregates all API calls
+│       └── fuzzy_search.py          # performs fuzzy matching on search query
+
 ├── tests/
-├── .env.example              # Template for environment variables
+│   ├── APIs/          # tests for each fully implemented API
+│   │   ├── test_GBIF.py
+│   │   └── ...
+│   ├── app/
+│   │   └── test_prototype.py
+│   ├── utils/
+│   │   ├── test_call_apis.py
+│   │   └── test_fuzzy_search.py
+│   └── conftest.py
+├── .env.example                  # Template for environment variables
 ├── .gitignore
-├── environment.yml           # Conda environment
+├── environment.yml               # Conda environment
+├── pyproject.toml               # sets up scripts folder as package so that API scripts can be called from tests, notebooks, and app
 ├── LICENSE
+├── paths.py               # defines paths to root and each major folder
 └── README.md
 ```
 
@@ -63,14 +82,6 @@ conda env create -f environment.yml
 ```bash
 conda activate mds-project
 ```
-
-### 3. Install the project package
-
-```bash
-pip install -e .
-```
-
-This makes the `scripts` package importable from anywhere — notebooks, the app, and tests — without any path configuration.
 
 ### 4. Set up credentials
 
@@ -97,7 +108,7 @@ The GenBank tests require an `ENTREZ_EMAIL` environment variable. To enable thes
 3. Set **Name** to `ENTREZ_EMAIL` and **Secret** to your email address
 4. Click **Add secret**
 
-If the secret is not set, the GenBank tests will be skipped automatically rather than failing.
+If the secret is not set, the GenBank tests will fail on Github.
 
 ---
 

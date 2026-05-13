@@ -8,12 +8,12 @@ Run from the home directory:
 """
 
 import pytest
-from test_API import ApiContractTests
 
 from scripts.APIs.MushroomObs import get_mushroom_observer_synonyms
+from tests.APIs.template_ApiTests import ApiTests
 
 
-class TestMushroomObsContract(ApiContractTests):
+class TestMushroomObsContract(ApiTests):
     @pytest.fixture(scope="class")
     def api_fn(self):
         return get_mushroom_observer_synonyms
