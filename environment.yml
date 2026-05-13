@@ -9,5 +9,6 @@ dependencies:
   - requests
   - python-dotenv
   - streamlit
+  - pyvis
   - pytest
   - pip
