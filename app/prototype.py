@@ -11,15 +11,11 @@ To run:
 """
 
 import json
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parents[1]))
 
 import pandas as pd
 import streamlit as st
 
-from scripts.APIs.call_APIs import call_apis
+from scripts.utils.call_APIs import call_apis
 from scripts.utils.fuzzy_search import fuzzy_search
 
 st.title("Species Name Synonym Search")

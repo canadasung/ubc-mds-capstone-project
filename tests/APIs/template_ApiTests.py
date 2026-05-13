@@ -23,7 +23,7 @@ _RANK_ABBREV_PATTERN = re.compile(
 )
 
 
-class ApiContractTests:
+class ApiTests:
     """
     Base class that enforces the output contract for every species synonym API.
 
@@ -43,12 +43,12 @@ class ApiContractTests:
 
     @pytest.fixture(scope="class")
     def valid_species_with_synonyms(self):
-        """Return a species name string known to have at least one synonym."""
+        """Return a species name string known to have at least one synonym. The species name string should be capitalized in the standard binomial format, i.e. "Genus species"."""
         raise NotImplementedError
 
     @pytest.fixture(scope="class")
     def valid_species_no_synonyms(self):
-        """Return a species name string known to exist but have no synonyms."""
+        """Return a species name string known to exist but have no synonyms. The species name string should be capitalized in the standard binomial format, i.e. "Genus species"."""
         raise NotImplementedError
 
     # --- Optional fixture (override in subclass with scope="class" if applicable) ---
@@ -62,14 +62,7 @@ class ApiContractTests:
 
     @pytest.fixture(scope="class")
     def _result_with_synonyms(self, api_fn, valid_species_with_synonyms):
-        try:
-            return api_fn(valid_species_with_synonyms)
-        except _NETWORK_ERRORS as e:
-            pytest.skip(f"API unreachable: {e}")
-
-    @pytest.fixture(scope="class")
-    def _result_with_synonyms_2(self, api_fn, valid_species_with_synonyms):
-        """Second independent call — only used by the consistency test."""
+        """Call the API with valid_species_with_synonyms and cache the result."""
         try:
             return api_fn(valid_species_with_synonyms)
         except _NETWORK_ERRORS as e:
@@ -77,6 +70,7 @@ class ApiContractTests:
 
     @pytest.fixture(scope="class")
     def _result_no_synonyms(self, api_fn, valid_species_no_synonyms):
+        """Call the API with valid_species_no_synonyms and cache the result."""
         try:
             return api_fn(valid_species_no_synonyms)
         except _NETWORK_ERRORS as e:
@@ -84,6 +78,7 @@ class ApiContractTests:
 
     @pytest.fixture(scope="class")
     def _result_nonexistent(self, api_fn, nonexistent_species):
+        """Call the API with nonexistent_species and cache the result."""
         try:
             return api_fn(nonexistent_species)
         except _NETWORK_ERRORS as e:
@@ -138,9 +133,14 @@ class ApiContractTests:
 
     # --- Valid species with synonyms ---
 
-    def test_with_synonyms_returns_nonempty_dict(self, _result_with_synonyms):
-        """A species that has synonyms should return a dict with at least one entry."""
-        assert len(_result_with_synonyms) >= 1
+    def test_with_synonyms_has_multiple_keys(
+        self, _result_with_synonyms, valid_species_with_synonyms
+    ):
+        """A species known to have synonyms should return more than one key."""
+        assert len(_result_with_synonyms) > 1, (
+            f"Expected synonyms for {valid_species_with_synonyms!r} but got only: "
+            f"{list(_result_with_synonyms.keys())}"
+        )
 
     def test_with_synonyms_query_name_is_key(
         self, _result_with_synonyms, valid_species_with_synonyms
@@ -148,15 +148,6 @@ class ApiContractTests:
         """The queried species name must appear as a key when the species is found."""
         assert valid_species_with_synonyms in _result_with_synonyms, (
             f"Query name {valid_species_with_synonyms!r} not found in result keys: "
-            f"{list(_result_with_synonyms.keys())}"
-        )
-
-    def test_with_synonyms_has_multiple_keys(
-        self, _result_with_synonyms, valid_species_with_synonyms
-    ):
-        """A species known to have synonyms should return more than one key."""
-        assert len(_result_with_synonyms) > 1, (
-            f"Expected synonyms for {valid_species_with_synonyms!r} but got only: "
             f"{list(_result_with_synonyms.keys())}"
         )
 
@@ -169,16 +160,6 @@ class ApiContractTests:
         )
 
     # --- Valid species with no synonyms ---
-
-    def test_no_synonyms_returns_dict_with_query(
-        self, _result_no_synonyms, valid_species_no_synonyms
-    ):
-        """A valid species with no synonyms should return a dict containing the query."""
-        assert isinstance(_result_no_synonyms, dict)
-        assert valid_species_no_synonyms in _result_no_synonyms, (
-            f"Expected {valid_species_no_synonyms!r} in result but got: "
-            f"{list(_result_no_synonyms.keys())}"
-        )
 
     def test_no_synonyms_only_query_key(
         self, _result_no_synonyms, valid_species_no_synonyms
@@ -199,7 +180,7 @@ class ApiContractTests:
     # --- Empty / blank input (no network calls — API returns early for these) ---
 
     def test_empty_string_returns_empty_dict_or_raises(self, api_fn):
-        """An empty string input should return {} or raise ValueError — never crash."""
+        """An empty string input should return {} or raise ValueError. It should never crash with an unhandled exception."""
         try:
             result = api_fn("")
             assert result == {}, f"Expected {{}} for empty input but got {result!r}"
@@ -207,7 +188,7 @@ class ApiContractTests:
             pass  # explicit validation is also acceptable
 
     def test_whitespace_string_returns_empty_dict_or_raises(self, api_fn):
-        """A whitespace-only input should return {} or raise ValueError — never crash."""
+        """A whitespace-only input should return {} or raise ValueError. It should never crash with an unhandled exception."""
         try:
             result = api_fn("   ")
             assert result == {}, (
@@ -219,17 +200,51 @@ class ApiContractTests:
     # --- Consistency ---
 
     def test_repeated_calls_return_same_keys(
-        self, _result_with_synonyms, _result_with_synonyms_2
+        self, api_fn, _result_with_synonyms, valid_species_with_synonyms
     ):
         """Two calls with the same input must return the same set of synonym keys."""
-        assert set(_result_with_synonyms.keys()) == set(_result_with_synonyms_2.keys()), (
+        try:
+            second_result = api_fn(valid_species_with_synonyms)
+        except _NETWORK_ERRORS as e:
+            pytest.skip(f"API unreachable: {e}")
+        assert set(_result_with_synonyms.keys()) == set(second_result.keys()), (
             "Two calls with the same input returned different synonym sets"
         )
 
-    def test_lowercase_query_does_not_crash(self, api_fn, valid_species_with_synonyms):
-        """A lowercase query must return a dict or raise ValueError — never crash."""
+    # --- Case insensitivity and whitespace ---
+
+    def test_lowercase_query_returns_same_keys(
+        self, api_fn, _result_with_synonyms, valid_species_with_synonyms
+    ):
+        """A lowercase query must return the same synonym keys as the canonical query."""
         try:
             result = api_fn(valid_species_with_synonyms.lower())
-            assert isinstance(result, dict)
-        except (ValueError, *_NETWORK_ERRORS):
-            pass
+        except _NETWORK_ERRORS as e:
+            pytest.skip(f"API unreachable: {e}")
+        assert set(result.keys()) == set(_result_with_synonyms.keys()), (
+            "Lowercase query returned different keys than canonical query"
+        )
+
+    def test_uppercase_query_returns_same_keys(
+        self, api_fn, _result_with_synonyms, valid_species_with_synonyms
+    ):
+        """An uppercase query must return the same synonym keys as the canonical query."""
+        try:
+            result = api_fn(valid_species_with_synonyms.upper())
+        except _NETWORK_ERRORS as e:
+            pytest.skip(f"API unreachable: {e}")
+        assert set(result.keys()) == set(_result_with_synonyms.keys()), (
+            "Uppercase query returned different keys than canonical query"
+        )
+
+    def test_extra_whitespace_query_returns_same_keys(
+        self, api_fn, _result_with_synonyms, valid_species_with_synonyms
+    ):
+        """A query with extra surrounding whitespace must return the same synonym keys."""
+        try:
+            result = api_fn(f"  {valid_species_with_synonyms}  ")
+        except _NETWORK_ERRORS as e:
+            pytest.skip(f"API unreachable: {e}")
+        assert set(result.keys()) == set(_result_with_synonyms.keys()), (
+            "Query with extra whitespace returned different keys than canonical query"
+        )

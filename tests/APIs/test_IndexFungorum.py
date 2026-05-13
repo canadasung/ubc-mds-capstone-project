@@ -8,12 +8,12 @@ Run from the home directory:
 """
 
 import pytest
-from test_API import ApiContractTests
 
 from scripts.APIs.IndexFungorum import get_indexfungorum_synonyms
+from tests.APIs.template_ApiTests import ApiTests
 
 
-class TestIndexFungorumContract(ApiContractTests):
+class TestIndexFungorumContract(ApiTests):
     @pytest.fixture(scope="class")
     def api_fn(self):
         return get_indexfungorum_synonyms

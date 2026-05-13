@@ -2,15 +2,17 @@
 app_shiny.py
 To run: shiny run app_shiny.py --reload
 """
+
 import json
 import sys
 from pathlib import Path
+
 import pandas as pd
-from shiny import App, render, ui, reactive
+from shiny import App, reactive, render, ui
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from scripts.APIs.call_APIs import call_apis
+from scripts.utils.call_APIs import call_apis
 
 source_labels = {
     "gbif": "GBIF",
@@ -21,7 +23,12 @@ source_labels = {
 # 1. UI Definition
 app_ui = ui.page_fluid(
     ui.h2("Species Name Synonym Search"),
-    ui.input_text("query", "Enter a species name", placeholder="e.g. Amanita muscaria", width="400px"),
+    ui.input_text(
+        "query",
+        "Enter a species name",
+        placeholder="e.g. Amanita muscaria",
+        width="400px",
+    ),
     ui.accordion(
         ui.accordion_panel(
             "Advanced filters",
@@ -30,22 +37,22 @@ app_ui = ui.page_fluid(
                 "Sources to query",
                 choices=source_labels,
                 selected=list(source_labels.keys()),
-            )
+            ),
         )
     ),
     ui.output_ui("messages"),
-    ui.output_data_frame("results_table")
+    ui.output_data_frame("results_table"),
 )
+
 
 # 2. Server Logic
 def server(input, output, session):
-    
     # Reactive calculation: runs only when input.query or input.sources changes
     @reactive.Calc
     def fetch_data():
         query = input.query()
         selected_sources = list(input.sources())
-        
+
         if not query:
             return None, None
         if not selected_sources:
@@ -61,7 +68,7 @@ def server(input, output, session):
         status, data = fetch_data()
         if status == "warning":
             return ui.div(data, style="color: orange;")
-            
+
         if status == "success" and data:
             errors = []
             for source, label in source_labels.items():
@@ -91,7 +98,7 @@ def server(input, output, session):
         query_lower = query.lower()
         seen_lower: set[str] = {query_lower}
         unique_names: list[str] = [query]
-        
+
         for src_set in source_names.values():
             for name_lower in src_set:
                 if name_lower not in seen_lower:
@@ -106,23 +113,27 @@ def server(input, output, session):
             name_lower = name.lower()
             is_query = name_lower == query_lower
             display_name = name[0].upper() + name[1:]
-            
+
             checks = {
                 label: (
-                    "✓" if (is_query and len(source_names.get(src, set())) > 0)
-                    else "✓" if name_lower in source_names.get(src, set())
+                    "✓"
+                    if (is_query and len(source_names.get(src, set())) > 0)
+                    else "✓"
+                    if name_lower in source_names.get(src, set())
                     else ""
                 )
                 for src, label in source_labels.items()
                 if label in selected_labels
             }
             count = sum(1 for v in checks.values() if v)
-            rows.append({
-                "Name": display_name,
-                **checks,
-                "_count": count,
-                "_is_query": is_query,
-            })
+            rows.append(
+                {
+                    "Name": display_name,
+                    **checks,
+                    "_count": count,
+                    "_is_query": is_query,
+                }
+            )
 
         rows.sort(key=lambda r: (not r.pop("_is_query"), -r.pop("_count")))
         df = pd.DataFrame(rows)
@@ -134,5 +145,6 @@ def server(input, output, session):
 
         # return render.DataGrid(df.style.apply(bold_query_row, axis=1), width="100%")
         return render.DataGrid(df, width="100%")
+
 
 app = App(app_ui, server)
