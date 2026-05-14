@@ -60,7 +60,8 @@ def _source_color(index: int, total: int, lightness: float = 0.38) -> str:
 
 
 SOURCE_COLORS = {
-    src: _source_color(i, len(SOURCE_LABELS)) for i, src in enumerate(SOURCE_LABELS)
+    #src: _source_color(i, len(SOURCE_LABELS)) for i, src in enumerate(SOURCE_LABELS)
+    src: "#333333" for i, src in enumerate(SOURCE_LABELS)
 }
 
 
@@ -90,12 +91,12 @@ SYNONYM_COLORS = {
 
 # Query node (the search term at the top left)
 QUERY_NODE_BG = "#FFFFFF"
-QUERY_NODE_BORDER = "#CCCCCC"
+QUERY_NODE_BORDER = "#333333"
 QUERY_NODE_TEXT = "#111111"
 
 # DB nodes that failed to fetch
 ERROR_BG = "#EEEEEE"
-ERROR_BORDER = "#9E9E9E"
+ERROR_BORDER = "#333333"
 
 
 # ---------------------------------------------------------------------------
@@ -130,7 +131,7 @@ var options = {
     "chosen": false
   },
   "edges": {
-    "arrows": { "to": { "enabled": true, "scaleFactor": 0.6 } },
+    "arrows": { "to": { "enabled": false } },
     "smooth": false,
     "color": { "color": "#aaaaaa", "opacity": 0.8 },
     "width": 1.5,
@@ -233,7 +234,12 @@ def build_graph(query: str, results: dict, expanded: set) -> str:
     net = Network(height="650px", width="100%", bgcolor="#fafafa")
     net.set_options(GRAPH_OPTIONS)
 
-    # Query node -- top left anchor of the whole layout
+    # Count drawn rows so query node can be vertically centered among them.
+    # DB rows occupy y = ROW_HEIGHT*1 … ROW_HEIGHT*N, so center = ROW_HEIGHT*(N+1)/2.
+    total_rows = sum(1 for src in SOURCE_LABELS if src in results)
+    query_y = ROW_HEIGHT * (total_rows + 1) / 2
+
+    # Query node -- far left, vertically centered among all source rows
     net.add_node(
         "center",
         label=f"<b>{query}</b>\n<i>Search Query</i>",
@@ -244,8 +250,8 @@ def build_graph(query: str, results: dict, expanded: set) -> str:
         font={"color": QUERY_NODE_TEXT, "size": 16},
         widthConstraint={"minimum": 200, "maximum": 260},
         heightConstraint={"minimum": 64},
-        x=0,
-        y=0,
+        x=-SYN_X_OFFSET,
+        y=query_y,
         title=f"Query: {query}",
     )
 
@@ -342,7 +348,11 @@ def build_graph(query: str, results: dict, expanded: set) -> str:
 # Streamlit app
 # ---------------------------------------------------------------------------
 
-st.set_page_config(page_title="Species name synonym search", layout="wide")
+st.set_page_config(
+    page_title="Species name synonym search",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 with st.sidebar:
     st.title("Species name synonym search")
