@@ -1,5 +1,5 @@
 """
-taxonomy_comparison.py — Streamlit app for fungal taxonomy comparison
+taxonomy.py — Streamlit app for fungal taxonomy comparison
 
 Provides a search interface that queries taxonomy APIs for a given fungal
 species name and displays the full taxonomy (kingdom → species) from each
@@ -7,13 +7,15 @@ source side by side, with disagreements highlighted.
 
 To run:
     cd app/
-    streamlit run taxonomy_comparison.py
+    streamlit run taxonomy.py
 """
 
 import pandas as pd
 import streamlit as st
 
-from scripts.APIs.gbif_taxonomy import get_gbif_taxonomy
+from scripts.APIs.GBIF_taxonomy import get_gbif_taxonomy
+from scripts.APIs.COL_taxonomy import get_col_taxonomy
+from scripts.APIs.NCBI_taxonomy import get_ncbi_taxonomy
 
 st.title("Taxonomy Comparison")
 
@@ -22,8 +24,9 @@ RANKS = ["kingdom", "phylum", "class", "order", "family", "genus", "species"]
 # Maps source key → (display label, fetcher function)
 SOURCES = {
     "gbif": ("GBIF", get_gbif_taxonomy),
+    "col": ("Catalogue of Life", get_col_taxonomy),
+    "ncbi": ("NCBI", get_ncbi_taxonomy),
     # Future sources added here, e.g.:
-    # "col": ("Catalogue of Life", get_col_taxonomy),
     # "indexfungorum": ("Index Fungorum", get_indexfungorum_taxonomy),
 }
 
