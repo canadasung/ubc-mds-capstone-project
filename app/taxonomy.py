@@ -75,7 +75,7 @@ if query:
                 for col in df.columns:
                     vals = df[col].replace("—", None).dropna().unique()
                     if len(vals) > 1:
-                        styles[col] = "background-color: #fff3cd"  # amber
+                        styles[col] = "background-color: #ff4b4b"  # amber
                 return styles
 
             st.dataframe(
