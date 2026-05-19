@@ -99,40 +99,22 @@ If the metadata says the name is a synonym, the function automatically queries t
 Finally, it cleans up the raw response and hands it off as the standardized List of Dictionaries (described in the Output Formatting section), ready to be used by the rest of the application.
 
 
-## _resolve_usage_key()
+## Internal Helper: _resolve_usage_key()
+Purpose: Retrieves the universally accepted usage key (the official numeric ID of the accepted name) for a given species string. This is a prerequisite step before querying for historical synonyms.
 
-The _resolve_usage_key function acts as a smart filter to ensure your pipeline always uses the most accurate and up-to-date numeric ID (the "usage key") for a species, regardless of what the user typed in the search box.
+Execution Flow:
 
-Here is exactly how it works under the hood:
+1. Queries the GBIF /species/match endpoint with strict=true.
 
-The Problem It Solves
-When you search the GBIF database, it assigns a unique numeric ID to every single name it knows. However, not all names are equal.
+2. Validates the matchType. If the match is not exactly "EXACT", it aborts and returns None.
 
-- If a name is the current, scientifically accepted name, it just gets a standard usageKey.
+3. Evaluates the taxonomic status of the returned record:
 
-- If a name is an old, outdated synonym, it gets a usageKey, but GBIF also attaches an acceptedUsageKey that points to the modern, correct species.
+  - If "ACCEPTED", it returns the standard usageKey.
 
-If you accidentally pass the ID of an outdated synonym into GBIF's synonym lookup endpoint later in your code, GBIF will get confused and return an empty list.
+  - If "SYNONYM", it pivots and returns the acceptedUsageKey instead.
 
-How The Function Works
-The function takes the raw dictionary returned by the search() function and performs a simple check:
-
-
-```python
-    def _resolve_usage_key(self, match_data: dict) -> int:
-        if "acceptedUsageKey" in match_data:
-            return match_data["acceptedUsageKey"]
-        return match_data["usageKey"]
-```
-
-1. The Synonym Scenario: It first looks for an "acceptedUsageKey". If a user typed an old name like "Agaricus muscarius", this key will exist. The function immediately grabs it and ignores the outdated usageKey.
-
-2. The Accepted Name Scenario: If the user typed the perfectly correct modern name (like "Amanita muscaria"), there is no "acceptedUsageKey". The if statement fails, and it safely falls back to returning the standard "usageKey".
-
-##### Why is it essential for your app?
-By putting this helper function right before your .synonyms() method, you guarantee that your app acts like an expert taxonomist. It catches outdated user inputs, automatically pivots to the modern accepted taxonomy behind the scenes, and pulls the complete, correct list of synonyms every single time.
-
-==========================================
+Pivot Rationale: It is critical to pivot to the acceptedUsageKey when a user searches for a common/fringe/outdated synonym term. GBIF's synonym lookup endpoint is strictly one-way: the input parameter must be the ID of the accepted name to successfully retrieve the complete list of related synonyms.
 
 ## synonyms()
 
