@@ -116,67 +116,28 @@ Execution Flow:
 
 Pivot Rationale: It is critical to pivot to the acceptedUsageKey when a user searches for a common/fringe/outdated synonym term. GBIF's synonym lookup endpoint is strictly one-way: the input parameter must be the ID of the accepted name to successfully retrieve the complete list of related synonyms.
 
-## synonyms()
+## The synonyms() Function
+Purpose: Retrieves the complete historical list of alternate names (synonyms) for a given species, formatted into the strict structure required by the base.py blueprint.
 
-The synonyms() function is a standardized method defined in your SpeciesAPI base class. Its primary job is to take a single scientific string name (like "Amanita muscaria") and return a list of alternative names—such as historical classifications, misspellings, or related nomenclatural synonyms—recognized by that specific database.
+Execution Flow:
 
-Because every database is built differently, the actual internal logic of this function changes depending on which API client is running it.
+1. Key Resolution (The Hidden Call): The function first invokes the internal _resolve_usage_key() helper. This crucial step guarantees that regardless of what name the user typed, the function obtains the exact numeric identifier for the modern, accepted species.
 
-Here is how it behaves across your different files:
+2. Data Retrieval: Using that accepted usage key, the function queries the GBIF /species/{key}/synonyms endpoint to download the raw historical naming data.
 
-1. The Two-Step APIs (GBIF, Tropicos, Catalogue of Life)
-For highly structured relational databases, you cannot just ask for synonyms using a text string. The synonyms() method in these clients automatically performs a two-step process behind the scenes:
+3. Data Standardization: It iterates through the raw API response and extracts only the essential nomenclature details. It maps GBIF's internal keys (like authorship or taxonomicStatus) to the unified dictionary schema mandated by the SpeciesAPI contract.
 
-- It silently calls the search() method to convert your string text into a proprietary numeric ID (such as GBIF's usageKey or Tropicos's NameId).
+Output: Returns a clean, normalized list of dictionaries containing the canonicalName, author, date (if available), publishedIn, and source url for every known synonym.
 
-- It then pings a dedicated synonyms endpoint using that specific ID to fetch the list of names.
-(Note: If the search fails or returns a 404 error, the synonyms() function safely catches it and returns an empty list).
+## The occurrences() Function
+Purpose: Retrieves physical occurrence records (such as museum specimens and field observations) for a specified scientific name directly from the GBIF database.
 
-2. The Unsupported APIs (Symbiota, Mushroom Observer)
-Some portals are built purely for occurrence observations and do not have endpoints dedicated to taxonomic synonymy. In clients like SymbiotaAPI, the synonyms() function is hardcoded to simply return an empty list []. This is a defensive programming tactic; it ensures that when your app loops through all clients, it doesn't crash when it hits a database that lacks this feature.
+Execution Flow:
 
-3. XML APIs (Index Fungorum)
-Older databases like Index Fungorum return raw XML text rather than clean JSON. Its synonyms() method takes the name and returns an XML string that must be parsed downstream.
+1. Data Retrieval: Queries the GBIF /occurrence/search endpoint using the provided scientific name and record limit.
 
-##### Why it is critical for your overall pipeline:
-This function is the fuel for your SynonymEngine. When a user types a name into your Streamlit app, the engine calls .synonyms() on your authoritative taxonomic backbones (GBIF, Tropicos, COL, etc.) to gather all possible variations of that name.
+2. Data Standardization: Parses the raw JSON response to extract specific observation details. It maps GBIF's internal data fields strictly to standard Darwin Core terms (e.g., mapping location data to decimalLatitude and decimalLongitude, and observation dates to eventDate).
 
-By building this comprehensive master list of names first, your SpeciesAggregator can then cast a massive net across all the occurrence databases (like MyCoPortal or CCH2), ensuring you find physical records even if they were logged under an outdated scientific name 100 years ago!
+3. Image Extraction: Scans the media objects attached to each GBIF occurrence record. It extracts up to three valid image URLs per record and stores them in a custom top_3_images array.
 
-==========================================
-
-## occurrences()
-
-The occurrences() function is the workhorse for finding real-world data in your pipeline. While the synonyms() function asks, "What other names does this species go by?", the occurrences() function asks, "Where and when has this species actually been seen, collected, or sequenced?"
-
-Because your architecture is object-oriented, this function exists at three different levels, each doing a specific part of the job:
-
-1. The Blueprint (base.py)
-In your SpeciesAPI base class, occurrences() is defined as an abstract method. It enforces a strict rule: any database client you build must have a method that takes a scientific name and an optional limit, and it must return a list of occurrence dictionaries.
-
-2. The Individual API Clients
-Depending on which database you are querying, the occurrences() function behaves very differently:
-
-- The Data Providers (gbif.py, symbiota.py, mushroomobs.py): In these files, the function actively sends a request to the database's occurrence endpoints. It asks for physical specimen records, citizen science observations, or image data, and parses the response into a usable list. For example, in mushroomobs.py, it specifically parses out the date, latitude, longitude, and image URLs.
-
-- The Taxon-Only Databases (tropicos.py, col.py, index_fungorum.py): These databases are purely nomenclatural dictionaries; they don't store physical specimen data. Therefore, their occurrences() methods are hardcoded to simply return an empty list []. This safely tells the pipeline, "I have no physical data to give you."
-
-3. The Master Orchestrator (aggregator.py)
-This is where the real magic happens. In your SpeciesAggregator class, the occurrences() function acts as a massive net.
-
-Instead of taking just one name, it takes the primary name and a list of all known synonyms. It then automatically iterates through every single active API client and asks them for records.
-
-Python
-```
-# From your aggregator.py
-def occurrences(self, name: str, synonyms: list, apis: list, limit: int = 20) -> dict:
-```
-
-- Error Handling: Because Symbiota portals are notorious for crashing or throwing 403 blocks, the aggregator's occurrences() function wraps every call in a try/except block. If the Lichen Portal goes offline, the function gracefully captures the error as a string and keeps querying the other databases so your app doesn't crash.
-
-- The Output: It returns a massive master dictionary where the keys are the database names (e.g., "gbif", "mycoportal") and the values are the lists of physical records (or the error messages) it found.
-
-##### How it powers your App
-In your prototype_pipe.py Streamlit app, you don't actually display the raw occurrence data (like latitude/longitude). Instead, you use the occurrences() function as a proof of existence.
-
-By setting the limit=3, the app quickly asks the aggregator to check if databases like GenBank or MyCoPortal have any records under a specific synonym. If occurrences() returns data, your app confidently draws a checkmark "✓" in that column!
+Output: Returns a standardized list of dictionaries, where each dictionary contains the spatial, temporal, and media data for a single physical occurrence.
