@@ -126,10 +126,10 @@ class SymbiotaAPI(SpeciesAPI):
 
     def _resolve_accepted_tid(self, tid: int) -> tuple[int, str | None]:
         """
-        Check if the given Taxon ID belongs to an accepted name or an outdated synonym.
+        Check if the given Taxon ID belongs to an accepted name or an synonym.
 
         If the ID belongs to a synonym, this method automatically resolves and
-        returns the ID of the modern, accepted taxon.
+        returns the ID of the accepted taxon.
 
         Args:
             tid (int): The internal taxon ID to check.
