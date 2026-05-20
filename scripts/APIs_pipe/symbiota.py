@@ -1,4 +1,18 @@
-# Unified Symbiota API system data retrieval
+"""
+Unified Symbiota API system data retrieval
+
+This module serves as the dedicated connector between the application's data 
+aggregation pipeline and Symbiota-based portals (such as MyCoPortal or the Lichen Portal). 
+It is a concrete implementation of the `SpeciesAPI` blueprint.
+
+Because every Symbiota portal is hosted independently and their data structures 
+are historically inconsistent, this script acts as a specialized translator. It 
+routes data requests, handles unexpected web page errors, and includes fallback 
+mechanisms to extract data directly from the portal's website when standard 
+database queries fail.
+"""
+
+
 import re
 import xml.etree.ElementTree as ET
 
