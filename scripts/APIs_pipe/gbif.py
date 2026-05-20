@@ -99,7 +99,7 @@ class GBIFAPI(SpeciesAPI):
         if match.get("matchType") == "NONE":
             return []
 
-        usage_key = match.get("acceptedUsageKey") or match["usageKey"]
+        usage_key = self._resolve_usage_key(match)
         resp = requests.get(
             f"{self.BASE}/species/{usage_key}/synonyms", params={"limit": 500}
         )
