@@ -1,5 +1,19 @@
 # scripts/apis_pipe/index_fungorum.py
 
+"""index_fungorum.py — Index Fungorum API client.
+
+Concrete SpeciesAPI implementation for Index Fungorum, the global nomenclatural
+database for fungi. Responses come back as legacy XML, which this client parses
+into the pipeline's standard synonym dictionaries.
+
+The direct /Synonymy endpoint is unreliable (frequent HTTP 500s), so synonyms are
+resolved with a two-step query: map the name to its internal CurrentKey, then
+fetch all records sharing that key. Index Fungorum holds no occurrence data, so
+`occurrences` is a no-op.
+
+Main entry point: IndexFungorumAPI().synonyms(name)
+"""
+
 import xml.etree.ElementTree as ET
 
 import requests
@@ -33,9 +47,16 @@ class IndexFungorumAPI(SpeciesAPI):
     }
 
     def search(self, name: str) -> dict:
-        """
+        """Verify whether a name exists in the Index Fungorum database.
+
         Satisfies the SpeciesAPI abstract base class requirement.
-        Verifies if a name exists in the Index Fungorum database.
+
+        Args:
+            name (str): The scientific name to search for.
+
+        Returns:
+            dict: A match descriptor with 'name', 'matchType', and 'key' if the
+                name resolves to a CurrentKey; an empty dict if not found.
         """
         current_key = self._get_current_key(name)
         if current_key:
