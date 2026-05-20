@@ -62,7 +62,7 @@ class GBIFAPI(SpeciesAPI):
             match_data (dict): The dictionary returned by the `search` method.
 
         Returns:
-            int: The optimal GBIF usage key.
+            int: The official numeric ID of the accepted name.
         """
         if "acceptedUsageKey" in match_data:
             return match_data["acceptedUsageKey"]

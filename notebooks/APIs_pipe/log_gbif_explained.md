@@ -117,7 +117,7 @@ Execution Flow:
 Pivot Rationale: It is critical to pivot to the acceptedUsageKey when a user searches for a common/fringe/outdated synonym term. GBIF's synonym lookup endpoint is strictly one-way: the input parameter must be the ID of the accepted name to successfully retrieve the complete list of related synonyms.
 
 ## The synonyms() Function
-Purpose: Retrieves the complete historical list of alternate names (synonyms) for a given species, formatted into the strict structure required by the base.py blueprint.
+Purpose: Retrieves the complete historical list of alternate names (synonyms) for a given species.
 
 Execution Flow:
 
