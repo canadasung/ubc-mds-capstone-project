@@ -107,8 +107,8 @@ class SymbiotaAPI(SpeciesAPI):
         """
         Find the internal taxon ID (tid) for an exact species name match.
 
-        Uses the portal's internal autocomplete RPC endpoint to quickly
-        resolve a string name to the database's primary key.
+        Uses the portal's internal autocomplete search feature to quickly resolve 
+        a string name to the database's primary numeric key.
 
         Args:
             species_name (str): The capitalized scientific name to search for.
