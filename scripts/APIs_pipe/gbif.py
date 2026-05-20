@@ -1,9 +1,18 @@
-# GBIF covers the following:
-# - GBIF Occurrence Portal
-# - iDigBio Portal
-# - VertNet
-# - iNaturalist
-# - Darwin Core
+"""
+This module serves as the dedicated connector between the application's data 
+aggregation pipeline and the Global Biodiversity Information Facility (GBIF) API. 
+It is a concrete, fully realized implementation of the `SpeciesAPI` blueprint.
+
+The script acts as a translator, handling the specific routing and logic required 
+to communicate with GBIF's REST endpoints. It automates the retrieval of exact 
+taxonomic matches, resolves historical synonyms through secondary API routing, 
+and extracts image-rich physical occurrence records. 
+
+Crucially, this module shields the rest of the application from GBIF's complex, 
+deeply-nested JSON structure. It scrubs the raw data, applies Darwin Core standards 
+where necessary, and packages the results into clean, predictable dictionaries ready 
+for immediate frontend display.
+"""
 
 import re
 
@@ -14,12 +23,10 @@ from .base import SpeciesAPI
 
 class GBIFAPI(SpeciesAPI):
     """
-    Concrete implementation of the SpeciesAPI for the Global Biodiversity
-    Information Facility (GBIF) API.
+    Concrete implementation of the SpeciesAPI for the Global Biodiversity Information Facility (GBIF).
 
-    This client interacts with the GBIF REST API to perform taxonomic backbone
-    matching, retrieve synonyms, and fetch occurrence records using standardized
-    Darwin Core fields.
+    This client interacts directly with the GBIF REST API to perform taxonomic matching, 
+    retrieve historical synonyms, and fetch physical occurrence records mapped to Darwin Core standards.
     """
 
     BASE = "https://api.gbif.org/v1"
