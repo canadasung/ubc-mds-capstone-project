@@ -63,33 +63,61 @@ The function sends a web request to GBIF's official matching service. When it as
 2. The Raw Response (Receiving the Data)
 If the exact name exists in history, GBIF sends back a digital package (a JSON dictionary) containing the official, raw metadata about that specific name. This includes the accepted taxonomic name, the author who published it, its unique GBIF ID key, and its status (whether it is currently an accepted species or an older synonym).
 
-Example Output (Raw):
+Example of search() Output using Accepted Name (Raw):
 ```json
 {
-  "usageKey": 3328328,
-  "scientificName": "Amanita muscaria (L.) Lam.",
-  "canonicalName": "Amanita muscaria",
-  "rank": "SPECIES",
-  "status": "ACCEPTED",
-  "confidence": 99,
-  "matchType": "EXACT",
-  "kingdom": "Fungi",
-  "phylum": "Basidiomycota",
-  "class": "Agaricomycetes",
-  "order": "Agaricales",
-  "family": "Amanitaceae",
-  "genus": "Amanita",
-  "species": "Amanita muscaria",
-  "kingdomKey": 5,
-  "phylumKey": 34,
-  "classKey": 186,
-  "orderKey": 1499,
-  "familyKey": 4171,
-  "genusKey": 2526057,
-  "speciesKey": 3328328,
-  "synonym": false
+   "usageKey":8168319,
+   "scientificName":"Amanita muscaria (L.) Lam.",
+   "canonicalName":"Amanita muscaria",
+   "rank":"SPECIES",
+   "status":"ACCEPTED",
+   "confidence":98,
+   "matchType":"EXACT",
+   "kingdom":"Fungi",
+   "phylum":"Basidiomycota",
+   "order":"Agaricales",
+   "family":"Amanitaceae",
+   "genus":"Amanita",
+   "species":"Amanita muscaria",
+   "kingdomKey":5,
+   "phylumKey":34,
+   "classKey":186,
+   "orderKey":1499,
+   "familyKey":4171,
+   "genusKey":6005964,
+   "speciesKey":8168319,
+   "class":"Agaricomycetes"
 }
 ```
+
+Example of search() Output using Synonym Name (Raw):
+```json
+{
+   "usageKey":5452473,
+   "acceptedUsageKey":8168319,
+   "scientificName":"Amanita muscaria var. vulgaris Alb. & Schwein.",
+   "canonicalName":"Amanita muscaria vulgaris",
+   "rank":"VARIETY",
+   "status":"SYNONYM",
+   "confidence":99,
+   "matchType":"EXACT",
+   "kingdom":"Fungi",
+   "phylum":"Basidiomycota",
+   "order":"Agaricales",
+   "family":"Amanitaceae",
+   "genus":"Amanita",
+   "species":"Amanita muscaria",
+   "kingdomKey":5,
+   "phylumKey":34,
+   "classKey":186,
+   "orderKey":1499,
+   "familyKey":4171,
+   "genusKey":6005964,
+   "speciesKey":8168319,
+   "class":"Agaricomycetes"
+}
+```
+
 
 3. Processing and Handoff
 Once this raw metadata is received, the function does not just blindly pass it along. Instead, it processes the data using the Synonym Resolution Logic described above.
