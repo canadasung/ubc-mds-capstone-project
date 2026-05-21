@@ -3,14 +3,7 @@ This module defines the foundational architecture and abstract blueprint for the
 project's biodiversity data aggregation pipeline. 
 
 It establishes a strict contract (the `SpeciesAPI` base class) that all external 
-database connectors must adhere to. By enforcing standardized methods and consistent 
-output formats, it ensures the broader application can seamlessly query multiple, 
-vastly different biological databases without needing to handle their individual 
-structural quirks.
-
-This file is not meant to be executed directly or instantiated on its own. Instead, 
-it serves as the structural foundation that concrete API clients (such as the GBIF 
-or Symbiota connectors) must inherit from and implement.
+database connectors must adhere to.
 """
 
 from abc import ABC, abstractmethod
