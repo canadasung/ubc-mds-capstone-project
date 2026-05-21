@@ -29,10 +29,10 @@ symbiota.py returns standardized lists, JSON dictionaries, or parsed XML trees, 
 
 ## Initialization & Core Helpers
 ### __init__()
-This is the setup function. Because Symbiota runs many different websites (Lichen Portal, SERNEC, MyCoPortal), this function takes the specific website URL and stores it. This allows your app to create 12 different Symbiota clients from this single class just by passing in different URLs.
+This constructor method initializes the class instance. Because Symbiota is a decentralized software framework powering numerous independent databases (e.g., MyCoPortal, SERNEC, Lichen Portal), the client must be anchored to a specific endpoint. By accepting the base_url as a dynamic parameter, the application can instantiate multiple portal-specific client objects from this single class definition.
 
 ### _get()
-This is a "private" helper function (denoted by the underscore) that does all the actual downloading. Instead of writing requests.get(...) in every function, they all route through here. Crucially, this function attaches a fake Web Browser header ("User-Agent": "Mozilla/5.0") to trick Symbiota firewalls into thinking a real human is visiting, which prevents your app from being blocked.
+Helper function for requests.get(...). This function attaches a fake Web Browser header ("User-Agent": "Mozilla/5.0") to trick Symbiota firewalls into thinking a human is visiting to prevent the API calls from being blocked.
 
 ## Official API Endpoints
 ### search()
