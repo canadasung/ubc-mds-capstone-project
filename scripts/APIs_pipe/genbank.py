@@ -1,3 +1,15 @@
+"""
+GenBank (NCBI Entrez) API client for retrieving genetic sequence metadata.
+
+This module queries the NCBI nucleotide database via the E-utilities API to
+surface genetic sequence records as occurrence-like entries in the pipeline.
+It does not perform taxonomy resolution or synonym gathering — those phases
+are skipped. Records contain sequence titles, accession URLs, and update dates
+rather than field observation data.
+
+NCBI E-utilities API: https://www.ncbi.nlm.nih.gov/books/NBK25497/
+"""
+
 import time
 
 import requests
@@ -9,22 +21,23 @@ class GenBankAPI(SpeciesAPI):
     """
     Concrete implementation of the SpeciesAPI for GenBank (NCBI Entrez).
 
-    GenBank is the NIH genetic sequence database. Unlike taxonomic or
-    observational databases, this client interacts exclusively with the
-    NCBI E-utilities API to query the 'nucleotide' database. It bypasses
-    the pipeline's synonym phase and strictly maps DNA/RNA sequence data
-    into the standard occurrence dictionary format used by the aggregator.
+    Queries the NCBI nucleotide database for genetic sequence metadata records
+    associated with a taxon. Both search() and synonyms() are stubs that return
+    empty results — GenBank is used only for sequence record discovery, not
+    taxonomy resolution.
+
+    Occurrence records represent NCBI nucleotide entries, not field observations:
+    verbatimLocality holds the sequence title, eventDate is the NCBI record update
+    date (not a collection date), and coordinates are always null.
     """
 
     BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 
     def search(self, name: str) -> dict:
         """
-        Satisfies the SpeciesAPI abstract base class requirement.
-
-        Because GenBank is used strictly as a genetic occurrence database in
-        this pipeline rather than a primary taxonomic backbone, this method
-        safely returns an empty dictionary.
+        Not implemented for GenBank. GenBank is not a taxonomic backbone, so
+        there is no meaningful taxonomy resolution to perform. Returns an empty
+        dictionary so the pipeline's synonym-gathering phase is skipped cleanly.
 
         Args:
             name (str): The scientific name of the taxon (unused).
@@ -36,13 +49,12 @@ class GenBankAPI(SpeciesAPI):
 
     def synonyms(self, name: str) -> list[dict]:
         """
-        Satisfies the SpeciesAPI abstract base class requirement.
-
-        GenBank records genetic sequences, not historical taxonomic aliases.
-        Therefore, this client opts out of the pipeline's synonym-gathering phase.
+        Not implemented for GenBank. GenBank records genetic sequences, not
+        taxonomic aliases, so there are no synonyms to retrieve. Returns an
+        empty list to skip the pipeline's synonym-gathering phase.
 
         Args:
-            name (str): The scientific name to query.
+            name (str): The scientific name to query (unused).
 
         Returns:
             list[dict]: Always returns an empty list.
@@ -51,25 +63,26 @@ class GenBankAPI(SpeciesAPI):
 
     def occurrences(self, name: str, limit: int = 10) -> list[dict]:
         """
-        Retrieve genetic sequences mapped to the pipeline's occurrence standard.
+        Retrieve genetic sequence metadata records for a taxon from NCBI.
 
-        This method executes a required two-step query against the NCBI API:
-        1. Calls 'esearch.fcgi' to retrieve internal UIDs for the given taxon.
-        2. Calls 'esummary.fcgi' to fetch the rich metadata for those UIDs.
+        Executes a two-step query:
+        1. esearch.fcgi — retrieves internal UIDs for sequences matching the taxon.
+        2. esummary.fcgi — fetches metadata for those UIDs (title, accession, date).
 
-        It parses the results into the standard Darwin Core-like dictionary format,
-        using the sequence title as the 'locality' and constructing a direct
-        hyperlink to the physical DNA sequence record on the NCBI website.
+        Results are formatted to match the pipeline's standard occurrence dict, with
+        the following caveats: verbatimLocality holds the sequence title (not a place
+        name), eventDate is the NCBI record update date (not a collection date), and
+        coordinates are always null.
 
         Args:
             name (str): The scientific name of the organism (e.g., 'Amanita muscaria').
-            limit (int, optional): The maximum number of genetic sequences to
-                retrieve. Defaults to 10 to respect API rate limits.
+            limit (int, optional): Maximum number of sequence records to retrieve.
+                Defaults to 10 to stay within NCBI's rate limit of 3 requests/second.
 
         Returns:
-            list[dict]: A list of occurrence dictionaries. Each dictionary contains
-                'scientificName', 'eventDate', 'verbatimLocality' (sequence title),
-                'source', and 'occurrenceID' (URL to the NCBI record).
+            list[dict]: A list of dicts with keys: 'scientificName', 'eventDate',
+                'decimalLatitude', 'decimalLongitude', 'verbatimLocality',
+                'top_3_images', 'source', and 'occurrenceID' (URL to the NCBI record).
         """
         results = []
         try:
@@ -121,7 +134,7 @@ class GenBankAPI(SpeciesAPI):
                             "decimalLatitude": None,
                             "decimalLongitude": None,
                             # We use the sequence title as the "locality" so the UI has text to display
-                            "verbatimLocality": rec.get("title", "Genetic Sequence"),
+                            "verbatimLocality": rec.get("title", ""),
                             "top_3_images": [],  # DNA doesn't have field photos!
                             "source": "GenBank (NCBI)",
                             "occurrenceID": url,
