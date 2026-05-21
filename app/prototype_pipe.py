@@ -1,5 +1,10 @@
 """
 prototype_pipe.py — Streamlit app for species synonym search
+
+The prototype takes a user query and submits it to all relevant databases
+for a synonym search. The included databases include those powered by GBIF,
+Symbiota, and indepedents. The results are collected and transformed into
+our own table, which is then used by the different views we will support.
 """
 
 import json
@@ -8,7 +13,6 @@ import re
 import pandas as pd
 import streamlit as st
 
-# --- NEW: Import the single, unified backend orchestrator ---
 from scripts.utils.call_APIs_pipe import call_apis
 from scripts.utils.fuzzy_search import fuzzy_search
 
@@ -47,6 +51,7 @@ source_labels = {
     "mushroomobs": "Mushroom Observer",
 }
 
+# This is the advanced tab where the user can select which sources to query
 with st.expander("Advanced filters (Source Databases)", expanded=False):
     selected_labels = []
 
@@ -82,14 +87,14 @@ selected_sources = [
     src for src, label in source_labels.items() if label in selected_labels
 ]
 
-
+# For normalising query string. We should switch this to use utils/normalize_query_string.py
 def display_name_for(name: str) -> str:
     """Helper: normalize display of a name (capitalize first char)"""
     if not name:
         return name
     return name[0].upper() + name[1:]
 
-
+# Cleans and tidies up the results of occurrence results
 def clean_occurrence_name(name: str) -> str:
     """Extracts a clean 'Genus species' binomial from messy occurrence strings."""
     if not name:
@@ -104,7 +109,7 @@ def clean_occurrence_name(name: str) -> str:
         return f"{words[0]} {words[1]}"
     return name.strip()
 
-
+# A pipeline of things to do once the user clicks "Search"
 if query:
     if not selected_sources:
         st.warning("Select at least one source to query.")

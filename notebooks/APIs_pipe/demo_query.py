@@ -1,4 +1,8 @@
 # scripts/examples/demo_query.py
+#
+# This is a demo to show the search pipeline from the beginning (from user search
+# query to showing all the parsed and processed results). This file can be used to
+# quickly prototype and test app functionalities without creating a UI component.
 
 import json
 import os
@@ -6,17 +10,22 @@ import os
 from scripts.utils.aggregator import SpeciesAggregator
 
 # Import the centralized client builder
-from scripts.utils.call_APIs_pipe import _make_clients
+from scripts.utils.call_apis_pipe import _make_clients
 
 # Core pipeline
 from scripts.utils.router import TaxonRouter
 from scripts.utils.synonyms import SynonymEngine
 
-# change the species names to test and strictness to broad/narrow API search
+# Search query string (should be normalised with utils/normalize_query_string.py)
+# `strictness` decides which databases to use. Setting to False means query all
+# databases, while setting to True just performs search on 'universal apis`
+# The need for `strictness` should be discussed (i.e. what constitutes an api as
+# "universal"?)
 q_name = "Amanita muscaria"
 strictness = False
 
-
+# The "tidy" output of this demo
+# This emulates what an app with a UI might display/showcase to the user
 def print_showcase(official_syns, gbif_occs, symbiota_syns):
     """Prints a clear summary to the terminal mapping the data to UI requirements."""
     print("\n" + "=" * 60)
@@ -70,7 +79,11 @@ def print_showcase(official_syns, gbif_occs, symbiota_syns):
     )
     print("=" * 60 + "\n")
 
-
+# Main demo loop
+# 1. First initialise all clients
+# 2. Run the queries
+# 3. Collect the results
+# 4. Pass results to print_showcase() for tidy output
 def run_demo():
     print("Initializing clients...")
     clients = _make_clients()
@@ -215,6 +228,6 @@ def run_demo():
         "Success! Check the 'notebooks/APIs_pipe/demo_results/' folder to see the new data structures."
     )
 
-
+# The main function
 if __name__ == "__main__":
     run_demo()
