@@ -140,9 +140,9 @@ The app is designed to help museum curators quickly look up and evaluate current
 
 | Name | GitHub |
 |------|--------|
-| [Wendy Frankel] | [@handle](https://github.com/handle) |
+| [William Song] | [@handle](https://github.com/canadasung) |
 | [Molly Kessler] | [@handle](https://github.com/kessler24) |
-| [William Song] | [@handle](https://github.com/wendyf55) |
+| [Wendy Frankel] | [@handle](https://github.com/wendyf55) |
 | [Johnson Chuang] | [@handle](https://github.com/stoyq) |
 
 ---
