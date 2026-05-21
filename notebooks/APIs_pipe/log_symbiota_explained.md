@@ -44,15 +44,15 @@ This is the data-gatherer. It asks the occurrences/search.php page for a list of
 
 ## Custom Synonym Scraper
 ### _get_tid(self, species_name: str) (Step 1)
-This function abuses the website's autocomplete search bar feature (gettaxasuggest.php). You give it a string name, and it returns the website's hidden internal database ID for that species (the tid). You must have this ID to load the webpage.
+This method utilizes the portal's internal autocomplete endpoint (/rpc/gettaxasuggest.php). It accepts a species name string and returns the corresponding internal database identifier (tid). This identifier is required to access the species profile page.
 
 ### _resolve_accepted_tid(self, tid: int) (Step 2)
-Sometimes a user searches for an outdated name. If you scrape the page for an outdated name, it won't list the synonyms. This function checks the ID to see if it is accepted. If it is an outdated synonym, it automatically finds the ID of the modern, accepted name so the scraper goes to the right page.
+This method verifies the taxonomic status of the provided tid. If the identifier corresponds to a synonym, the profile page will not display the full synonym list. In such cases, this function automatically resolves and returns the tid of the currently accepted name to ensure accurate web scraping.
 
 ### _scrape_synonyms(self, accepted_tid: int) (Step 3)
-This is where the actual web scraping happens. It downloads the raw HTML code of the species profile page. It uses Regular Expressions (re.search) to find the exact `<div id="synonymDiv">` box on the page, extracts all the text trapped inside the italic `<i>` tags, and filters out subspecies or varieties.
+This method executes the HTML extraction. It downloads the source code of the accepted species profile page and applies regular expressions (re.search) to locate the `<div id="synonymDiv">` container. It extracts the taxonomic names contained within the `<i>` tags, actively filtering out infraspecific ranks (subspecies or varieties).
 
-Example synonym output when search "Trametes versicolor" with tid=189955:
+Example scraped synonym output for "Trametes versicolor" with tid=189955:
 ```json
 [
   {
@@ -73,20 +73,21 @@ Example synonym output when search "Trametes versicolor" with tid=189955:
 ```
 
 ### synonyms(self, name: str) (The Orchestrator)
-This is the public-facing function that your SynonymEngine actually calls. It runs the three scraping steps above in perfect order:
+This is the public-facing method called by the aggregator pipeline. It orchestrates the synonym retrieval process through the following sequential steps:
 
-1. Capitalizes the name.
+1. Capitalizes the input name.
 
-2. Gets the tid.
+2. Retrieves the initial tid.
 
-3. Resolves the accepted tid.
+3. Resolves the tid to the accepted name.
 
-4. Scrapes the HTML page.
+4. Scrapes the HTML profile page.
 
-5. Formats the scraped names into the clean list of dictionaries ([{"canonicalName": "Amanita muscaria"}]) that your pipeline expects.
-It wraps all of this in a massive try/except block so that if the website changes its HTML layout and breaks the scraper, it just quietly returns an empty list rather than crashing your entire project.
+5. Formats the extracted names into a standardized list of dictionaries.
 
-Example of the final output when search "Trametes versicolor" with tid=189955:
+All five steps are wrapped in a try/except block. In the event that a website changes its HTML layout, the function will silently fail and return an empty list.
+
+Example of the final output from synonyms() when search for "Trametes versicolor" with tid=189955:
 ```json
 [
   {
@@ -114,10 +115,10 @@ Example of the final output when search "Trametes versicolor" with tid=189955:
 ```
 
 ### _scrape_occurrences_html()
-This retrieves Physical Specimen Records. It acts as an emergency "safety net" for the main aggregator. When the portal's API completely fails and returns a visual HTML webpage instead of machine-readable JSON, this function steps in to rescue the physical occurrence data.
+Function to retrieve Physical Specimen Records via HTML scraping. Used as a fallback if a portal's API returns visual HTML instead of JSON.
 
-It does not initiate a network request. It takes the html_text that was already downloaded by the main occurrences() function. It acts purely as a parser for data already in memory.
+- In-Memory Execution: Parses the html_text payload previously downloaded by the parent occurrences() method without initiating additional network requests.
 
-It hunts for data tables. It searches the page for `<table>` elements with specific identifiers (id="occTable", class="styledtable", or class="table").
+- Table Identification: Locates specimen records by targeting DOM <table> elements with specific attributes (id="occTable", class="styledtable", or class="table").
 
-It has a dynamic schema. It reads the `<th>` (table headers) dynamically and uses whatever text the portal chose as the dictionary keys. It maps the `<td>` (table row) values to those headers.
+- Dynamic Schema Generation: Extracts table headers (<th>) to dynamically establish dictionary keys, subsequently mapping the corresponding row values (<td>) to these headers to construct a standardized list of dictionaries.
