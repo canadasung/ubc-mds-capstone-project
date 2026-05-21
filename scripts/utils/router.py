@@ -2,8 +2,7 @@
 """
 Routes taxonomic queries to a set of database sources based on kingdom name.
 
-This class acts as the traffic controller for the search query pipeline. Instead
-of querying all available databases (which takes time and bandwidth), it first
+This class acts as the traffic controller for the search query pipeline. It first
 asks GBIF to classify the organism's kingdom. It then returns a list of sources
 relevant to that specific kingdom.
 
@@ -49,7 +48,10 @@ class TaxonRouter:
 
         Returns:
             str: The resolved kingdom (e.g., 'Fungi', 'Plantae', 'Animalia').
-                 Based on GBIF's backbone there are 8 accepted kingdom names. 
+                 Based on GBIF's backbone there are 8 accepted kingdom names,
+                 though we only expect 3 (Fungi, Plantae, Animalia) given the
+                 museum's collection.
+                 
                  Returns 'Unknown' if the name cannot be resolved.
         """
         try:
