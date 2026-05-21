@@ -1,5 +1,7 @@
 import requests
 
+from scripts.utils.normalize_query_string import normalize_query_string
+
 # Maps GBIF rank strings to output category keys
 _RANK_CATEGORIES = {
     "SUBSPECIES": "subspecies",
@@ -23,6 +25,9 @@ def get_gbif_synonyms(species_name: str) -> dict:
     Example:
         {"Amanita muscaria": [], "Agaricus muscarius": []}
     """
+    # Normalize to ensure consistent API queries and dict keys
+    species_name = normalize_query_string(species_name)
+
     match_resp = requests.get(
         "https://api.gbif.org/v1/species/match",
         params={"name": species_name, "strict": "true"},
