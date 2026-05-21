@@ -13,7 +13,8 @@ symbiota.py is designed to fetch both basic taxonomic data and physical occurren
 ##### Synonyms
 Because the official Symbiota API lacks a dedicated endpoint for synonyms, the synonyms() method cannot simply request a clean data payload through API search. While no standardized API is available, many Symbiota websites do publish synonyms. They are extracted using three-step HTML web scraping workaround as follows:
 
-1. Identifier Lookup (_get_tid): It first queries the portal's hidden internal autocomplete script (gettaxasuggest.php) to quickly find the internal database numeric identifier (Taxon ID) for the user's string.
+1. Identifier Lookup (_get_tid): It first queries the portal's hidden internal autocomplete script, ("/rpc/gettaxasuggest.php"), to quickly find the internal database numeric identifier (Taxon ID) for the user's string.
+    - Note: RPC stands for Remote Procedure Call. This is a Symbiota defined hidden method build for internal database search but not for public API. This is accessible by the HTML scraping method because it's the mechanism of a user's browser searching a .php file.
 
 2. Modernization Check (_resolve_accepted_tid): It uses the Symbiota v2 API ("/api/v2/taxonomy/{identifier}") to check if that Taxon ID belongs to a modern accepted name or an synonym. If it is an synonym, it automatically pivots to the modern ID.
 
@@ -24,9 +25,11 @@ Safety Mechanism: Because web scraping is fragile, the entire synonyms() method 
 
 
 ##### A Quick Word of Caution
-Because this method relies on web scraping (re.search parsing HTML tags) and internal RPC files (gettaxasuggest.php), it is "brittle." If the developers of the Symbiota software decide to rename id="synonymDiv" to something else in a future update, this specific method will quietly break and return empty lists.
+Because this method relies on web scraping (re.search parsing HTML tags) and internal RPC files (/rpc/gettaxasuggest.php), it is "brittle." If the developers of the Symbiota software decide to rename id="synonymDiv" to something else in a future update, this specific method will quietly break and return empty lists.
 
 However, since you have gbif.py and col.py serving as your primary, highly stable taxonomic backbones, having this Symbiota scraper act as a secondary fallback layer is a brilliant way to ensure no regional synonyms slip through the cracks!
+
+- Note: RPC stands for Remote Procedure Call. This is a Symbiota defined hidden method build for internal database search but not for public API. This is accessible by the HTML scraping method because it's the 
 
 ##### Output Formatting
 
