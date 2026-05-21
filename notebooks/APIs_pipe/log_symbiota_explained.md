@@ -23,14 +23,6 @@ Because the official Symbiota API lacks a dedicated endpoint for synonyms, the s
 Safety Mechanism: Because web scraping is fragile, the entire synonyms() method is wrapped in a protective try/except block. If the portal administrators ever redesign their website layout and break the scraper, the function will quietly fail and return an empty list ([]) to prevent the main pipeline from crashing.
 
 
-
-##### A Quick Word of Caution
-Because this method relies on web scraping (re.search parsing HTML tags) and internal RPC files (/rpc/gettaxasuggest.php), it is "brittle." If the developers of the Symbiota software decide to rename id="synonymDiv" to something else in a future update, this specific method will quietly break and return empty lists.
-
-However, since you have gbif.py and col.py serving as your primary, highly stable taxonomic backbones, having this Symbiota scraper act as a secondary fallback layer is a brilliant way to ensure no regional synonyms slip through the cracks!
-
-- Note: RPC stands for Remote Procedure Call. This is a Symbiota defined hidden method build for internal database search but not for public API. This is accessible by the HTML scraping method because it's the 
-
 ##### Output Formatting
 
 symbiota.py returns standardized lists, JSON dictionaries, or parsed XML trees, which are easily ingested by downstream aggregator pipelines.
