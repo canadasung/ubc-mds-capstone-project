@@ -18,10 +18,13 @@ class SpeciesAggregator:
         Initialize the SpeciesAggregator.
 
         Args:
-            clients (dict): A dictionary mapping a string label to an initialized 
-                API client instance. 
-                Example: {"gbif": GBIFAPI(), "mycoportal": SymbiotaAPI("...")}
-            router (TaxonRouter, optional): An optional router instance to dynamically 
+            clients (dict): A dictionary mapping string keys to initialized API client
+                instances. Keys must match the strings used in the `apis` argument of
+                `occurrences()`. In practice these are the keys produced by
+                `_make_clients()` in call_apis_pipe.py — e.g. "gbif", "col",
+                "genbank", "mushroomobs", "symbiota_mycoportal", etc. Each value must
+                implement a `.occurrences(name, limit)` method.
+            router (TaxonRouter, optional): An optional router instance to dynamically
                 determine which APIs to query based on taxonomy.
         """
         self.clients = clients

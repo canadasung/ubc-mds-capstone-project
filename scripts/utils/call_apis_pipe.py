@@ -1,3 +1,20 @@
+"""
+Top-level entry point for the species data pipeline.
+
+This module wires together all API clients, the TaxonRouter, the SynonymEngine,
+and the SpeciesAggregator into a single callable function (`call_apis`). Callers
+only need to provide a scientific name; the pipeline handles routing, synonym
+discovery, and occurrence retrieval automatically.
+
+Typical usage:
+    from scripts.utils.call_apis_pipe import call_apis
+    payload = call_apis("Amanita muscaria")
+
+The returned JSON string has two top-level keys:
+  - "synonyms": official, symbiota, and independent synonym records
+  - "occurrences": per-source occurrence records and request statuses
+"""
+
 import json
 from typing import List, Optional
 
@@ -21,6 +38,14 @@ Source = str
 def _make_clients() -> dict:
     """
     Initialize and return a dictionary of all active API clients.
+
+    Each key is the canonical string identifier used throughout the pipeline
+    (by TaxonRouter, SynonymEngine, and SpeciesAggregator). Symbiota portals
+    are keyed by the pattern "symbiota_<portal>" so they can be identified as
+    a group downstream.
+
+    Returns:
+        dict: Mapping of string key → initialized SpeciesAPI instance.
     """
     clients = {
         "gbif": GBIFAPI(),
@@ -50,22 +75,30 @@ def call_apis(
     query: str, sources: Optional[List[Source]] = None, limit: int = 20
 ) -> str:
     """
-    Orchestrate the synonym and occurrence retrieval for requested sources.
+    Orchestrate synonym and occurrence retrieval for a scientific name.
 
-    Initializes the required pipeline engines and routes the query. It sweeps
-    official backbones, regional Symbiota portals, and independent databases
-    for historical synonyms, aggregates them all into string names, and uses
-    them to fetch robust occurrence records.
+    Runs the full pipeline in five steps:
+      1. Fetch official synonyms from backbone APIs (GBIF, COL, Tropicos, Index Fungorum).
+      2. Fetch synonyms from Symbiota portals and independent sources (e.g. Mushroom Observer).
+      3. Consolidate all discovered names into a deduplicated list for occurrence searching.
+      4. Query each selected API for occurrences under the primary name and all synonyms.
+      5. Return a single JSON payload combining synonyms and occurrences.
 
     Args:
-        query (str): The scientific name to search.
-        sources (Optional[List[str]]): An explicit list of API keys to query.
-            If None, the TaxonRouter will dynamically determine the best sources.
-        limit (int): The maximum number of occurrence records to retrieve per API.
+        query (str): The accepted scientific name to search (e.g. "Amanita muscaria").
+        sources (Optional[List[str]]): Explicit list of API keys (matching keys in
+            `_make_clients()`) to query. If None, TaxonRouter selects sources based
+            on the taxon's kingdom.
+        limit (int): Maximum occurrence records to retrieve per API per name query.
+            Defaults to 20.
 
     Returns:
-        str: A master JSON-formatted string containing two primary keys:
-             'synonyms' (metadata for the UI) and 'occurrences' (physical records).
+        str: JSON string with two top-level keys:
+            - "synonyms": dict with "official", "symbiota", and "independent" sub-keys,
+              each containing synonym records from those source groups.
+            - "occurrences": dict keyed by API name, each value containing a "status"
+              field ("success" / "warning" / "error") and either a "data" list or a
+              "message" string.
     """
     clients = _make_clients()
 
