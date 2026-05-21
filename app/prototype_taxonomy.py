@@ -6,14 +6,13 @@ species name and displays the full taxonomy (kingdom → species) from each
 source side by side, with disagreements highlighted.
 
 To run:
-    cd app/
-    streamlit run prototype_taxonomy.py
+    streamlit run app/prototype_taxonomy.py
 """
 
 import pandas as pd
 import streamlit as st
 
-from scripts.APIs.GBIF_taxonomy import get_gbif_taxonomy
+from scripts.APIs.gbif_taxonomy import get_gbif_taxonomy
 from scripts.APIs.COL_taxonomy import get_col_taxonomy
 from scripts.APIs.NCBI_taxonomy import get_ncbi_taxonomy
 
