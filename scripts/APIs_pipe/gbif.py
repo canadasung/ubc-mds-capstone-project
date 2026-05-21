@@ -1,17 +1,12 @@
 """
 This module serves as the dedicated connector between the application's data 
 aggregation pipeline and the Global Biodiversity Information Facility (GBIF) API. 
-It is a concrete, fully realized implementation of the `SpeciesAPI` blueprint.
+It is a concrete, fully realized implementation of the `SpeciesAPI` blueprint, 
+which can be found in base.py.
 
-The script acts as a translator, handling the specific routing and logic required 
-to communicate with GBIF's REST endpoints. It automates the retrieval of exact 
-taxonomic matches, resolves historical synonyms through secondary API routing, 
-and extracts image-rich physical occurrence records. 
-
-Crucially, this module shields the rest of the application from GBIF's complex, 
-deeply-nested JSON structure. It scrubs the raw data, applies Darwin Core standards 
-where necessary, and packages the results into clean, predictable dictionaries ready 
-for immediate frontend display.
+It automates the retrieval of exact taxonomic matches, resolves historical 
+synonyms through secondary API routing, and extracts image-rich physical 
+occurrence records.
 """
 
 import re
