@@ -4,23 +4,24 @@
 
 ##### Architecture & Scope
 
-symbiota.py is a generalized, object-oriented pipeline component. It inherits from your SpeciesAPI base class, meaning it follows a strict contract (search, synonyms, occurrences). Furthermore, it is not hardcoded to one website; it takes a base_url upon initialization so it can query any Symbiota portal (Lichen Portal, SERNEC, CCH2, etc.).
+symbiota.py is a generalized, object-oriented pipeline component. It inherits from the SpeciesAPI base class, meaning it follows a strict contract (search, synonyms, occurrences). Furthermore, it is not hardcoded to one website; it takes a base_url upon initialization so it can query any Symbiota portal (Lichen Portal, SERNEC, CCH2, etc.).
 
 ##### Information Target
 
 symbiota.py is designed to fetch both basic taxonomic data and physical occurrence records. It has a dedicated occurrences() method to pull down lists of specimen data.
 
 ##### Synonyms
+Because the official Symbiota API lacks a dedicated endpoint for synonyms, the synonyms() method cannot simply request a clean data payload through API search. While no standardized API is available, many Symbiota websites do publish synonyms. They are extracted using three-step HTML web scraping workaround as follows:
 
-Because the official Symbiota REST API lacks a synonym feature, the synonyms() method in this file simply returns an empty list (return []). It relies entirely on official taxasearch.php and search.php endpoints for its other data.
+1. Identifier Lookup (_get_tid): It first queries the portal's hidden internal autocomplete script (gettaxasuggest.php) to quickly find the internal database numeric identifier (Taxon ID) for the user's string.
 
-To get around the lack of an official synonym API, this script uses a complex three-step hack:
+2. Modernization Check (_resolve_accepted_tid): It uses the Symbiota v2 API ("/api/v2/taxonomy/{identifier}") to check if that Taxon ID belongs to a modern accepted name or an synonym. If it is an synonym, it automatically pivots to the modern ID.
 
-1. It queries a hidden internal RPC endpoint (gettaxasuggest.php) just to get an internal Taxon ID (tid).
+3. Web Page Scraping (_scrape_synonyms): Finally, it downloads the raw HTML webpage for that species and uses Regular Expressions `re.search(r'id="synonymDiv"...)` to manually extract synonym names out of the HTML `<i>` tags.
 
-2. It uses a v2 API endpoint to see if that ID is an accepted name or an outdated synonym.
+Safety Mechanism: Because web scraping is fragile, the entire synonyms() method is wrapped in a protective try/except block. If the portal administrators ever redesign their website layout and break the scraper, the function will quietly fail and return an empty list ([]) to prevent the main pipeline from crashing.
 
-3. Finally, it performs web scraping. It downloads the raw HTML webpage for that species and uses Regular Expressions (re.search(r'id="synonymDiv"...) to manually extract synonym names out of the HTML <i> tags.
+
 
 ##### A Quick Word of Caution
 Because this method relies on web scraping (re.search parsing HTML tags) and internal RPC files (gettaxasuggest.php), it is "brittle." If the developers of the Symbiota software decide to rename id="synonymDiv" to something else in a future update, this specific method will quietly break and return empty lists.
@@ -56,6 +57,26 @@ Sometimes a user searches for an outdated name. If you scrape the page for an ou
 ### _scrape_synonyms(self, accepted_tid: int) (Step 3)
 This is where the actual web scraping happens. It downloads the raw HTML code of the species profile page. It uses Regular Expressions (re.search) to find the exact `<div id="synonymDiv">` box on the page, extracts all the text trapped inside the italic `<i>` tags, and filters out subspecies or varieties.
 
+Example synonym output when search "Trametes versicolor" with tid=189955:
+```json
+[
+  {
+    "canonicalName": "Coriolus versicolor",
+    "author": "(L.) Quél.",
+    "date": "",
+    "publishedIn": "",
+    "url": "https://mycoportal.org/portal/taxa/index.php?taxon=189955"
+  },
+  {
+    "canonicalName": "Polyporus versicolor",
+    "author": "(L.) Fr.",
+    "date": "",
+    "publishedIn": "",
+    "url": "https://mycoportal.org/portal/taxa/index.php?taxon=189955"
+  }
+]
+```
+
 ### synonyms(self, name: str) (The Orchestrator)
 This is the public-facing function that your SynonymEngine actually calls. It runs the three scraping steps above in perfect order:
 
@@ -69,6 +90,33 @@ This is the public-facing function that your SynonymEngine actually calls. It ru
 
 5. Formats the scraped names into the clean list of dictionaries ([{"canonicalName": "Amanita muscaria"}]) that your pipeline expects.
 It wraps all of this in a massive try/except block so that if the website changes its HTML layout and breaks the scraper, it just quietly returns an empty list rather than crashing your entire project.
+
+Example of the final output when search "Trametes versicolor" with tid=189955:
+```json
+[
+  {
+    "canonicalName": "Trametes versicolor",
+    "author": "",
+    "date": "",
+    "publishedIn": "",
+    "url": "https://mycoportal.org/portal/taxa/index.php?taxon=189955"
+  },
+  {
+    "canonicalName": "Coriolus versicolor",
+    "author": "(L.) Quél.",
+    "date": "",
+    "publishedIn": "",
+    "url": "https://mycoportal.org/portal/taxa/index.php?taxon=189955"
+  },
+  {
+    "canonicalName": "Polyporus versicolor",
+    "author": "(L.) Fr.",
+    "date": "",
+    "publishedIn": "",
+    "url": "https://mycoportal.org/portal/taxa/index.php?taxon=189955"
+  }
+]
+```
 
 ### _scrape_occurrences_html()
 This retrieves Physical Specimen Records. It acts as an emergency "safety net" for the main aggregator. When the portal's API completely fails and returns a visual HTML webpage instead of machine-readable JSON, this function steps in to rescue the physical occurrence data.
