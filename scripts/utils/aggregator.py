@@ -1,6 +1,49 @@
-# Unified Occurrence Aggregator
+"""
+scripts/utils/aggregator.py
+----------------------------
+Unified occurrence aggregator for the UBC MDS species data pipeline.
 
-# scripts/core/aggregator.py
+This module provides 'SpeciesAggregator', a single entry point for fetching
+georeferenced occurrence records across multiple biodiversity APIs simultaneously.
+Rather than calling each API client individually, the pipeline passes a dict of
+initialized clients and a list of keys to query; the aggregator handles fan-out,
+synonym expansion, and per-source error isolation in one call.
+
+Typical pipeline flow
+---------------------
+1. call_apis_pipe.py builds a 'clients' dict via '_make_clients()', mapping
+   keys such as '"gbif"', '"symbiota_mycoportal"', and '"mushroomobs"' to
+   their respective API client instances.
+2. A 'SpeciesAggregator' is instantiated with that dict (and an optional
+   'TaxonRouter' for dynamic API selection).
+3. 'aggregator.occurrences(name, synonyms, apis, limit)' is called with the
+   accepted name, a pre-fetched list of synonym strings, and the subset of API
+   keys to query.
+4. The method searches every requested API for both the primary name and all
+   synonyms, collecting results into a '{api_key: {"status": ..., "data": [...]}}'
+   dict that is returned to the caller.
+
+Error handling
+--------------
+Each API is queried inside an isolated try/except block. Network failures
+(timeouts, connection errors, HTTP errors) produce a '"warning"' status so the
+pipeline can surface partial results rather than failing entirely. Unexpected
+exceptions produce an "error" status with the exception message.
+
+Usage::
+
+    from scripts.utils.aggregator import SpeciesAggregator
+
+    aggregator = SpeciesAggregator(clients={"gbif": gbif_client, "mushroomobs": mo_client})
+    results = aggregator.occurrences(
+        name="Amanita muscaria",
+        synonyms=["Agaricus muscarius"],
+        apis=["gbif", "mushroomobs"],
+        limit=20,
+    )
+"""
+
+# scripts/utils/aggregator.py
 import requests
 
 class SpeciesAggregator:
