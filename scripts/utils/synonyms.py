@@ -9,10 +9,7 @@ class SynonymEngine:
     """
     Engine for aggregating and deduplicating taxonomic synonyms across multiple APIs.
 
-    This class uses a dynamic taxon router to intelligently determine which
-    databases (e.g., Tropicos for plants, Index Fungorum for fungi) should be
-    queried based on the taxonomic lineage of the requested name. It normalizes
-    the output into a unified format containing provenance data, metadata
+    Normalizes the output into a unified format containing provenance data, metadata
     (authors, dates), and confidence scores.
     """
 
