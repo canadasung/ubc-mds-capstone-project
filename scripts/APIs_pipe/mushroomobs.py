@@ -1,4 +1,33 @@
-# scripts/apis_pipe/mushroomobs.py
+"""
+scripts/apis_pipe/mushroomobs.py
+--------------------------------
+Mushroom Observer API v2 client for the UBC MDS species aggregation pipeline.
+
+Mushroom Observer (https://mushroomobserver.org) is a community-driven database
+of fungal observations. This module provides two capabilities:
+
+    - **Synonyms**: Fetches historical species-level aliases for a given accepted
+      name, filtering out misspellings, "sp." placeholders, and infraspecific taxa
+      (varieties, forms, subspecies) so the output matches what other pipeline
+      sources (GBIF, Symbiota) return.
+
+    - **Occurrences**: Fetches georeferenced observation records that include at
+      least one image, returning Darwin Core-compatible fields plus a
+      ``top_3_images`` list used by the frontend gallery.
+
+Usage::
+
+    from scripts.apis_pipe.mushroomobs import MushroomObserverAPI
+
+    api = MushroomObserverAPI()
+    synonyms   = api.synonyms("Amanita muscaria")
+    occurrences = api.occurrences("Amanita muscaria", limit=20)
+
+Dependencies:
+    - requests  (HTTP calls)
+    - re        (rank-abbreviation parsing)
+    - .base.SpeciesAPI (abstract base class enforced by the pipeline)
+"""
 
 import re
 
@@ -9,13 +38,21 @@ from .base import SpeciesAPI
 
 class MushroomObserverAPI(SpeciesAPI):
     """
-    Concrete implementation of the SpeciesAPI for Mushroom Observer.
+    Mushroom Observer API v2 client.
 
-    This client interacts with the Mushroom Observer API v2 to retrieve
-    taxonomic synonyms and high-detail occurrence records (observations).
-    It utilizes custom regex parsing to filter out infraspecific taxa
-    and misspellings, ensuring the output strictly matches the aggregator
-    pipeline's standard dictionary structures.
+    Implements ``SpeciesAPI`` to supply fungal occurrence records and
+    species-level synonyms from the Mushroom Observer community database.
+
+    Attributes:
+        BASE_URL (str): Root URL for all API v2 requests.
+        HEADERS (dict): HTTP headers sent with every request. The User-Agent
+            string is required — the API rejects requests from the default
+            ``requests`` agent.
+        _RANK_PATTERNS (list[tuple[re.Pattern, str]]): Ordered list of
+            (compiled regex, category) pairs used by ``_parse_synonym`` to
+            classify infraspecific rank abbreviations. Longer/more-specific
+            patterns are listed before shorter ones to avoid false matches
+            (e.g. ``subsp.`` before ``s.``).
     """
 
     BASE_URL = "https://mushroomobserver.org/api2"
@@ -40,8 +77,17 @@ class MushroomObserverAPI(SpeciesAPI):
 
     def search(self, name: str) -> dict:
         """
-        Satisfies the SpeciesAPI abstract base class requirement.
-        Mushroom Observer is used for occurrences, not as a primary taxonomic backbone.
+        No-op implementation required by ``SpeciesAPI``.
+
+        Mushroom Observer is used exclusively for occurrences and synonym
+        look-ups; it is not used as a primary taxonomic backbone. Callers
+        should use ``occurrences()`` or ``synonyms()`` directly.
+
+        Args:
+            name (str): Ignored.
+
+        Returns:
+            dict: Always an empty dict.
         """
         return {}
 
