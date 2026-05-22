@@ -19,35 +19,6 @@ In this project, gbif.py acts as a Connector Module for the broader SpeciesAggre
 
 - As a "connector module," gbif.py is simply the dedicated translator for GBIF. When the master pipeline says, "Go get me everything you have on Amanita muscaria," this script knows exactly how to format the URL, ask the GBIF API, clean up the response, and hand it back to the master pipeline in a standardized format.
 
-
-##### Output Formatting
-When the search() function successfully retrieves data from GBIF, it normalizes the raw API response into a clean list of dictionaries. Every dictionary in the returned list represents one recognized name (either the accepted species name or a synonym) and contains its specific metadata.
-
-Dictionary Structure:
-
-- name: The scientific string of the species or synonym.
-
-- author: The scientist(s) who published the name.
-
-- key: The unique GBIF identifier for that specific name.
-
-- status: Indicates whether the name is "ACCEPTED" or a "SYNONYM".
-
-Example Output (Cleaned):
-```json
-[
-    {"name": "Amanita muscaria", "author": "(L.) Lam.", "key": 8168319, "status": "ACCEPTED"},
-    {"name": "Agaricus muscarius", "author": "L.", "key": 5240296, "status": "SYNONYM"}
-]
-```
-
-##### Synonym Resolution Logic
-One of the most important features of this module is how it handles searches for alternate names.
-
-If a user searches for a synonym that has a modern accepted name (e.g., searching for the less common or outdated Agaricus muscarius), the GBIF API will flag it as a "SYNONYM" and provide an acceptedUsageKey that points to the modern, accepted name (Amanita muscaria).
-
-The algorithm then uses the key for the accepted name to get the full list of synonyms. This guarantees that the rest of your application is always working with the complete and up-to-date taxonomic framework, regardless of which historical name the user typed into the search bar.
-
 ## The search() Function
 The search() function is the starting point for finding species names. Its primary job is to take a text string (like "Amanita muscaria") and ask the GBIF database to find an exact, authoritative match for it.
 
@@ -61,7 +32,7 @@ The function sends a web request to GBIF's official matching service. When it as
 - strict: Set to true. This tells the database not to guess. If a name is misspelled, we want the database to safely return "Not Found" rather than guessing and accidentally returning data for the wrong species. This guarantees that our data remains highly accurate. We also have implemented fuzzy-matching mechanism in case a user inputs a typo. Please see the log for fuzzy_search.py for more information.
 
 2. The Raw Response (Receiving the Data)
-If the exact name exists in history, GBIF sends back a digital package (a JSON dictionary) containing the official, raw metadata about that specific name. This includes the accepted taxonomic name, the author who published it, its unique GBIF ID key, and its status (whether it is currently an accepted species or an older synonym).
+If the exact name exists in history, GBIF sends back a digital package (a JSON dictionary) containing the official, raw metadata about that specific name. This includes the accepted taxonomic name, the author who published it, its unique GBIF ID key, and its status flag as "ACCEPTED" or "SYNONYM". If the searched name is a synonym, it also provides an acceptedUsageKey.
 
 Example of search() Output using Accepted Name (Raw):
 ```json
@@ -118,44 +89,112 @@ Example of search() Output using Synonym Name (Raw):
 }
 ```
 
-
-3. Processing and Handoff
-Once this raw metadata is received, the function does not just blindly pass it along. Instead, it processes the data using the Synonym Resolution Logic described above.
-
-If the metadata says the name is a synonym, the function automatically queries the database a second time using the modern accepted key.
-
-Finally, it cleans up the raw response and hands it off as the standardized List of Dictionaries (described in the Output Formatting section), ready to be used by the rest of the application.
-
-
 ## Internal Helper: _resolve_usage_key()
-Purpose: Retrieves the universally accepted usage key (the official numeric ID of the accepted name) for a given species string. This is a prerequisite step before querying for historical synonyms.
-
-Execution Flow:
-
-1. Queries the GBIF /species/match endpoint with strict=true.
-
-2. Validates the matchType. If the match is not exactly "EXACT", it aborts and returns None.
-
-3. Evaluates the taxonomic status of the returned record:
-
-  - If "ACCEPTED", it returns the standard usageKey.
-
-  - If "SYNONYM", it pivots and returns the acceptedUsageKey instead.
-
-Pivot Rationale: It is critical to pivot to the acceptedUsageKey when a user searches for a common/fringe/outdated synonym term. GBIF's synonym lookup endpoint is strictly one-way: the input parameter must be the ID of the accepted name to successfully retrieve the complete list of related synonyms.
+This helpfer function retrieves the universally accepted usage key (if acceptedUsageKey variable appears, example shown above), the official numeric ID of the accepted name, for a given species string from the search() function json result. This is a prerequisite step before querying for synonyms.
 
 ## The synonyms() Function
-Purpose: Retrieves the complete historical list of alternate names (synonyms) for a given species.
+Purpose: Retrieves the complete historical list of alternate names (synonyms) for a given species. The returned result(s) doesn't include the accepted name but only the accepted name's synonyms.
 
 Execution Flow:
 
-1. Key Resolution (The Hidden Call): The function first invokes the internal _resolve_usage_key() helper. This crucial step guarantees that regardless of what name the user typed, the function obtains the exact numeric identifier for the modern, accepted species.
+1. Name Match: The function first search the queried name and return raw json result (see example above in the search() seciton).
 
-2. Data Retrieval: Using that accepted usage key, the function queries the GBIF /species/{key}/synonyms endpoint to download the raw historical naming data.
+2. Key Resolution: The function invokes the internal _resolve_usage_key() helper to identify whether the searched name is an accepted name or synonym. This step guarantees that regardless of what name the user typed, the function obtains the exact numeric identifier for the accepted species.
 
-3. Data Standardization: It iterates through the raw API response and extracts only the essential nomenclature details. It maps GBIF's internal keys (like authorship or taxonomicStatus) to the unified dictionary schema mandated by the SpeciesAPI contract.
+3. Data Retrieval: Using that accepted usage key, the function queries the GBIF /species/{key}/synonyms endpoint to download the raw synonym data.
 
-Output: Returns a clean, normalized list of dictionaries containing the canonicalName, author, date (if available), publishedIn, and source url for every known synonym.
+Example of partial synonym result from GBIF synonym endpoint:
+```json
+{
+   "offset":0,
+   "limit":500,
+   "endOfRecords":true,
+   "results":[
+      {
+         "key":5455639,
+         "nubKey":5455639,
+         "nameKey":304921,
+         "taxonID":"gbif:5455639",
+         "sourceTaxonKey":176053019,
+         "kingdom":"Fungi",
+         "phylum":"Basidiomycota",
+         "order":"Agaricales",
+         "family":"Amanitaceae",
+         "genus":"Amanita",
+         "species":"Amanita muscaria",
+         "kingdomKey":5,
+         "phylumKey":34,
+         "classKey":186,
+         "orderKey":1499,
+         "familyKey":4171,
+         "genusKey":6005964,
+         "speciesKey":8168319,
+         "datasetKey":"d7dddbf4-2cf0-4f39-9b2a-bb099caae36c",
+         "constituentKey":"7ddf754f-d193-4cc9-b351-99906754a03b",
+         "parentKey":6005964,
+         "parent":"Amanita",
+         "acceptedKey":8168319,
+         "accepted":"Amanita muscaria (L.) Lam.",
+         "scientificName":"Agaricus aureolus Kalchbr.",
+         "canonicalName":"Agaricus aureolus",
+         "authorship":"Kalchbr.",
+         "nameType":"SCIENTIFIC",
+         "rank":"SPECIES",
+         "origin":"SOURCE",
+         "taxonomicStatus":"SYNONYM",
+         "nomenclaturalStatus":[
+            
+         ],
+         "remarks":"",
+         "publishedIn":"(1873). Icon. Sel. Hymenomyc. Hung. (Budapest) 1: 9.",
+         "numDescendants":0,
+         "lastCrawled":"2023-08-22T23:20:59.545+00:00",
+         "lastInterpreted":"2023-08-22T23:00:38.245+00:00",
+         "issues":[
+            
+         ],
+         "class":"Agaricomycetes"
+      },
+      ...
+    ]
+}
+```
+
+4. Output: Returns a clean, normalized list of dictionaries containing the canonicalName, author, date (if available), publishedIn, and source url for every known synonym.
+
+Example Output:
+```json
+[
+  {
+    "canonicalName": "Amanita muscaria",
+    "author": "(L.) Lam.",
+    "date": "1783",
+    "publishedIn": "Encycl. Méth. Bot. 1(1): 111",
+    "url": "https://www.gbif.org/species/8168319"
+  },
+  {
+    "canonicalName": "Agaricus muscarius",
+    "author": "L.",
+    "date": "1753",
+    "publishedIn": "Sp. pl. 2: 1172",
+    "url": "https://www.gbif.org/species/5240296"
+  },
+  {
+    "canonicalName": "Amanitaria muscaria",
+    "author": "(L.) E.-J. Gilbert",
+    "date": "1940",
+    "publishedIn": "Icon. Mycol. 27(Suppl. 1): 76",
+    "url": "https://www.gbif.org/species/5453472"
+  },
+  {
+    "canonicalName": "Venenarius muscarius",
+    "author": "(L.) Earle",
+    "date": "1909",
+    "publishedIn": "Bull. N.Y. Bot. Gard. 5: 450",
+    "url": "https://www.gbif.org/species/5240297"
+  }
+]
+```
 
 ## The occurrences() Function
 Purpose: Retrieves physical occurrence records (such as museum specimens and field observations) for a specified scientific name directly from the GBIF database.
