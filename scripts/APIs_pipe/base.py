@@ -1,52 +1,40 @@
-# All API clients follow the same structure
+"""
+This module defines the foundational architecture and abstract blueprint for the 
+project's biodiversity data aggregation pipeline. 
+
+It establishes a strict contract (the `SpeciesAPI` base class) that all external 
+database connectors must adhere to.
+"""
 
 from abc import ABC, abstractmethod
 
 
 class SpeciesAPI(ABC):
     """
-    Abstract base class defining a unified interface for all biodiversity APIs.
+    Abstract base class establishing a unified contract for biodiversity database clients.
 
-    This blueprint enforces a strict contract: any database client added to the
-    pipeline (e.g., GBIF, Symbiota, Tropicos) must implement these three core
-    methods and return data in the standardized formats defined below.
+    This blueprint mandates that any integrated database client (e.g., GBIF, Symbiota) 
+    must implement three core methods and return data in strictly standardized formats.
     """
 
     @abstractmethod
     def search(self, name: str):
         """
-        Query the primary backbone taxonomy to find a precise taxonomic match.
+        Queries the primary taxonomic backbone for a precise match.
 
         Args:
-            name (str): The scientific name to search for (e.g., "Amanita muscaria").
+            name (str): The scientific name to search (e.g., "Amanita muscaria").
 
         Returns:
-            dict | xml.etree.ElementTree.Element: The parsed response data containing
-                the database's internal ID or taxonomy resolution for the name.
-        """
-        pass
-
-    @abstractmethod
-    def occurrences(self, name: str, limit: int = 20) -> list[dict]:
-        """
-        Retrieve physical occurrence records (specimens, observations) for a taxon.
-
-        Args:
-            name (str): The scientific name to query.
-            limit (int, optional): Maximum number of records to return. Defaults to 20.
-
-        Returns:
-            list[dict]: A list of occurrence records. Whenever possible, clients
-                should format keys using standard Darwin Core terms (e.g.,
-                'decimalLatitude') AND include a custom 'top_3_images' key containing
-                a list of up to 3 image URL strings.
+            dict | xml.etree.ElementTree.Element: The parsed database response 
+                containing the internal ID or taxonomy resolution for the name.
         """
         pass
 
     @abstractmethod
     def synonyms(self, name: str) -> list[dict]:
         """
-        Retrieve taxonomic synonyms and their associated publication metadata.
+        Retrieves taxonomic synonyms and their associated publication metadata.
 
         Args:
             name (str): The primary accepted scientific name or target query.
@@ -65,5 +53,21 @@ class SpeciesAPI(ABC):
                     },
                     ...
                 ]
+        """
+        pass
+
+    @abstractmethod
+    def occurrences(self, name: str, limit: int = 20) -> list[dict]:
+        """
+        Retrieves physical occurrence records formatted to Darwin Core standards.
+
+        Args:
+            name (str): The scientific name to query.
+            limit (int, optional): Maximum number of records to return. Defaults to 20.
+
+        Returns:
+            list[dict]: A list of occurrence records. Clients must format keys using 
+                standard Darwin Core terms (e.g., 'decimalLatitude') and append a 
+                custom 'top_3_images' array containing up to 3 image URL strings.
         """
         pass

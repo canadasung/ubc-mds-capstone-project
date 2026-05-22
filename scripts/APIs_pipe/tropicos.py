@@ -1,3 +1,14 @@
+"""tropicos.py — Tropicos API client.
+
+Concrete SpeciesAPI implementation for Tropicos, the botanical database maintained
+by the Missouri Botanical Garden. Tropicos requires a registered API key (loaded
+from TROPICOS_API_KEY) and uses a relational model: names must first be resolved
+to an internal NameId before taxonomic data can be queried. Holds no occurrence
+data, so `occurrences` is a no-op.
+
+Main entry point: TropicosAPI().synonyms(name)
+"""
+
 import os
 
 import requests
@@ -5,7 +16,9 @@ from dotenv import load_dotenv
 
 from .base import SpeciesAPI
 
-load_dotenv()
+load_dotenv()  # Load TROPICOS_API_KEY from .env
+
+load_dotenv() #necessary to load the tropicos api key
 
 
 class TropicosAPI(SpeciesAPI):

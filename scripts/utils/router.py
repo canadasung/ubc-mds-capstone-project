@@ -1,18 +1,27 @@
-# API Route Determiner
-# scripts/core/router.py
+# API router
+"""
+Routes taxonomic queries to a set of database sources based on kingdom name.
+
+This class acts as the traffic controller for the search query pipeline. It first
+asks GBIF to classify the organism's kingdom. It then returns a list of sources
+relevant to that specific kingdom.
+
+Example:
+    from scripts.APIs_pipe.gbif import GBIFAPI
+    from scripts.utils.router import TaxonRouter
+
+    router = TaxonRouter(gbif_client=GBIFAPI())
+    kingdom = router._get_kingdom('Amanita muscaria')
+    # Fungi
+    apis = router.route("Amanita muscaria")
+    # ['gbif', 'col', 'genbank', 'index_fungorum', 'mushroomobs', ...]
+"""
 
 from scripts.APIs_pipe.base import SpeciesAPI
 
 
 class TaxonRouter:
     """
-    Intelligently routes taxonomic queries to the appropriate database clients.
-
-    This class acts as the traffic controller for the data pipeline. Instead of
-    blindly querying every available database (which wastes time and bandwidth),
-    it first asks GBIF to classify the organism's kingdom. It then dynamically
-    selects only the APIs relevant to that specific kingdom.
-
     Attributes:
         gbif (SpeciesAPI): An initialized GBIF API client used for high-level
             taxonomic resolution (determining the kingdom).
@@ -32,13 +41,17 @@ class TaxonRouter:
         Resolves the biological kingdom of a given scientific name.
 
         Performs a quick lookup against the GBIF backbone taxonomy to determine
-        if the organism is a Fungus, Plant, Animal, etc.
+        the kingdom name.
 
         Args:
             name (str): The scientific name to look up.
 
         Returns:
             str: The resolved kingdom (e.g., 'Fungi', 'Plantae', 'Animalia').
+                 Based on GBIF's backbone there are 8 accepted kingdom names,
+                 though we only expect 3 (Fungi, Plantae, Animalia) given the
+                 museum's collection.
+                 
                  Returns 'Unknown' if the name cannot be resolved.
         """
         try:
@@ -50,7 +63,7 @@ class TaxonRouter:
 
     def route(self, name: str, strict: bool = False) -> list[str]:
         """
-        Determines the optimal list of database clients for a given species.
+        Determines the list of database sources for a given species.
 
         Base APIs (like GBIF, COL, and GenBank) are always selected. Kingdom-specific
         APIs (like Tropicos for plants, or Mushroom Observer for fungi) are

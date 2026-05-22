@@ -1,9 +1,13 @@
-# GBIF covers the following:
-# - GBIF Occurrence Portal
-# - iDigBio Portal
-# - VertNet
-# - iNaturalist
-# - Darwin Core
+"""
+This module serves as the dedicated connector between the application's data 
+aggregation pipeline and the Global Biodiversity Information Facility (GBIF) API. 
+It is a concrete, fully realized implementation of the `SpeciesAPI` blueprint, 
+which can be found in base.py.
+
+It automates the retrieval of exact taxonomic matches, resolves historical 
+synonyms through secondary API routing, and extracts image-rich physical 
+occurrence records.
+"""
 
 import re
 
@@ -14,12 +18,10 @@ from .base import SpeciesAPI
 
 class GBIFAPI(SpeciesAPI):
     """
-    Concrete implementation of the SpeciesAPI for the Global Biodiversity
-    Information Facility (GBIF) API.
+    Concrete implementation of the SpeciesAPI for the Global Biodiversity Information Facility (GBIF).
 
-    This client interacts with the GBIF REST API to perform taxonomic backbone
-    matching, retrieve synonyms, and fetch occurrence records using standardized
-    Darwin Core fields.
+    This client interacts directly with the GBIF REST API to perform taxonomic matching, 
+    retrieve historical synonyms, and fetch physical occurrence records mapped to Darwin Core standards.
     """
 
     BASE = "https://api.gbif.org/v1"
@@ -55,7 +57,7 @@ class GBIFAPI(SpeciesAPI):
             match_data (dict): The dictionary returned by the `search` method.
 
         Returns:
-            int: The optimal GBIF usage key.
+            int: The official numeric ID of the accepted name.
         """
         if "acceptedUsageKey" in match_data:
             return match_data["acceptedUsageKey"]
@@ -92,7 +94,7 @@ class GBIFAPI(SpeciesAPI):
         if match.get("matchType") == "NONE":
             return []
 
-        usage_key = match.get("acceptedUsageKey") or match["usageKey"]
+        usage_key = self._resolve_usage_key(match)
         resp = requests.get(
             f"{self.BASE}/species/{usage_key}/synonyms", params={"limit": 500}
         )

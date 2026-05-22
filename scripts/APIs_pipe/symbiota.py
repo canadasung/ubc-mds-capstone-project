@@ -1,4 +1,18 @@
-# Unified Symbiota API system data retrieval
+"""
+Unified Symbiota API system data retrieval
+
+This module serves as the dedicated connector between the application's data 
+aggregation pipeline and Symbiota-based portals (such as MyCoPortal or the Lichen Portal). 
+It is a concrete implementation of the `SpeciesAPI` blueprint.
+
+Because every Symbiota portal is hosted independently and their data structures 
+are historically inconsistent, this script acts as a specialized translator. It 
+routes data requests, handles unexpected web page errors, and includes fallback 
+mechanisms to extract data directly from the portal's website when standard 
+database queries fail.
+"""
+
+
 import re
 import xml.etree.ElementTree as ET
 
@@ -93,8 +107,8 @@ class SymbiotaAPI(SpeciesAPI):
         """
         Find the internal taxon ID (tid) for an exact species name match.
 
-        Uses the portal's internal autocomplete RPC endpoint to quickly
-        resolve a string name to the database's primary key.
+        Uses the portal's internal autocomplete search feature to quickly resolve 
+        a string name to the database's primary numeric key.
 
         Args:
             species_name (str): The capitalized scientific name to search for.
@@ -112,10 +126,10 @@ class SymbiotaAPI(SpeciesAPI):
 
     def _resolve_accepted_tid(self, tid: int) -> tuple[int, str | None]:
         """
-        Check if the given Taxon ID belongs to an accepted name or an outdated synonym.
+        Check if the given Taxon ID belongs to an accepted name or an synonym.
 
         If the ID belongs to a synonym, this method automatically resolves and
-        returns the ID of the modern, accepted taxon.
+        returns the ID of the accepted taxon.
 
         Args:
             tid (int): The internal taxon ID to check.

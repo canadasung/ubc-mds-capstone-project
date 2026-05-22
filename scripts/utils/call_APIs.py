@@ -68,24 +68,25 @@ def call_apis(
 
     for source in sources:
         try:
-            if source == "gbif":
-                results["gbif"] = get_gbif_synonyms(query)
-            elif source == "genbank":
-                results["genbank"] = get_genbank_synonyms(query)
-            elif source == "mushroomobs":
-                results["mushroomobs"] = get_mushroom_observer_synonyms(query)
-            elif source == "mycoportal":
-                results["mycoportal"] = get_mycoportal_synonyms(query)
-            elif source == "bryophyteportal":
-                results["bryophyteportal"] = get_bryophyteportal_synonyms(query)
-            elif source == "macroalgae":
-                results["macroalgae"] = get_macroalgae_synonyms(query)
-            elif source == "indexfungorum":
-                results["indexfungorum"] = get_indexfungorum_synonyms(query)
-            elif source == "col":
-                results["col"] = get_checklistbank_synonyms(query)
-            else:
-                results[source] = f"Unknown source '{source}'"
+            match source:
+                case "gbif":
+                    results["gbif"] = get_gbif_synonyms(query)
+                case "genbank":
+                    results["genbank"] = get_genbank_synonyms(query)
+                case "mushroomobs":
+                    results["mushroomobs"] = get_mushroom_observer_synonyms(query)
+                case "mycoportal":
+                    results["mycoportal"] = get_mycoportal_synonyms(query)
+                case "bryophyteportal":
+                    results["bryophyteportal"] = get_bryophyteportal_synonyms(query)
+                case "macroalgae":
+                    results["macroalgae"] = get_macroalgae_synonyms(query)
+                case "indexfungorum":
+                    results["indexfungorum"] = get_indexfungorum_synonyms(query)
+                case "col":
+                    results["col"] = get_checklistbank_synonyms(query)
+                case _:
+                    results[source] = f"Unknown source '{source}'"
         except Exception as e:
             results[source] = f"Error: {e}"
 

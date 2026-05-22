@@ -1,3 +1,12 @@
+"""COL.py — Catalogue of Life API client.
+
+Concrete SpeciesAPI implementation for the Catalogue of Life (COL), served via
+the ChecklistBank API. COL is a global taxonomic checklist: it provides accepted
+names and synonymies but hosts no occurrence data, so `occurrences` is a no-op.
+
+Main entry point: COLAPI().synonyms(name)
+"""
+
 import requests
 
 from .base import SpeciesAPI

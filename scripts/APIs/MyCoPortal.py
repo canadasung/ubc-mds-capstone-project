@@ -16,6 +16,8 @@ import re
 
 import requests
 
+from scripts.utils.normalize_query_string import normalize_query_string
+
 BASE_URL = "https://mycoportal.org/portal"
 
 _HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -107,9 +109,8 @@ def get_mycoportal_synonyms(species_name: str) -> dict:
     if not species_name or not species_name.strip():
         return {}
 
-    # gettaxasuggest returns no results for a lowercase genus (observed behaviour) —
-    # capitalise the first character to match the portal's stored names
-    species_name = species_name[0].upper() + species_name[1:]
+    # Normalize to ensure consistent queries; portal requires a capitalized genus
+    species_name = normalize_query_string(species_name)
 
     tid = _get_tid(species_name)
     if tid is None:
