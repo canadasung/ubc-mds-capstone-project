@@ -14,19 +14,6 @@ of fungal observations. This module provides two capabilities:
     - **Occurrences**: Fetches georeferenced observation records that include at
       least one image, returning Darwin Core-compatible fields plus a
       ``top_3_images`` list used by the frontend gallery.
-
-Usage::
-
-    from scripts.apis_pipe.mushroomobs import MushroomObserverAPI
-
-    api = MushroomObserverAPI()
-    synonyms   = api.synonyms("Amanita muscaria")
-    occurrences = api.occurrences("Amanita muscaria", limit=20)
-
-Dependencies:
-    - requests  (HTTP calls)
-    - re        (rank-abbreviation parsing)
-    - .base.SpeciesAPI (abstract base class enforced by the pipeline)
 """
 
 import re
