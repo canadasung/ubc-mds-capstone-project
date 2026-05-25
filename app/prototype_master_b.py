@@ -99,6 +99,32 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+# ── Custom CSS ───────────────────────────────────────────────────────────────
+st.markdown(
+    """
+    <style>
+    /* Left search-panel: distinct background so it reads as a separate zone */
+    [data-testid="stHorizontalBlock"]:first-child
+        > [data-testid="stColumn"]:first-child {
+        background-color: #eef2f9;
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+    }
+
+    /* Restore visible border on text inputs inside the left panel so they
+       don't blend into the coloured background */
+    [data-testid="stHorizontalBlock"]:first-child
+        > [data-testid="stColumn"]:first-child
+        [data-baseweb="input"] {
+        background-color: #ffffff;
+        border: 1px solid #b0bccf !important;
+        border-radius: 0.375rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # ── Session state defaults ────────────────────────────────────────────────────
 st.session_state.setdefault("search_results", None)      # pd.DataFrame | None
 st.session_state.setdefault("selected_record", None)     # dict | None
