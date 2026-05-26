@@ -15,8 +15,19 @@ Writes: st.session_state["selected_record"]  (dict | None)
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pandas as pd
 import streamlit as st
+
+# Ensure the project root is on sys.path so `scripts` is importable
+# when this module is imported before the main app inserts the path.
+_PROJECT_ROOT = Path(__file__).parent.parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from scripts.utils.normalize_query_string import normalize_query_string  # noqa: E402
 
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
@@ -31,7 +42,7 @@ def _build_presence_table(df: pd.DataFrame, query: str) -> pd.DataFrame:
     The row matching *query* is placed first for bold styling.
     All other rows are sorted by descending count of sources.
     """
-    query_lower = query.lower()
+    query_normalized = normalize_query_string(query)
     sources: list[str] = []                          # ordered, first-seen
     presence: dict[str, dict[str, str]] = {}         # name → {source → url}
 
@@ -62,7 +73,7 @@ def _build_presence_table(df: pd.DataFrame, query: str) -> pd.DataFrame:
             "Name":      name,
             **url_cols,
             "_count":    count,
-            "_is_query": name.lower() == query_lower,
+            "_is_query": normalize_query_string(name) == query_normalized,
         })
 
     rows.sort(key=lambda r: (not r["_is_query"], -r["_count"]))

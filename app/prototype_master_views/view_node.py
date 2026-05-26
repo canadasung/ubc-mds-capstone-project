@@ -26,7 +26,7 @@ import streamlit.components.v1 as components
 from pyvis.network import Network
 
 # normalize_query_string lives in scripts/, which is at the project root.
-# prototype_master_b.py adds the root to sys.path before importing views,
+# prototype_master.py adds the root to sys.path before importing views,
 # so this import is safe at runtime.
 _PROJECT_ROOT = Path(__file__).parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:

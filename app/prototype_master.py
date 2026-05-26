@@ -18,7 +18,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from scripts.utils.normalize_query_string import normalize_query_string  # noqa: E402
-from prototype_master_b_views import view_a, view_b, view_c, view_d, view_debug
+from prototype_master_views import view_table, view_timeline, view_node, view_taxonomy, view_debug
 
 # ── Search toggle ─────────────────────────────────────────────────────────────
 # Flip to False once the real API pipeline is ready.
@@ -242,23 +242,23 @@ with right_col:
         if active_tab == "Debug":
             view_debug.render()
         elif active_tab == "Table":
-            view_a.render()
+            view_table.render()
         elif active_tab == "Timeline":
-            view_b.render()
+            view_timeline.render()
         elif active_tab == "Node":
-            view_c.render()
+            view_node.render()
         elif active_tab == "Taxonomic":
-            view_d.render()
+            view_taxonomy.render()
 
     # ── QUADRANT MODE ─────────────────────────────────────────────────────
     else:
         top_left, top_right = st.columns(2)
         bot_left, bot_right = st.columns(2)
 
-        with top_left:  view_a.render()
-        with top_right: view_b.render()
-        with bot_left:  view_c.render()
-        with bot_right: view_d.render()
+        with top_left:  view_table.render()
+        with top_right: view_timeline.render()
+        with bot_left:  view_node.render()
+        with bot_right: view_taxonomy.render()
         # Note: Debug View is intentionally excluded from the quadrant layout.
 
 # ── Deferred rerun ────────────────────────────────────────────────────────────
