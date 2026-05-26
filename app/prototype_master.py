@@ -1,5 +1,5 @@
 """
-Prototype Master B — Streamlit skeleton
+Prototype Master — Streamlit skeleton
 """
 
 from __future__ import annotations
