@@ -79,26 +79,53 @@ class SymbiotaAPI(SpeciesAPI):
             raise RuntimeError(f"403 Forbidden from {self.base}")
         return resp
 
-    def search(self, name: str):
+    def search(self, name: str) -> dict | None:
         """
         Search for taxonomic information on a specific species.
 
-        Symbiota APIs are historically inconsistent with content types. This
-        method attempts to parse the response as JSON first, falling back to
-        XML if the portal's specific version does not support JSON.
+        Tries the formal REST endpoint /api/v2/taxonomy/search first (primary),
+        falling back to the legacy taxa/taxasearch.php if the primary endpoint
+        fails or returns no results. Always returns a normalized dict so callers
+        do not need to handle XML or mixed types.
 
         Args:
             name (str): The scientific name to search for.
 
         Returns:
-            dict | xml.etree.ElementTree.Element: The parsed response data,
-                either as a JSON dictionary or an XML Element tree.
+            dict | None: Normalized JSON dict from the portal. List responses
+                are wrapped as {"results": [...]}. Returns None if both
+                endpoints fail or produce empty results.
         """
-        resp = self._get("taxa/taxasearch.php", {"taxon": name, "format": "json"})
+        # Primary: formal v2 REST endpoint
         try:
-            return resp.json()
-        except ValueError:
-            return ET.fromstring(resp.text)
+            resp = self._get(
+                "api/v2/taxonomy/search",
+                {"taxon": name, "type": "EXACT", "limit": 100, "offset": 0},
+            )
+            if resp.ok:
+                data = resp.json()
+                if isinstance(data, list):
+                    data = {"results": data}
+                if data:
+                    return data
+        except Exception:
+            pass
+
+        # Fallback: legacy PHP endpoint
+        try:
+            resp = self._get("taxa/taxasearch.php", {"taxon": name, "format": "json"})
+            try:
+                result = resp.json()
+                if isinstance(result, list):
+                    result = {"results": result}
+                return result or None
+            except ValueError:
+                root = ET.fromstring(resp.text)
+                return {"xml_text": ET.tostring(root, encoding="unicode")}
+        except Exception:
+            pass
+
+        return None
 
     # ---------------------------------------------------------
     # Synonym Scraping Logic
@@ -107,8 +134,9 @@ class SymbiotaAPI(SpeciesAPI):
         """
         Find the internal taxon ID (tid) for an exact species name match.
 
-        Uses the portal's internal autocomplete search feature to quickly resolve 
-        a string name to the database's primary numeric key.
+        Uses search() as the primary lookup (which calls /api/v2/taxonomy/search),
+        falling back to the portal's legacy autocomplete endpoint if search()
+        returns no usable tid.
 
         Args:
             species_name (str): The capitalized scientific name to search for.
@@ -116,12 +144,32 @@ class SymbiotaAPI(SpeciesAPI):
         Returns:
             int | None: The internal taxon ID if found, otherwise None.
         """
-        resp = self._get("taxa/taxonomy/rpc/gettaxasuggest.php", {"term": species_name})
-        resp.raise_for_status()
-        for item in resp.json():
-            label = item.get("label", "")
-            if re.match(rf"^{re.escape(species_name)}(\s|$)", label):
-                return int(item["id"])
+        # Primary: extract tid from search() results
+        data = self.search(species_name)
+        if data:
+            for item in data.get("results", []):
+                sciname = (
+                    item.get("sciname")
+                    or item.get("scientificName")
+                    or item.get("taxon", "")
+                )
+                if re.match(rf"^{re.escape(species_name)}(\s|$)", sciname, re.IGNORECASE):
+                    try:
+                        return int(item["tid"])
+                    except (KeyError, ValueError, TypeError):
+                        pass
+
+        # Fallback: legacy autocomplete endpoint
+        try:
+            resp = self._get("taxa/taxonomy/rpc/gettaxasuggest.php", {"term": species_name})
+            resp.raise_for_status()
+            for item in resp.json():
+                label = item.get("label", "")
+                if re.match(rf"^{re.escape(species_name)}(\s|$)", label):
+                    return int(item["id"])
+        except Exception:
+            pass
+
         return None
 
     def _resolve_accepted_tid(self, tid: int) -> tuple[int, str | None]:
