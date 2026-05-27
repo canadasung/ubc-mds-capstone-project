@@ -322,31 +322,36 @@ class SymbiotaAPI(SpeciesAPI):
             accepted_tid  = int(accepted.get("tid", tid))
             accepted_name = accepted.get("scientificName") or accepted.get("sciname") or ""
 
-            # Re-fetch the accepted taxon to guarantee its full classification array.
+            # Re-fetch the accepted taxon to get its full classification and author.
             try:
                 acc_resp = self._get(f"api/v2/taxonomy/{accepted_tid}", params={})
                 acc_resp.raise_for_status()
-                taxonomy = self._extract_taxonomy(acc_resp.json())
+                acc_data = acc_resp.json()
+                taxonomy = self._extract_taxonomy(acc_data)
+                accepted_author = acc_data.get("author") or ""
             except Exception:
                 taxonomy = self._extract_taxonomy(data)
+                accepted_author = ""
 
             return accepted_tid, {
                 **taxonomy,
-                "sciname":       sciname,
-                "author":        author,
-                "status":        "Synonym",
-                "accepted_tid":  accepted_tid,
-                "accepted_name": accepted_name,
+                "sciname":          sciname,
+                "author":           author,
+                "status":           "Synonym",
+                "accepted_tid":     accepted_tid,
+                "accepted_name":    accepted_name,
+                "accepted_author":  accepted_author,
             }
 
         taxonomy = self._extract_taxonomy(data)
         return tid, {
             **taxonomy,
-            "sciname":       sciname,
-            "author":        author,
-            "status":        "Accepted",
-            "accepted_tid":  tid,
-            "accepted_name": None,
+            "sciname":          sciname,
+            "author":           author,
+            "status":           "Accepted",
+            "accepted_tid":     tid,
+            "accepted_name":    None,
+            "accepted_author":  None,
         }
 
     def _scrape_synonyms(self, accepted_tid: int, taxonomy: dict) -> list[dict]:
@@ -506,7 +511,7 @@ class SymbiotaAPI(SpeciesAPI):
                     "Genus":              acc_parts[0] if acc_parts else "",
                     "Species":            acc_parts[1] if len(acc_parts) > 1 else "",
                     "Source Species ID":  str(accepted_tid),
-                    "Author":             "",
+                    "Author":             meta.get("accepted_author") or "",
                     "Publication Name":   "",
                     "Publication Year":   "",
                     "Source Link":        f"{self.base}/taxa/index.php?taxon={accepted_tid}",
