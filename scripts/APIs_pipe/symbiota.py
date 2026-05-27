@@ -1,15 +1,11 @@
 """
-Unified Symbiota API system data retrieval
+Symbiota portal client for taxonomic name and synonym retrieval.
 
-This module serves as the dedicated connector between the application's data 
-aggregation pipeline and Symbiota-based portals (such as MyCoPortal or the Lichen Portal). 
-It is a concrete implementation of the `SpeciesAPI` blueprint.
-
-Because every Symbiota portal is hosted independently and their data structures 
-are historically inconsistent, this script acts as a specialized translator. It 
-routes data requests, handles unexpected web page errors, and includes fallback 
-mechanisms to extract data directly from the portal's website when standard 
-database queries fail.
+Provides a concrete ``SpeciesAPI`` implementation for Symbiota-based portals
+such as MyCoPortal and the Lichen Portal. Each portal runs its own instance
+of the Symbiota software with different endpoint paths and response formats.
+This module abstracts those differences and normalizes all output to the
+14-column schema defined in ``data/sample/*.csv``.
 """
 
 
@@ -54,12 +50,14 @@ _RANK_RANGES: dict[str, tuple[int, int]] = {
 
 class SymbiotaAPI(SpeciesAPI):
     """
-    Concrete implementation of the SpeciesAPI for Symbiota-based portals.
+    API client for a single Symbiota portal instance.
 
-    Symbiota is the underlying software for many regional and taxon-specific
-    biodiversity portals (e.g., Lichen Portal, MyCoPortal, Bryophyte Portal).
-    Because each portal hosts its own instance of the API, this client requires
-    a specific base URL upon initialization.
+    Attributes
+    ----------
+    base : str
+        Normalized base URL with the trailing slash removed.
+    portal_name : str
+        Source identifier written to the ``Source Name`` output column.
     """
 
     # Symbiota portals frequently block default Python user agents to prevent
@@ -74,15 +72,15 @@ class SymbiotaAPI(SpeciesAPI):
 
     def __init__(self, base_url: str, portal_name: str = ""):
         """
-        Initialize the Symbiota API client for a specific portal.
-
-        Args:
-            base_url (str): The root URL for the target Symbiota portal
-                (e.g., ``"https://mycoportal.org/portal"``).
-            portal_name (str, optional): Human-readable source name written to
-                the "Source Name" DataFrame column (e.g., ``"mycoportal"``).
-                If omitted, the first component of the domain is used
-                (``"mycoportal"`` from ``"mycoportal.org"``).
+        Parameters
+        ----------
+        base_url : str
+            Root URL of the target portal,
+            e.g. ``"https://mycoportal.org/portal"``.
+        portal_name : str, optional
+            Label for the ``Source Name`` output column. When omitted, the
+            first subdomain component is derived from *base_url*
+            (``"mycoportal"`` from ``"mycoportal.org"``).
         """
         self.base = base_url.rstrip("/")
         if portal_name:
@@ -93,23 +91,26 @@ class SymbiotaAPI(SpeciesAPI):
 
     def _get(self, endpoint: str, params: dict, timeout: int = 30):
         """
-        Internal helper method to execute HTTP GET requests.
+        Send a GET request to a portal endpoint.
 
-        Includes standard headers to bypass basic bot-blocking and catches
-        known Symbiota security firewalls (403 Forbidden).
+        Parameters
+        ----------
+        endpoint : str
+            Path relative to ``self.base``,
+            e.g. ``"api/v2/taxonomy/search"``.
+        params : dict
+            URL query parameters.
+        timeout : int, optional
+            Request timeout in seconds. Default is 30.
 
-        Args:
-            endpoint (str): The specific API endpoint to append to the base URL
-                (e.g., ``"api/v2/taxonomy/search"``).
-            params (dict): URL query parameters.
-            timeout (int, optional): Request timeout in seconds. Defaults to 30.
+        Returns
+        -------
+        requests.Response
 
-        Returns:
-            requests.Response: The raw response object from the API.
-
-        Raises:
-            RuntimeError: If the portal actively rejects the request (403 status),
-                which typically indicates a missing API token or an IP block.
+        Raises
+        ------
+        RuntimeError
+            If the portal returns HTTP 403.
         """
         resp = requests.get(
             f"{self.base}/{endpoint}",
@@ -127,33 +128,36 @@ class SymbiotaAPI(SpeciesAPI):
 
     def _empty_record(self) -> dict:
         """
-        Return a blank record dict pre-populated with every column in COLUMNS.
+        Return a blank record with every output column set to an empty string.
 
-        Callers overwrite individual fields after calling this so every record
-        is guaranteed to carry every column.
+        Returns
+        -------
+        dict
+            Keys matching ``COLUMNS``, all values ``""``.
         """
         return {col: "" for col in COLUMNS}
 
     def _extract_taxonomy(self, data: dict) -> dict:
         """
-        Extract taxonomy hierarchy fields from a raw ``api/v2/taxonomy/{tid}``
-        response.
+        Extract taxonomy hierarchy fields from an ``api/v2/taxonomy/{tid}`` response.
 
-        The response exposes ``kingdomName`` at the top level and a
-        ``classification`` list of parent taxa, each with a ``rankid`` integer
-        and a ``scientificName`` string.  Observed Symbiota rankid ranges::
+        Parameters
+        ----------
+        data : dict
+            Parsed JSON response from ``api/v2/taxonomy/{tid}``.
 
-            Phylum 25-45 | Class 50-75 | Family 130-155 | Subfamily 155-170
+        Returns
+        -------
+        dict
+            Keys ``"Kingdom"``, ``"Phylum"``, ``"Class"``, ``"Family"``,
+            ``"Subfamily"`` mapped to their names, or ``""`` when absent.
 
-        The lowest rankid found within each range is used, so the primary rank
-        is always preferred over sub-ranks (e.g. Class over Subclass).
-
-        Args:
-            data (dict): Parsed JSON from ``api/v2/taxonomy/{tid}``.
-
-        Returns:
-            dict: Keys "Kingdom", "Phylum", "Class", "Family", "Subfamily"
-                mapped to their string values, or ``""`` if absent.
+        Notes
+        -----
+        Kingdom is read from the top-level ``kingdomName`` field. The remaining
+        ranks are resolved from the ``classification`` array using the rankid
+        ranges in ``_RANK_RANGES``; the lowest rankid within each range is used
+        so the primary rank takes precedence over sub-ranks.
         """
         rank_index: dict[int, str] = {}
         for entry in data.get("classification", []):
@@ -178,28 +182,25 @@ class SymbiotaAPI(SpeciesAPI):
 
     def search(self, name: str) -> dict | None:
         """
-        Search for taxonomic information on a specific species.
+        Search for a taxon by scientific name.
 
-        Different Symbiota installations place the v2 search at different paths.
-        This method tries them in order before falling back to the legacy PHP
-        endpoint, so no per-portal configuration is required:
+        Tries three endpoints in order, stopping at the first successful response:
 
-        1. ``api/v2/taxonomy/search`` — used by portals such as MyCoPortal.
-        2. ``api/v2/taxonomy``        — used by portals such as Lichen Portal
-                                        and Macroalgae Portal.
-        3. ``taxa/taxasearch.php``    — legacy PHP fallback present on all portals.
+        1. ``api/v2/taxonomy/search``: primary endpoint (e.g. MyCoPortal).
+        2. ``api/v2/taxonomy``: alternate path (e.g. Lichen Portal).
+        3. ``taxa/taxasearch.php``: legacy fallback present on all portals.
 
-        All three paths accept the same query parameters (``taxon``, ``type``,
-        ``limit``, ``offset``). The response is always normalized to a dict so
-        callers never have to handle XML or bare lists.
+        Parameters
+        ----------
+        name : str
+            Scientific name to search for.
 
-        Args:
-            name (str): The scientific name to search for.
-
-        Returns:
-            dict | None: Normalized response dict. List responses are wrapped as
-                ``{"results": [...]}``. Returns ``None`` if all three endpoints
-                fail or return empty results.
+        Returns
+        -------
+        dict or None
+            Normalized response. List responses are wrapped as
+            ``{"results": [...]}``. Returns ``None`` when all three endpoints
+            fail or return empty data.
         """
         search_params = {"taxon": name, "type": "EXACT", "limit": 100, "offset": 0}
 
@@ -238,19 +239,23 @@ class SymbiotaAPI(SpeciesAPI):
     # ---------------------------------------------------------
     def _get_tid(self, species_name: str) -> int | None:
         """
-        Find the internal taxon ID (tid) for an exact species name match.
+        Return the internal taxon ID for an exact name match.
 
-        Uses ``search()`` as the primary lookup.  ``search()`` already cascades
-        across both v2 REST paths (``api/v2/taxonomy/search`` and
-        ``api/v2/taxonomy``) before the PHP fallback, so this method inherits
-        full portal coverage automatically.  If ``search()`` returns no usable
-        tid, the portal's legacy autocomplete endpoint is tried as a last resort.
+        Parameters
+        ----------
+        species_name : str
+            Scientific name to look up.
 
-        Args:
-            species_name (str): The capitalized scientific name to search for.
+        Returns
+        -------
+        int or None
+            Internal taxon ID, or ``None`` if not found.
 
-        Returns:
-            int | None: The internal taxon ID if found, otherwise ``None``.
+        Notes
+        -----
+        Uses ``search()`` as the primary lookup. If no exact match is found,
+        falls back to the autocomplete endpoint
+        ``taxa/taxonomy/rpc/gettaxasuggest.php``.
         """
         # Primary: extract tid from search() results
         data = self.search(species_name)
@@ -282,24 +287,28 @@ class SymbiotaAPI(SpeciesAPI):
 
     def _resolve_accepted_tid(self, tid: int) -> tuple[int, dict]:
         """
-        Resolve a taxon ID to its accepted form and extract full taxonomy metadata.
+        Resolve a taxon ID to its accepted form and return taxonomy metadata.
 
-        Calls ``api/v2/taxonomy/{tid}`` to determine whether the given ID belongs
-        to an accepted name or a synonym. If it is a synonym, a second API call is
-        made for the accepted taxon so its full ``classification`` array is always
-        available for ``_extract_taxonomy()``.
+        Parameters
+        ----------
+        tid : int
+            Internal taxon ID to resolve.
 
-        Args:
-            tid (int): The internal taxon ID to resolve.
+        Returns
+        -------
+        accepted_tid : int
+            ID of the accepted taxon. Equal to *tid* when already accepted.
+        meta : dict
+            Keys ``"Kingdom"``, ``"Phylum"``, ``"Class"``, ``"Family"``,
+            ``"Subfamily"``, ``"sciname"``, ``"author"``, ``"status"``
+            (``"Accepted"`` or ``"Synonym"``), ``"accepted_tid"``, and
+            ``"accepted_name"`` (``None`` when already accepted).
 
-        Returns:
-            tuple[int, dict]: A 2-tuple of:
-
-            - The accepted taxon ID (equals ``tid`` when already accepted).
-            - A metadata dict with keys ``"Kingdom"``, ``"Phylum"``, ``"Class"``,
-              ``"Family"``, ``"Subfamily"``, ``"sciname"``, ``"author"``,
-              ``"status"`` (``"Accepted"`` or ``"Synonym"``), ``"accepted_tid"``,
-              and ``"accepted_name"`` (``None`` when already accepted).
+        Notes
+        -----
+        When *tid* belongs to a synonym, a second request is made for the
+        accepted taxon to obtain its full classification. If that request
+        fails, the synonym's own classification is used.
         """
         resp = self._get(f"api/v2/taxonomy/{tid}", params={})
         resp.raise_for_status()
@@ -342,27 +351,30 @@ class SymbiotaAPI(SpeciesAPI):
 
     def _scrape_synonyms(self, accepted_tid: int, taxonomy: dict) -> list[dict]:
         """
-        Scrape the HTML taxa page for synonym names, authors, and individual tids.
+        Scrape the HTML species page for synonym records.
 
-        Because Symbiota does not expose a synonym-list endpoint natively, this
-        function downloads the raw HTML species profile and extracts data from the
-        ``synonymDiv`` element using a two-pass approach:
+        Parameters
+        ----------
+        accepted_tid : int
+            Internal ID of the accepted taxon.
+        taxonomy : dict
+            Taxonomy hierarchy fields inherited by every synonym record.
 
-        - **Pass 1** — collect ``name → tid`` pairs from ``<a href="…?tid=N">``
-          links so each synonym can carry its own ``Source Species ID``.
-        - **Pass 2** — extract each ``<i>name</i> author`` pair and look up its
-          tid from the map built in Pass 1.
+        Returns
+        -------
+        list of dict
+            One record per synonym, keyed by every column in ``COLUMNS``.
+            Returns an empty list when the page has no synonym section or the
+            synonym section is empty.
 
-        All records inherit the accepted taxon's taxonomy hierarchy so every
-        synonym row has consistent Kingdom / Phylum / Class / Family / Subfamily.
+        Notes
+        -----
+        Uses two passes over the ``synonymDiv`` HTML fragment:
 
-        Args:
-            accepted_tid (int): Internal ID of the accepted taxon.
-            taxonomy (dict): Taxonomy hierarchy from the accepted taxon applied
-                to every synonym record.
+        1. Collect name-to-tid pairs from ``<a href="…?tid=N">`` links.
+        2. Extract ``<i>name</i> author`` pairs and look up each tid.
 
-        Returns:
-            list[dict]: Records keyed by every column in COLUMNS.
+        Infraspecific taxa are excluded.
         """
         resp = self._get("taxa/index.php", {"tid": accepted_tid})
         resp.raise_for_status()
@@ -415,36 +427,31 @@ class SymbiotaAPI(SpeciesAPI):
 
     def synonyms(self, name: str) -> pd.DataFrame:
         """
-        Retrieve taxonomic synonyms and return them as a pandas DataFrame.
+        Return a DataFrame of the queried name and all its synonyms.
 
-        Orchestrates the full synonym discovery pipeline:
+        Parameters
+        ----------
+        name : str
+            Scientific name to search for.
 
-        1. ``_get_tid()``              — resolve the queried name to its portal tid.
-        2. ``_resolve_accepted_tid()`` — follow synonym chains to the accepted taxon
-                                         and fetch full taxonomy metadata.
-        3. ``_scrape_synonyms()``      — scrape the HTML species page for all
-                                         synonyms with their individual tids.
+        Returns
+        -------
+        pandas.DataFrame
+            Columns as defined in ``COLUMNS``. Row order:
 
-        Row ordering:
+            1. The queried name.
+            2. The accepted name, if the queried name is a synonym.
+            3. All other synonyms scraped from the portal, deduplicated.
 
-        1. The queried name (always first).
-        2. The accepted name, if the queried name was itself a synonym.
-        3. All scraped synonyms, deduplicated by canonical name.
+            Returns an empty DataFrame with the correct columns on any
+            error or when the name is not found.
 
-        Column notes:
-
-        - ``"Publication Name"`` and ``"Publication Year"`` are always ``""``
-          because Symbiota portals do not expose publication details through the
-          synonym list or the taxonomy API.
-        - ``"GBIF Accepted Status"`` reflects the Symbiota portal's own
-          accepted / synonym classification, not GBIF's backbone.
-
-        Args:
-            name (str): The scientific name to search for.
-
-        Returns:
-            pd.DataFrame: DataFrame with columns defined by COLUMNS. Returns an
-                empty DataFrame (same columns) on any unrecoverable error.
+        Notes
+        -----
+        ``Publication Name`` and ``Publication Year`` are always empty because
+        Symbiota portals do not expose publication metadata through the synonym
+        list or taxonomy endpoint. ``GBIF Accepted Status`` reflects the
+        portal's own accepted/synonym classification.
         """
         if not name or not name.strip():
             return pd.DataFrame(columns=COLUMNS)
@@ -523,21 +530,26 @@ class SymbiotaAPI(SpeciesAPI):
     # ---------------------------------------------------------
     def occurrences(self, name: str, limit: int = 20):
         """
-        Retrieve occurrence records for a specific taxon.
+        Retrieve occurrence records for a taxon.
 
-        This method includes extensive error handling to manage Symbiota's
-        tendency to return raw HTML error pages instead of valid JSON or XML
-        when a query fails or times out.
+        Parameters
+        ----------
+        name : str
+            Scientific name of the species.
+        limit : int, optional
+            Maximum number of records to return. Default is 20.
 
-        Args:
-            name (str): The scientific name of the species.
-            limit (int, optional): The maximum number of records to return.
-                Defaults to 20.
+        Returns
+        -------
+        list or dict or xml.etree.ElementTree.Element
+            Parsed occurrence data. Returns an empty list when the response
+            cannot be parsed.
 
-        Returns:
-            list | dict | xml.etree.ElementTree.Element: The parsed occurrence
-                data. Returns an empty list if the API fails, returns an HTML
-                error page, or returns unparseable data.
+        Raises
+        ------
+        RuntimeError
+            When the portal returns an HTML page instead of JSON or XML,
+            indicating the endpoint is unavailable or the URL is outdated.
         """
         resp = self._get(
             "occurrences/search.php",
@@ -550,7 +562,7 @@ class SymbiotaAPI(SpeciesAPI):
         if text.startswith("<!DOCTYPE html") or text.startswith("<html"):
             # Throw an error so the Aggregator knows the endpoint is broken!
             raise RuntimeError(
-                f"Endpoint returned an HTML webpage instead of data. The URL might be outdated."
+                "Endpoint returned an HTML page instead of data. The URL may be outdated."
             )
 
         # Try JSON
@@ -572,20 +584,27 @@ class SymbiotaAPI(SpeciesAPI):
         self, html_text: str, query_name: str, limit: int
     ) -> list[dict]:
         """
-        =======================================================================
-        [WARNING TO FUTURE PROJECT STAKEHOLDERS]
-        This is a fragile HTML scraper used as a 'last resort' safety net when
-        a Symbiota portal (like MyCoPortal) disables its programmatic API and
-        returns a raw visual webpage instead of JSON.
+        Parse occurrence records from a raw HTML portal page.
 
-        If the portal administrators redesign their website layout, change
-        table class names, or restructure their HTML, THIS FUNCTION WILL FAIL.
+        This method is a fallback used when the portal occurrence endpoint
+        returns an HTML page instead of structured data. It is fragile: any
+        change to the portal's HTML layout will cause it to fail silently
+        and return an empty list.
 
-        It is intentionally designed with strict 'fail gracefully' mechanisms.
-        If the layout changes, it will catch the error, print a warning to the
-        terminal, and return an empty list `[]` to prevent the main data
-        pipeline from crashing.
-        =======================================================================
+        Parameters
+        ----------
+        html_text : str
+            Raw HTML string from the portal occurrence page.
+        query_name : str
+            Scientific name that was queried, used in warning messages.
+        limit : int
+            Maximum number of records to return.
+
+        Returns
+        -------
+        list of dict
+            Parsed occurrence records. Returns an empty list on any parsing
+            failure or when ``beautifulsoup4`` is not installed.
         """
         try:
             from bs4 import BeautifulSoup
