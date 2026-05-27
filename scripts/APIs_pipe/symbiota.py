@@ -318,20 +318,18 @@ class SymbiotaAPI(SpeciesAPI):
         author  = data.get("author") or ""
 
         if data.get("status") == "synonym":
-            accepted      = data.get("accepted", {})
-            accepted_tid  = int(accepted.get("tid", tid))
-            accepted_name = accepted.get("scientificName") or accepted.get("sciname") or ""
+            accepted        = data.get("accepted", {})
+            accepted_tid    = int(accepted.get("tid", tid))
+            accepted_name   = accepted.get("scientificName") or accepted.get("sciname") or ""
+            accepted_author = accepted.get("scientificNameAuthorship") or ""
 
-            # Re-fetch the accepted taxon to get its full classification and author.
+            # Re-fetch the accepted taxon to get its full classification array.
             try:
                 acc_resp = self._get(f"api/v2/taxonomy/{accepted_tid}", params={})
                 acc_resp.raise_for_status()
-                acc_data = acc_resp.json()
-                taxonomy = self._extract_taxonomy(acc_data)
-                accepted_author = acc_data.get("author") or ""
+                taxonomy = self._extract_taxonomy(acc_resp.json())
             except Exception:
                 taxonomy = self._extract_taxonomy(data)
-                accepted_author = ""
 
             return accepted_tid, {
                 **taxonomy,
