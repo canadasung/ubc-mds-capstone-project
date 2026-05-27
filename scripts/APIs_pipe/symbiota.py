@@ -121,6 +121,61 @@ class SymbiotaAPI(SpeciesAPI):
             raise RuntimeError(f"403 Forbidden from {self.base}")
         return resp
 
+    # ---------------------------------------------------------
+    # Schema Helpers
+    # ---------------------------------------------------------
+
+    def _empty_record(self) -> dict:
+        """
+        Return a blank record dict pre-populated with every column in COLUMNS.
+
+        Callers overwrite individual fields after calling this so every record
+        is guaranteed to carry every column.
+        """
+        return {col: "" for col in COLUMNS}
+
+    def _extract_taxonomy(self, data: dict) -> dict:
+        """
+        Extract taxonomy hierarchy fields from a raw ``api/v2/taxonomy/{tid}``
+        response.
+
+        The response exposes ``kingdomName`` at the top level and a
+        ``classification`` list of parent taxa, each with a ``rankid`` integer
+        and a ``scientificName`` string.  Observed Symbiota rankid ranges::
+
+            Phylum 25-45 | Class 50-75 | Family 130-155 | Subfamily 155-170
+
+        The lowest rankid found within each range is used, so the primary rank
+        is always preferred over sub-ranks (e.g. Class over Subclass).
+
+        Args:
+            data (dict): Parsed JSON from ``api/v2/taxonomy/{tid}``.
+
+        Returns:
+            dict: Keys "Kingdom", "Phylum", "Class", "Family", "Subfamily"
+                mapped to their string values, or ``""`` if absent.
+        """
+        rank_index: dict[int, str] = {}
+        for entry in data.get("classification", []):
+            rid = entry.get("rankid")
+            name = entry.get("scientificName", "")
+            if rid is not None and name and str(name).strip():
+                rank_index[int(rid)] = str(name).strip()
+
+        def lowest_in_range(lo: int, hi: int) -> str:
+            for rid in range(lo, hi + 1):
+                if rid in rank_index:
+                    return rank_index[rid]
+            return ""
+
+        return {
+            "Kingdom":   str(data.get("kingdomName") or lowest_in_range(10, 15) or ""),
+            "Phylum":    lowest_in_range(*_RANK_RANGES["Phylum"]),
+            "Class":     lowest_in_range(*_RANK_RANGES["Class"]),
+            "Family":    lowest_in_range(*_RANK_RANGES["Family"]),
+            "Subfamily": lowest_in_range(*_RANK_RANGES["Subfamily"]),
+        }
+
     def search(self, name: str) -> dict | None:
         """
         Search for taxonomic information on a specific species.
