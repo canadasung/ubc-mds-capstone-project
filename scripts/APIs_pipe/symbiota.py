@@ -180,35 +180,44 @@ class SymbiotaAPI(SpeciesAPI):
         """
         Search for taxonomic information on a specific species.
 
-        Tries the formal REST endpoint /api/v2/taxonomy/search first (primary),
-        falling back to the legacy taxa/taxasearch.php if the primary endpoint
-        fails or returns no results. Always returns a normalized dict so callers
-        do not need to handle XML or mixed types.
+        Different Symbiota installations place the v2 search at different paths.
+        This method tries them in order before falling back to the legacy PHP
+        endpoint, so no per-portal configuration is required:
+
+        1. ``api/v2/taxonomy/search`` — used by portals such as MyCoPortal.
+        2. ``api/v2/taxonomy``        — used by portals such as Lichen Portal
+                                        and Macroalgae Portal.
+        3. ``taxa/taxasearch.php``    — legacy PHP fallback present on all portals.
+
+        All three paths accept the same query parameters (``taxon``, ``type``,
+        ``limit``, ``offset``). The response is always normalized to a dict so
+        callers never have to handle XML or bare lists.
 
         Args:
             name (str): The scientific name to search for.
 
         Returns:
-            dict | None: Normalized JSON dict from the portal. List responses
-                are wrapped as {"results": [...]}. Returns None if both
-                endpoints fail or produce empty results.
+            dict | None: Normalized response dict. List responses are wrapped as
+                ``{"results": [...]}``. Returns ``None`` if all three endpoints
+                fail or return empty results.
         """
-        # Primary: formal v2 REST endpoint
-        try:
-            resp = self._get(
-                "api/v2/taxonomy/search",
-                {"taxon": name, "type": "EXACT", "limit": 100, "offset": 0},
-            )
-            if resp.ok:
-                data = resp.json()
-                if isinstance(data, list):
-                    data = {"results": data}
-                if data:
-                    return data
-        except Exception:
-            pass
+        search_params = {"taxon": name, "type": "EXACT", "limit": 100, "offset": 0}
 
-        # Fallback: legacy PHP endpoint
+        # Primary attempt 1: /api/v2/taxonomy/search  (e.g. MyCoPortal)
+        # Primary attempt 2: /api/v2/taxonomy          (e.g. Lichen Portal, Macroalgae Portal)
+        for endpoint in ("api/v2/taxonomy/search", "api/v2/taxonomy"):
+            try:
+                resp = self._get(endpoint, search_params)
+                if resp.ok:
+                    data = resp.json()
+                    if isinstance(data, list):
+                        data = {"results": data}
+                    if data:
+                        return data
+            except Exception:
+                continue
+
+        # Fallback: legacy PHP endpoint present on all Symbiota installations
         try:
             resp = self._get("taxa/taxasearch.php", {"taxon": name, "format": "json"})
             try:
