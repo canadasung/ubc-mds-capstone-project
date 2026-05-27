@@ -17,6 +17,7 @@ import pandas as pd
 import requests
 
 from .base import SpeciesAPI
+from ..utils.normalize_query_string import normalize_query_string
 
 # Canonical column order for all synonym DataFrames produced by this module.
 # Matches the schema defined in data/sample/*.csv.
@@ -461,8 +462,7 @@ class SymbiotaAPI(SpeciesAPI):
         if not name or not name.strip():
             return pd.DataFrame(columns=COLUMNS)
 
-        # Capitalize first letter to match Symbiota's stored nomenclature
-        species_name = name[0].upper() + name[1:]
+        species_name = normalize_query_string(name)
 
         try:
             tid = self._get_tid(species_name)
