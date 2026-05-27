@@ -240,15 +240,17 @@ class SymbiotaAPI(SpeciesAPI):
         """
         Find the internal taxon ID (tid) for an exact species name match.
 
-        Uses search() as the primary lookup (which calls /api/v2/taxonomy/search),
-        falling back to the portal's legacy autocomplete endpoint if search()
-        returns no usable tid.
+        Uses ``search()`` as the primary lookup.  ``search()`` already cascades
+        across both v2 REST paths (``api/v2/taxonomy/search`` and
+        ``api/v2/taxonomy``) before the PHP fallback, so this method inherits
+        full portal coverage automatically.  If ``search()`` returns no usable
+        tid, the portal's legacy autocomplete endpoint is tried as a last resort.
 
         Args:
             species_name (str): The capitalized scientific name to search for.
 
         Returns:
-            int | None: The internal taxon ID if found, otherwise None.
+            int | None: The internal taxon ID if found, otherwise ``None``.
         """
         # Primary: extract tid from search() results
         data = self.search(species_name)
