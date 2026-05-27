@@ -72,15 +72,24 @@ class SymbiotaAPI(SpeciesAPI):
         re.IGNORECASE,
     )
 
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, portal_name: str = ""):
         """
         Initialize the Symbiota API client for a specific portal.
 
         Args:
-            base_url (str): The root API URL for the target Symbiota portal
-                (e.g., "https://lichenportal.org/portal/api").
+            base_url (str): The root URL for the target Symbiota portal
+                (e.g., ``"https://mycoportal.org/portal"``).
+            portal_name (str, optional): Human-readable source name written to
+                the "Source Name" DataFrame column (e.g., ``"mycoportal"``).
+                If omitted, the first component of the domain is used
+                (``"mycoportal"`` from ``"mycoportal.org"``).
         """
         self.base = base_url.rstrip("/")
+        if portal_name:
+            self.portal_name = portal_name
+        else:
+            host = urlparse(base_url).netloc   # e.g. "mycoportal.org"
+            self.portal_name = host.split(".")[0]  # e.g. "mycoportal"
 
     def _get(self, endpoint: str, params: dict):
         """
