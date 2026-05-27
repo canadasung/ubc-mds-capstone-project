@@ -91,7 +91,7 @@ class SymbiotaAPI(SpeciesAPI):
             host = urlparse(base_url).netloc   # e.g. "mycoportal.org"
             self.portal_name = host.split(".")[0]  # e.g. "mycoportal"
 
-    def _get(self, endpoint: str, params: dict):
+    def _get(self, endpoint: str, params: dict, timeout: int = 30):
         """
         Internal helper method to execute HTTP GET requests.
 
@@ -100,8 +100,9 @@ class SymbiotaAPI(SpeciesAPI):
 
         Args:
             endpoint (str): The specific API endpoint to append to the base URL
-                (e.g., "taxa/taxasearch.php").
+                (e.g., ``"api/v2/taxonomy/search"``).
             params (dict): URL query parameters.
+            timeout (int, optional): Request timeout in seconds. Defaults to 30.
 
         Returns:
             requests.Response: The raw response object from the API.
@@ -114,6 +115,7 @@ class SymbiotaAPI(SpeciesAPI):
             f"{self.base}/{endpoint}",
             params=params,
             headers=self.HEADERS,
+            timeout=timeout,
         )
         if resp.status_code == 403:
             raise RuntimeError(f"403 Forbidden from {self.base}")
