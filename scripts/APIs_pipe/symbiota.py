@@ -185,11 +185,10 @@ class SymbiotaAPI(SpeciesAPI):
         """
         Search for a taxon by scientific name.
 
-        Tries three endpoints in order, stopping at the first successful response:
+        Tries two endpoints in order, stopping at the first successful response:
 
         1. ``api/v2/taxonomy/search``: primary endpoint (e.g. MyCoPortal).
         2. ``api/v2/taxonomy``: alternate path (e.g. Lichen Portal and others).
-        3. ``taxa/taxasearch.php``: legacy fallback present on all portals.
 
         Parameters
         ----------
@@ -200,7 +199,7 @@ class SymbiotaAPI(SpeciesAPI):
         -------
         dict or None
             Normalized response. List responses are wrapped as
-            ``{"results": [...]}``. Returns ``None`` when all three endpoints
+            ``{"results": [...]}``. Returns ``None`` when both endpoints
             fail or return empty data.
         """
         search_params = {"taxon": name, "type": "EXACT", "limit": 100, "offset": 0}
@@ -223,23 +222,10 @@ class SymbiotaAPI(SpeciesAPI):
                 )
                 continue
 
-        # Fallback: legacy PHP endpoint present on all Symbiota installations
-        try:
-            resp = self._get("taxa/taxasearch.php", {"taxon": name, "format": "json"})
-            try:
-                result = resp.json()
-                if isinstance(result, list):
-                    result = {"results": result}
-                return result or None
-            except ValueError:
-                root = ET.fromstring(resp.text)
-                return {"xml_text": ET.tostring(root, encoding="unicode")}
-        except Exception as e:
-            warnings.warn(
-                f"{self.portal_name}: all three search endpoints failed for '{name}' ({e}).",
-                stacklevel=2,
-            )
-
+        warnings.warn(
+            f"{self.portal_name}: both search endpoints failed for '{name}'.",
+            stacklevel=2,
+        )
         return None
 
     # ---------------------------------------------------------
