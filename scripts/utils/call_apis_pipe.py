@@ -61,7 +61,7 @@ def _make_clients() -> dict:
         "symbiota_cch2": SymbiotaAPI("https://cch2.org/portal"),
         "symbiota_sernec": SymbiotaAPI("https://sernecportal.org/portal"),
         "symbiota_nansh": SymbiotaAPI("https://nansh.org/portal"),
-        "symbiota_swbiodiversity": SymbiotaAPI("https://swbiodiversity.org/portal"),
+        "symbiota_swbiodiversity": SymbiotaAPI("https://swbiodiversity.org/seinet"),
         "symbiota_macroalgae": SymbiotaAPI("https://macroalgae.org/portal"),
         "symbiota_pterido": SymbiotaAPI("https://pteridoportal.org/portal"),
         "symbiota_neherbaria": SymbiotaAPI("https://neherbaria.org/portal"),
