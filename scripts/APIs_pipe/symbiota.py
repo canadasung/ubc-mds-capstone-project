@@ -315,21 +315,61 @@ class SymbiotaAPI(SpeciesAPI):
             (``"Accepted"`` or ``"Synonym"``), ``"accepted_tid"``, and
             ``"accepted_name"`` (``None`` when already accepted).
 
+        Raises
+        ------
+        ValueError
+            If the API response is not a JSON object, indicating a structural
+            change in the portal's response schema.
+
         Notes
         -----
         When *tid* belongs to a synonym, a second request is made for the
         accepted taxon to obtain its full classification. If that request
         fails, the synonym's own classification is used.
+
+        A ``UserWarning`` is emitted when the response is missing the
+        ``"status"`` field, contains an unrecognised status value, or when
+        the synonym's ``"accepted"`` block does not include a ``"tid"``.
+        In all three cases the function continues with safe defaults rather
+        than raising.
         """
         resp = self._get(f"api/v2/taxonomy/{tid}", params={})
         resp.raise_for_status()
         data = resp.json()
 
+        if not isinstance(data, dict):
+            raise ValueError(
+                f"{self.portal_name}: api/v2/taxonomy/{tid} returned "
+                f"{type(data).__name__} instead of a JSON object; "
+                f"the response schema may have changed."
+            )
+
+        status = data.get("status")
+        if status is None:
+            warnings.warn(
+                f"{self.portal_name}: api/v2/taxonomy/{tid} response is missing "
+                f"the 'status' field; treating as accepted. "
+                f"The response schema may have changed.",
+                stacklevel=2,
+            )
+        elif status not in ("accepted", "synonym"):
+            warnings.warn(
+                f"{self.portal_name}: api/v2/taxonomy/{tid} returned unrecognised "
+                f"status '{status}'; treating as accepted.",
+                stacklevel=2,
+            )
+
         sciname = data.get("scientificName") or data.get("sciname") or ""
         author  = data.get("author") or ""
 
-        if data.get("status") == "synonym":
-            accepted        = data.get("accepted", {})
+        if status == "synonym":
+            accepted = data.get("accepted") or {}
+            if not accepted.get("tid"):
+                warnings.warn(
+                    f"{self.portal_name}: synonym response for tid {tid} is missing "
+                    f"'accepted.tid'; the accepted taxon cannot be resolved.",
+                    stacklevel=2,
+                )
             accepted_tid    = int(accepted.get("tid", tid))
             accepted_name   = accepted.get("scientificName") or accepted.get("sciname") or ""
             accepted_author = accepted.get("scientificNameAuthorship") or ""
