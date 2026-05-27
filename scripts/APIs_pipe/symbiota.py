@@ -280,42 +280,89 @@ class SymbiotaAPI(SpeciesAPI):
 
         return None
 
-    def _resolve_accepted_tid(self, tid: int) -> tuple[int, str | None]:
+    def _resolve_accepted_tid(self, tid: int) -> tuple[int, dict]:
         """
-        Check if the given Taxon ID belongs to an accepted name or an synonym.
+        Resolve a taxon ID to its accepted form and extract full taxonomy metadata.
 
-        If the ID belongs to a synonym, this method automatically resolves and
-        returns the ID of the accepted taxon.
+        Calls ``api/v2/taxonomy/{tid}`` to determine whether the given ID belongs
+        to an accepted name or a synonym. If it is a synonym, a second API call is
+        made for the accepted taxon so its full ``classification`` array is always
+        available for ``_extract_taxonomy()``.
 
         Args:
-            tid (int): The internal taxon ID to check.
+            tid (int): The internal taxon ID to resolve.
 
         Returns:
-            tuple[int, str | None]: A tuple containing the accepted taxon ID
-                and the accepted scientific name (if the original was a synonym).
+            tuple[int, dict]: A 2-tuple of:
+
+            - The accepted taxon ID (equals ``tid`` when already accepted).
+            - A metadata dict with keys ``"Kingdom"``, ``"Phylum"``, ``"Class"``,
+              ``"Family"``, ``"Subfamily"``, ``"sciname"``, ``"author"``,
+              ``"status"`` (``"Accepted"`` or ``"Synonym"``), ``"accepted_tid"``,
+              and ``"accepted_name"`` (``None`` when already accepted).
         """
         resp = self._get(f"api/v2/taxonomy/{tid}", params={})
         resp.raise_for_status()
         data = resp.json()
+
+        sciname = data.get("scientificName") or data.get("sciname") or ""
+        author  = data.get("author") or ""
+
         if data.get("status") == "synonym":
-            accepted = data["accepted"]
-            return accepted["tid"], accepted["scientificName"]
-        return tid, None
+            accepted      = data.get("accepted", {})
+            accepted_tid  = int(accepted.get("tid", tid))
+            accepted_name = accepted.get("scientificName") or accepted.get("sciname") or ""
 
-    def _scrape_synonyms(self, accepted_tid: int) -> list[dict]:
+            # Re-fetch the accepted taxon to guarantee its full classification array.
+            try:
+                acc_resp = self._get(f"api/v2/taxonomy/{accepted_tid}", params={})
+                acc_resp.raise_for_status()
+                taxonomy = self._extract_taxonomy(acc_resp.json())
+            except Exception:
+                taxonomy = self._extract_taxonomy(data)
+
+            return accepted_tid, {
+                **taxonomy,
+                "sciname":       sciname,
+                "author":        author,
+                "status":        "Synonym",
+                "accepted_tid":  accepted_tid,
+                "accepted_name": accepted_name,
+            }
+
+        taxonomy = self._extract_taxonomy(data)
+        return tid, {
+            **taxonomy,
+            "sciname":       sciname,
+            "author":        author,
+            "status":        "Accepted",
+            "accepted_tid":  tid,
+            "accepted_name": None,
+        }
+
+    def _scrape_synonyms(self, accepted_tid: int, taxonomy: dict) -> list[dict]:
         """
-        Scrape the HTML taxa page for synonym names and author citations.
+        Scrape the HTML taxa page for synonym names, authors, and individual tids.
 
-        Because Symbiota does not expose synonym endpoints natively, this function
-        downloads the raw HTML species profile and uses Regular Expressions to
-        extract taxonomy data directly from the 'synonymDiv' element.
+        Because Symbiota does not expose a synonym-list endpoint natively, this
+        function downloads the raw HTML species profile and extracts data from the
+        ``synonymDiv`` element using a two-pass approach:
+
+        - **Pass 1** — collect ``name → tid`` pairs from ``<a href="…?tid=N">``
+          links so each synonym can carry its own ``Source Species ID``.
+        - **Pass 2** — extract each ``<i>name</i> author`` pair and look up its
+          tid from the map built in Pass 1.
+
+        All records inherit the accepted taxon's taxonomy hierarchy so every
+        synonym row has consistent Kingdom / Phylum / Class / Family / Subfamily.
 
         Args:
-            accepted_tid (int): The internal ID of the accepted taxon.
+            accepted_tid (int): Internal ID of the accepted taxon.
+            taxonomy (dict): Taxonomy hierarchy from the accepted taxon applied
+                to every synonym record.
 
         Returns:
-            list[dict]: A list of dictionaries containing extracted synonym
-                metadata (canonical name, author citation, and direct URL).
+            list[dict]: Records keyed by every column in COLUMNS.
         """
         resp = self._get("taxa/index.php", {"tid": accepted_tid})
         resp.raise_for_status()
@@ -324,89 +371,152 @@ class SymbiotaAPI(SpeciesAPI):
         if not syn_match:
             return []
 
-        names = []
-        for match in re.finditer(r"<i>(.*?)</i>([^<]*)", syn_match.group(1)):
-            name = match.group(1).strip()
-            author = match.group(2).strip()
-            author = re.sub(r"^[,\s]+|[,\s]+$", "", author)
+        syn_html = syn_match.group(1)
 
-            if name and not self._INFRASPECIFIC_RE.search(name):
-                names.append(
-                    {
-                        "canonicalName": name,
-                        "author": author,
-                        "date": "",
-                        "publishedIn": "",
-                        "url": f"{self.base.replace('/api', '')}/taxa/index.php?taxon={accepted_tid}",
-                    }
-                )
-        return names
+        # Pass 1: name → tid map from <a href="…?tid=N"> links
+        tid_map: dict[str, int] = {}
+        for a_match in re.finditer(
+            r'<a[^>]*[?&]tid=(\d+)[^>]*>(.*?)</a>', syn_html, re.DOTALL
+        ):
+            inner_name = re.search(r'<i>([^<]+)</i>', a_match.group(2))
+            if inner_name:
+                tid_map[inner_name.group(1).strip()] = int(a_match.group(1))
 
-    def synonyms(self, name: str) -> list[dict]:
+        # Pass 2: <i>name</i> + trailing author text
+        records = []
+        for match in re.finditer(r"<i>(.*?)</i>([^<]*)", syn_html):
+            name   = match.group(1).strip()
+            author = re.sub(r"^[,\s]+|[,\s]+$", "", match.group(2).strip())
+
+            if not name or self._INFRASPECIFIC_RE.search(name):
+                continue
+
+            parts           = name.split()
+            genus           = parts[0] if parts else ""
+            species_epithet = parts[1] if len(parts) > 1 else ""
+            syn_tid         = tid_map.get(name)
+            src_link        = f"{self.base}/taxa/index.php?taxon={syn_tid}" if syn_tid else ""
+
+            records.append({
+                **self._empty_record(),
+                **taxonomy,
+                "Source Name":        self.portal_name,
+                "Genus":              genus,
+                "Species":            species_epithet,
+                "Source Species ID":  str(syn_tid) if syn_tid else "",
+                "Author":             author,
+                "Publication Name":   "",
+                "Publication Year":   "",
+                "Source Link":        src_link,
+                "GBIF Accepted Status": "Synonym",
+            })
+
+        return records
+
+    def synonyms(self, name: str) -> pd.DataFrame:
         """
-        Retrieve taxonomic synonyms by orchestrating a web scrape of the portal.
+        Retrieve taxonomic synonyms and return them as a pandas DataFrame.
+
+        Orchestrates the full synonym discovery pipeline:
+
+        1. ``_get_tid()``              — resolve the queried name to its portal tid.
+        2. ``_resolve_accepted_tid()`` — follow synonym chains to the accepted taxon
+                                         and fetch full taxonomy metadata.
+        3. ``_scrape_synonyms()``      — scrape the HTML species page for all
+                                         synonyms with their individual tids.
+
+        Row ordering:
+
+        1. The queried name (always first).
+        2. The accepted name, if the queried name was itself a synonym.
+        3. All scraped synonyms, deduplicated by canonical name.
+
+        Column notes:
+
+        - ``"Publication Name"`` and ``"Publication Year"`` are always ``""``
+          because Symbiota portals do not expose publication details through the
+          synonym list or the taxonomy API.
+        - ``"GBIF Accepted Status"`` reflects the Symbiota portal's own
+          accepted / synonym classification, not GBIF's backbone.
 
         Args:
             name (str): The scientific name to search for.
 
         Returns:
-            list[dict]: A list of formatted dictionaries containing the synonym
-                data and associated metadata. Returns an empty list if the portal
-                blocks the scrape or fails.
+            pd.DataFrame: DataFrame with columns defined by COLUMNS. Returns an
+                empty DataFrame (same columns) on any unrecoverable error.
         """
         if not name or not name.strip():
-            return []
+            return pd.DataFrame(columns=COLUMNS)
 
-        # Capitalize first letter to match Symbiota's exact stored nomenclature
+        # Capitalize first letter to match Symbiota's stored nomenclature
         species_name = name[0].upper() + name[1:]
 
         try:
             tid = self._get_tid(species_name)
             if tid is None:
-                return []
+                return pd.DataFrame(columns=COLUMNS)
 
-            accepted_tid, accepted_name = self._resolve_accepted_tid(tid)
-            synonyms_data = self._scrape_synonyms(accepted_tid)
+            accepted_tid, meta = self._resolve_accepted_tid(tid)
+            taxonomy = {
+                k: meta.get(k, "")
+                for k in ["Kingdom", "Phylum", "Class", "Family", "Subfamily"]
+            }
 
-            seen = {species_name}
-            base_url = (
-                f"{self.base.replace('/api', '')}/taxa/index.php?taxon={accepted_tid}"
-            )
+            parts           = species_name.split()
+            queried_genus   = parts[0] if parts else ""
+            queried_species = parts[1] if len(parts) > 1 else ""
 
-            # 1. Add the queried name to the top of the list
-            results = [
-                {
-                    "canonicalName": species_name,
-                    "author": "",
-                    "date": "",
-                    "publishedIn": "",
-                    "url": base_url,
-                }
-            ]
+            records: list[dict] = []
+            seen: set[str] = {species_name}
 
-            # 2. If the user queried a synonym, explicitly add the accepted name too
+            # Row 1 — the queried name itself
+            records.append({
+                **self._empty_record(),
+                **taxonomy,
+                "Source Name":        self.portal_name,
+                "Genus":              queried_genus,
+                "Species":            queried_species,
+                "Source Species ID":  str(tid),
+                # Author only populated when this IS the accepted name; for a
+                # synonym the accepted row below is the authoritative record.
+                "Author":             meta.get("author", "") if meta.get("status") == "Accepted" else "",
+                "Publication Name":   "",
+                "Publication Year":   "",
+                "Source Link":        f"{self.base}/taxa/index.php?taxon={tid}",
+                "GBIF Accepted Status": meta.get("status", ""),
+            })
+
+            # Row 2 — accepted name when the queried name was a synonym
+            accepted_name = meta.get("accepted_name")
             if accepted_name and accepted_name not in seen:
                 seen.add(accepted_name)
-                results.append(
-                    {
-                        "canonicalName": accepted_name,
-                        "author": "",
-                        "date": "",
-                        "publishedIn": "",
-                        "url": base_url,
-                    }
-                )
+                acc_parts = accepted_name.split()
+                records.append({
+                    **self._empty_record(),
+                    **taxonomy,
+                    "Source Name":        self.portal_name,
+                    "Genus":              acc_parts[0] if acc_parts else "",
+                    "Species":            acc_parts[1] if len(acc_parts) > 1 else "",
+                    "Source Species ID":  str(accepted_tid),
+                    "Author":             "",
+                    "Publication Name":   "",
+                    "Publication Year":   "",
+                    "Source Link":        f"{self.base}/taxa/index.php?taxon={accepted_tid}",
+                    "GBIF Accepted Status": "Accepted",
+                })
 
-            # 3. Add all scraped synonyms, skipping duplicates
-            for syn in synonyms_data:
-                if syn["canonicalName"] not in seen:
-                    seen.add(syn["canonicalName"])
-                    results.append(syn)
+            # Remaining rows — scraped synonyms, deduplicated
+            for syn in self._scrape_synonyms(accepted_tid, taxonomy):
+                canonical = f"{syn['Genus']} {syn['Species']}".strip()
+                if canonical and canonical not in seen:
+                    seen.add(canonical)
+                    records.append(syn)
 
-            return results
+            return pd.DataFrame(records, columns=COLUMNS)
 
-        except Exception as e:
-            return []
+        except Exception:
+            return pd.DataFrame(columns=COLUMNS)
 
     # ---------------------------------------------------------
     # Occurrences Logic
