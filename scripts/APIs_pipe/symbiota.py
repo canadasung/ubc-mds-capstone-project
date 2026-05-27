@@ -9,6 +9,7 @@ differences and normalizes all output to the predefined schema.
 
 
 import re
+import warnings
 import xml.etree.ElementTree as ET
 from urllib.parse import urlparse
 
@@ -215,7 +216,11 @@ class SymbiotaAPI(SpeciesAPI):
                         data = {"results": data}
                     if data:
                         return data
-            except Exception:
+            except Exception as e:
+                warnings.warn(
+                    f"{self.portal_name}: '{endpoint}' failed ({e}); trying next endpoint.",
+                    stacklevel=2,
+                )
                 continue
 
         # Fallback: legacy PHP endpoint present on all Symbiota installations
@@ -229,8 +234,11 @@ class SymbiotaAPI(SpeciesAPI):
             except ValueError:
                 root = ET.fromstring(resp.text)
                 return {"xml_text": ET.tostring(root, encoding="unicode")}
-        except Exception:
-            pass
+        except Exception as e:
+            warnings.warn(
+                f"{self.portal_name}: all three search endpoints failed for '{name}' ({e}).",
+                stacklevel=2,
+            )
 
         return None
 
@@ -280,8 +288,11 @@ class SymbiotaAPI(SpeciesAPI):
                 label = item.get("label", "")
                 if re.match(rf"^{re.escape(species_name)}(\s|$)", label):
                     return int(item["id"])
-        except Exception:
-            pass
+        except Exception as e:
+            warnings.warn(
+                f"{self.portal_name}: autocomplete fallback failed for '{species_name}' ({e}).",
+                stacklevel=2,
+            )
 
         return None
 
@@ -328,7 +339,12 @@ class SymbiotaAPI(SpeciesAPI):
                 acc_resp = self._get(f"api/v2/taxonomy/{accepted_tid}", params={})
                 acc_resp.raise_for_status()
                 taxonomy = self._extract_taxonomy(acc_resp.json())
-            except Exception:
+            except Exception as e:
+                warnings.warn(
+                    f"{self.portal_name}: could not fetch classification for accepted tid "
+                    f"{accepted_tid} ({e}); falling back to synonym's own classification.",
+                    stacklevel=2,
+                )
                 taxonomy = self._extract_taxonomy(data)
 
             return accepted_tid, {
@@ -524,7 +540,12 @@ class SymbiotaAPI(SpeciesAPI):
 
             return pd.DataFrame(records, columns=COLUMNS)
 
-        except Exception:
+        except Exception as e:
+            warnings.warn(
+                f"{self.portal_name}: synonyms() failed for '{species_name}' ({e}); "
+                f"returning empty DataFrame.",
+                stacklevel=2,
+            )
             return pd.DataFrame(columns=COLUMNS)
 
     # ---------------------------------------------------------
@@ -611,8 +632,9 @@ class SymbiotaAPI(SpeciesAPI):
         try:
             from bs4 import BeautifulSoup
         except ImportError:
-            print(
-                "Scraper Warning: 'beautifulsoup4' is not installed. Skipping HTML scrape."
+            warnings.warn(
+                "'beautifulsoup4' is not installed; HTML occurrence scrape skipped.",
+                stacklevel=2,
             )
             return []
 
@@ -623,16 +645,20 @@ class SymbiotaAPI(SpeciesAPI):
             # Step 1: Locate the data table. (Graceful fail if missing)
             occ_table = soup.find("table")
             if not occ_table:
-                print(
-                    f"Scraper Warning ({self.base}): No data table found for '{query_name}'. Layout may have changed."
+                warnings.warn(
+                    f"{self.portal_name}: no data table found for '{query_name}'; "
+                    f"the portal's HTML layout may have changed.",
+                    stacklevel=2,
                 )
                 return []
 
             # Step 2: Extract column headers. (Graceful fail if missing)
             headers = [th.get_text(strip=True) for th in occ_table.find_all("th")]
             if not headers:
-                print(
-                    f"Scraper Warning ({self.base}): Table headers missing. Layout may have changed."
+                warnings.warn(
+                    f"{self.portal_name}: table headers missing for '{query_name}'; "
+                    f"the portal's HTML layout may have changed.",
+                    stacklevel=2,
                 )
                 return []
 
@@ -668,8 +694,8 @@ class SymbiotaAPI(SpeciesAPI):
             return records
 
         except Exception as e:
-            # Catch-all graceful failure for entirely unexpected HTML anomalies
-            print(
-                f"Scraper Warning ({self.base}): HTML parsing failed gracefully. Error: {e}"
+            warnings.warn(
+                f"{self.portal_name}: HTML occurrence parsing failed for '{query_name}' ({e}).",
+                stacklevel=2,
             )
             return []
