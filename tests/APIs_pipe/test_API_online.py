@@ -173,6 +173,7 @@ _SYMBIOTA_PORTALS = [
     ("pterido", "https://pteridoportal.org/portal"),
     ("neherbaria", "https://neherbaria.org/portal"),
     ("midatlantic", "https://midatlanticherbaria.org/portal"),
+    ("swbiodiversity", "https://swbiodiversity.org/seinet"),
 ]
 
 
