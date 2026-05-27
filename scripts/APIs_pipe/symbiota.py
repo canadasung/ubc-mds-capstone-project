@@ -213,7 +213,7 @@ class SymbiotaAPI(SpeciesAPI):
                     data = resp.json()
                     if isinstance(data, list):
                         data = {"results": data}
-                    if data:
+                    if isinstance(data, dict) and data.get("results"):
                         return data
             except Exception as e:
                 warnings.warn(
