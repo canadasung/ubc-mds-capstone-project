@@ -15,10 +15,41 @@ database queries fail.
 
 import re
 import xml.etree.ElementTree as ET
+from urllib.parse import urlparse
 
+import pandas as pd
 import requests
 
 from .base import SpeciesAPI
+
+# Canonical column order for all synonym DataFrames produced by this module.
+# Matches the schema defined in data/sample/*.csv.
+COLUMNS = [
+    "Source Name",
+    "Kingdom",
+    "Phylum",
+    "Class",
+    "Family",
+    "Subfamily",
+    "Genus",
+    "Species",
+    "Source Species ID",
+    "Author",
+    "Publication Name",
+    "Publication Year",
+    "Source Link",
+    "GBIF Accepted Status",
+]
+
+# Maps each taxonomy column to the rankid range that identifies it in the
+# api/v2/taxonomy/{tid} classification array.  Boundaries are derived from
+# observed Symbiota portal responses; the lowest rankid within each range wins.
+_RANK_RANGES: dict[str, tuple[int, int]] = {
+    "Phylum":    (25,  45),
+    "Class":     (50,  75),
+    "Family":    (130, 155),
+    "Subfamily": (155, 170),
+}
 
 
 class SymbiotaAPI(SpeciesAPI):
