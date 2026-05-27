@@ -261,7 +261,7 @@ class SymbiotaAPI(SpeciesAPI):
                     or item.get("scientificName")
                     or item.get("taxon", "")
                 )
-                if re.match(rf"^{re.escape(species_name)}(\s|$)", sciname, re.IGNORECASE):
+                if re.match(rf"^{re.escape(species_name)}\s*$", sciname, re.IGNORECASE):
                     try:
                         return int(item["tid"])
                     except (KeyError, ValueError, TypeError):
