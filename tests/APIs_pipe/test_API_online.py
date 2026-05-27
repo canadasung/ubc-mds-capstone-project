@@ -45,12 +45,37 @@ _STATUS_DESCRIPTIONS = {
 
 
 def _describe(code: int) -> str:
+    """
+    Return a human-readable description for an HTTP status code.
+
+    Parameters
+    ----------
+    code : int
+        HTTP status code to look up.
+
+    Returns
+    -------
+    str
+        Description from ``_STATUS_DESCRIPTIONS``, or ``"unexpected HTTP status"``
+        if the code is not in the mapping.
+    """
     return _STATUS_DESCRIPTIONS.get(code, "unexpected HTTP status")
 
 
 @pytest.fixture(scope="session", autouse=True)
 def require_internet():
-    """Fail the entire session immediately if the machine has no internet."""
+    """
+    Session-scoped fixture that fails immediately if no internet is detected.
+
+    Attempts a TCP connection to ``8.8.8.8:53``. If the connection fails, the
+    entire test session is aborted with an informative message. Applied
+    automatically to all tests via ``autouse=True``.
+
+    Raises
+    ------
+    pytest.fail
+        If the machine cannot reach ``8.8.8.8`` on port 53 within 5 seconds.
+    """
     try:
         socket.setdefaulttimeout(5)
         socket.create_connection(("8.8.8.8", 53))
@@ -62,7 +87,29 @@ def require_internet():
 
 
 def _get(url, params=None, headers=None):
-    """Issue a GET request, failing the test if the host is unreachable or rate-limits us."""
+    """
+    Issue a GET request and return the response.
+
+    Parameters
+    ----------
+    url : str
+        URL to request.
+    params : dict, optional
+        Query parameters to include in the request.
+    headers : dict, optional
+        HTTP headers to include in the request.
+
+    Returns
+    -------
+    requests.Response
+        The HTTP response object.
+
+    Raises
+    ------
+    pytest.fail
+        If the host is unreachable, the request times out, or the server
+        returns HTTP 429 (rate limited).
+    """
     try:
         resp = requests.get(url, params=params, headers=headers, timeout=_TIMEOUT)
     except _NETWORK_ERRORS as e:
@@ -82,6 +129,12 @@ def _get(url, params=None, headers=None):
 
 
 def test_gbif_online():
+    """
+    Verify that the GBIF species match endpoint is reachable and returns 2xx.
+
+    Sends a minimal name-match request for ``_TEST_FUNGUS`` to the GBIF v1
+    species match endpoint and asserts a successful HTTP status code.
+    """
     resp = _get(
         "https://api.gbif.org/v1/species/match",
         params={"name": _TEST_FUNGUS, "strict": "true"},
@@ -92,6 +145,12 @@ def test_gbif_online():
 
 
 def test_col_online():
+    """
+    Verify that the Catalogue of Life name search endpoint is reachable and returns 2xx.
+
+    Sends a minimal name search request for ``_TEST_FUNGUS`` to the COL
+    nameusage search endpoint and asserts a successful HTTP status code.
+    """
     resp = _get(
         "https://api.catalogueoflife.org/nameusage/search",
         params={"q": _TEST_FUNGUS},
@@ -102,6 +161,13 @@ def test_col_online():
 
 
 def test_genbank_online():
+    """
+    Verify that the GenBank Entrez esearch endpoint is reachable and returns a valid response.
+
+    Sends a minimal nucleotide search for ``_TEST_FUNGUS`` via the NCBI Entrez
+    esearch endpoint. Asserts a 2xx status code and that the JSON response
+    contains the ``esearchresult`` key.
+    """
     resp = _get(
         "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
         params={
@@ -120,7 +186,12 @@ def test_genbank_online():
 
 
 def test_index_fungorum_online():
-    # The IsAlive endpoint is a built in health check for the Index Fungorum API that returns 200 if the service is up and running.
+    """
+    Verify that the Index Fungorum API health check endpoint is reachable and returns 2xx.
+
+    Calls the built-in ``IsAlive`` endpoint, which returns 200 when the
+    Index Fungorum web service is up and running.
+    """
     resp = _get(
         "https://www.indexfungorum.org/ixfwebservice/fungus.asmx/IsAlive",
     )
@@ -130,6 +201,12 @@ def test_index_fungorum_online():
 
 
 def test_mushroom_observer_online():
+    """
+    Verify that the Mushroom Observer names endpoint is reachable and returns 2xx.
+
+    Sends a minimal name search for ``_TEST_FUNGUS`` to the Mushroom Observer
+    API v2 names endpoint and asserts a successful HTTP status code.
+    """
     resp = _get(
         "https://mushroomobserver.org/api2/names",
         params={"name": _TEST_FUNGUS, "format": "json"},
@@ -141,6 +218,13 @@ def test_mushroom_observer_online():
 
 
 def test_tropicos_online():
+    """
+    Verify that the Tropicos name search endpoint is reachable and returns 2xx.
+
+    Requires the ``TROPICOS_API_KEY`` environment variable to be set; the test
+    is skipped if it is absent. Sends a minimal exact-match name search for
+    ``_TEST_PLANT`` and asserts a successful HTTP status code.
+    """
     api_key = os.getenv("TROPICOS_API_KEY")
     if not api_key:
         pytest.skip("TROPICOS_API_KEY not set — skipping Tropicos connectivity check")
@@ -183,6 +267,20 @@ _SYMBIOTA_PORTALS = [
     ids=[p[0] for p in _SYMBIOTA_PORTALS],
 )
 def test_symbiota_portal_online(portal_id, base_url):
+    """
+    Verify that a Symbiota portal taxonomy search endpoint is reachable and returns 2xx.
+
+    Parametrized over all portals in ``_SYMBIOTA_PORTALS``. Sends a minimal
+    exact-match taxonomy search for ``_TEST_FUNGUS`` to each portal's API v2
+    endpoint and asserts a successful HTTP status code.
+
+    Parameters
+    ----------
+    portal_id : str
+        Short identifier for the portal (e.g. ``"mycoportal"``).
+    base_url : str
+        Base URL of the portal (e.g. ``"https://mycoportal.org/portal"``).
+    """
     resp = _get(
         f"{base_url}/api/v2/taxonomy/search",
         params={"taxon": _TEST_FUNGUS, "type": "EXACT", "limit": 1, "offset": 0},

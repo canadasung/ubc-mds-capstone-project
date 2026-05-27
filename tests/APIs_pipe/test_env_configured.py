@@ -32,6 +32,15 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def test_env_file_exists():
+    """
+    Verify that a ``.env`` file exists at the project root.
+
+    Raises
+    ------
+    AssertionError
+        If ``_ENV_FILE`` does not exist, with a message directing the user to
+        copy ``.env.example`` and fill in their credentials.
+    """
     assert _ENV_FILE.exists(), (
         f".env file not found at {_ENV_FILE}. "
         "Copy .env.example to .env and fill in your credentials."
@@ -44,6 +53,14 @@ def test_env_file_exists():
 
 
 def test_entrez_email_is_set():
+    """
+    Verify that ``ENTREZ_EMAIL`` is present and non-empty in the environment.
+
+    Raises
+    ------
+    AssertionError
+        If ``ENTREZ_EMAIL`` is not set or is an empty string.
+    """
     email = os.getenv("ENTREZ_EMAIL", "")
     assert email, (
         "ENTREZ_EMAIL is not set in .env. "
@@ -52,6 +69,14 @@ def test_entrez_email_is_set():
 
 
 def test_entrez_email_is_not_placeholder():
+    """
+    Verify that ``ENTREZ_EMAIL`` has been changed from its placeholder value.
+
+    Raises
+    ------
+    AssertionError
+        If ``ENTREZ_EMAIL`` equals ``_PLACEHOLDER_EMAIL``.
+    """
     email = os.getenv("ENTREZ_EMAIL", "")
     assert email != _PLACEHOLDER_EMAIL, (
         f"ENTREZ_EMAIL is still the placeholder value ({_PLACEHOLDER_EMAIL!r}). "
@@ -60,6 +85,17 @@ def test_entrez_email_is_not_placeholder():
 
 
 def test_entrez_email_looks_valid():
+    """
+    Verify that ``ENTREZ_EMAIL`` matches a basic email address format.
+
+    Skipped if ``ENTREZ_EMAIL`` is unset or still the placeholder value, so
+    that format errors are not reported before the more fundamental checks pass.
+
+    Raises
+    ------
+    AssertionError
+        If ``ENTREZ_EMAIL`` does not match ``_EMAIL_RE`` (``user@domain.tld``).
+    """
     email = os.getenv("ENTREZ_EMAIL", "")
     if not email or email == _PLACEHOLDER_EMAIL:
         pytest.skip(
@@ -76,6 +112,14 @@ def test_entrez_email_looks_valid():
 
 
 def test_tropicos_api_key_is_set():
+    """
+    Verify that ``TROPICOS_API_KEY`` is present and non-empty in the environment.
+
+    Raises
+    ------
+    AssertionError
+        If ``TROPICOS_API_KEY`` is not set or is an empty string.
+    """
     key = os.getenv("TROPICOS_API_KEY", "")
     assert key, (
         "TROPICOS_API_KEY is not set in .env. "
@@ -84,6 +128,14 @@ def test_tropicos_api_key_is_set():
 
 
 def test_tropicos_api_key_is_not_placeholder():
+    """
+    Verify that ``TROPICOS_API_KEY`` has been changed from its placeholder value.
+
+    Raises
+    ------
+    AssertionError
+        If ``TROPICOS_API_KEY`` equals ``_PLACEHOLDER_TROPICOS``.
+    """
     key = os.getenv("TROPICOS_API_KEY", "")
     assert key != _PLACEHOLDER_TROPICOS, (
         f"TROPICOS_API_KEY is still the placeholder value ({_PLACEHOLDER_TROPICOS!r}). "
