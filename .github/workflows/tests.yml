@@ -31,7 +31,7 @@ jobs:
         shell: bash -el {0}
         env:
           ENTREZ_EMAIL: ${{ secrets.ENTREZ_EMAIL }}
-        run: pytest -v tests/APIs/ # pytest will automatically discover all test files (i.e. test_*.py) in this directory and skip any non-test files (e.g. template_*.py)
+        run: pytest -v -m "not integration" tests/APIs/ # pytest will automatically discover all test files (i.e. test_*.py) in this directory and skip any non-test files (e.g. template_*.py); integration tests that make real HTTP calls are excluded from CI
 
   test-utils:
     name: Utils Tests
