@@ -66,7 +66,6 @@ def _make_clients() -> dict:
         "symbiota_pterido": SymbiotaAPI("https://pteridoportal.org/portal"),
         "symbiota_neherbaria": SymbiotaAPI("https://neherbaria.org/portal"),
         "symbiota_midatlantic": SymbiotaAPI("https://midatlanticherbaria.org/portal"),
-        "symbiota_portals": SymbiotaAPI("https://symbiota.org/symbiota-portals"),
     }
     return clients
 
