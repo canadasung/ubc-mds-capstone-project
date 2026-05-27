@@ -1,11 +1,10 @@
 """
 Symbiota portal client for taxonomic name and synonym retrieval.
 
-Provides a concrete ``SpeciesAPI`` implementation for Symbiota-based portals
-such as MyCoPortal and the Lichen Portal. Each portal runs its own instance
-of the Symbiota software with different endpoint paths and response formats.
-This module abstracts those differences and normalizes all output to the
-14-column schema defined in ``data/sample/*.csv``.
+Provides a concrete SpeciesAPI implementation for Symbiota-based portals.
+Each portal runs its own instance of the Symbiota software with different 
+endpoint paths and response formats. This module abstracts those 
+differences and normalizes all output to the predefined schema.
 """
 
 
@@ -39,7 +38,7 @@ COLUMNS = [
 ]
 
 # Maps each taxonomy column to the rankid range that identifies it in the
-# api/v2/taxonomy/{tid} classification array.  Boundaries are derived from
+# api/v2/taxonomy/{identifier} classification array. Boundaries are derived from
 # observed Symbiota portal responses; the lowest rankid within each range wins.
 _RANK_RANGES: dict[str, tuple[int, int]] = {
     "Phylum":    (25,  45),
@@ -140,12 +139,12 @@ class SymbiotaAPI(SpeciesAPI):
 
     def _extract_taxonomy(self, data: dict) -> dict:
         """
-        Extract taxonomy hierarchy fields from an ``api/v2/taxonomy/{tid}`` response.
+        Extract taxonomy hierarchy fields from an ``api/v2/taxonomy/{identifier}`` response.
 
         Parameters
         ----------
         data : dict
-            Parsed JSON response from ``api/v2/taxonomy/{tid}``.
+            Parsed JSON response from ``api/v2/taxonomy/{identifier}``.
 
         Returns
         -------
@@ -188,7 +187,7 @@ class SymbiotaAPI(SpeciesAPI):
         Tries three endpoints in order, stopping at the first successful response:
 
         1. ``api/v2/taxonomy/search``: primary endpoint (e.g. MyCoPortal).
-        2. ``api/v2/taxonomy``: alternate path (e.g. Lichen Portal).
+        2. ``api/v2/taxonomy``: alternate path (e.g. Lichen Portal and others).
         3. ``taxa/taxasearch.php``: legacy fallback present on all portals.
 
         Parameters
