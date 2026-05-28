@@ -145,6 +145,32 @@ class SymbiotaAPI(SpeciesAPI):
         """
         return {col: "" for col in COLUMNS}
 
+    def _build_record(self, taxonomy: dict, **fields) -> dict:
+        """
+        Build a single output record by merging empty defaults, taxonomy, and field overrides.
+
+        Centralises the repeated ``{**_empty_record(), **taxonomy, "Source Name": ..., ...}``
+        pattern used wherever a synonym row is constructed.
+
+        Parameters
+        ----------
+        taxonomy : dict
+            Taxonomy hierarchy fields (Kingdom, Phylum, Class, Family, Subfamily).
+        **fields
+            Additional column values to set on top of the defaults.
+
+        Returns
+        -------
+        dict
+            Complete record with all columns in ``COLUMNS``.
+        """
+        return {
+            **self._empty_record(),
+            **taxonomy,
+            "Source Name": self.portal_name,
+            **fields,
+        }
+
     def _extract_taxonomy(self, data: dict) -> dict:
         """
         Extract taxonomy hierarchy fields from an ``api/v2/taxonomy/{identifier}`` response.
@@ -494,19 +520,14 @@ class SymbiotaAPI(SpeciesAPI):
             syn_tid         = tid_map.get(name)
             src_link        = f"{self.base}/taxa/index.php?taxon={syn_tid}" if syn_tid else ""
 
-            records.append({
-                **self._empty_record(),
-                **taxonomy,
-                "Source Name":        self.portal_name,
+            records.append(self._build_record(taxonomy, **{
                 "Genus":              genus,
                 "Species":            species_epithet,
                 "Source Species ID":  str(syn_tid) if syn_tid else "",
                 "Author":             author,
-                "Publication Name":   "",
-                "Publication Year":   "",
                 "Source Link":        src_link,
                 "GBIF Accepted Status": "Synonym",
-            })
+            }))
 
         return records
 
@@ -558,41 +579,31 @@ class SymbiotaAPI(SpeciesAPI):
             records: list[dict] = []
             seen: set[str] = {species_name}
 
-            # Row 1 — the queried name itself
-            records.append({
-                **self._empty_record(),
-                **taxonomy,
-                "Source Name":        self.portal_name,
+            # Row 1 — the queried name itself.
+            # Author is left blank when the queried name is a synonym; the accepted
+            # row below carries the authoritative author string in that case.
+            records.append(self._build_record(taxonomy, **{
                 "Genus":              queried_genus,
                 "Species":            queried_species,
                 "Source Species ID":  str(tid),
-                # Author only populated when this IS the accepted name; for a
-                # synonym the accepted row below is the authoritative record.
                 "Author":             meta.get("author", "") if meta.get("status") == "Accepted" else "",
-                "Publication Name":   "",
-                "Publication Year":   "",
                 "Source Link":        f"{self.base}/taxa/index.php?taxon={tid}",
                 "GBIF Accepted Status": meta.get("status", ""),
-            })
+            }))
 
-            # Row 2 — accepted name when the queried name was a synonym
+            # Row 2 — accepted name, only added when the queried name was a synonym.
             accepted_name = meta.get("accepted_name")
             if accepted_name and accepted_name not in seen:
                 seen.add(accepted_name)
                 acc_parts = accepted_name.split()
-                records.append({
-                    **self._empty_record(),
-                    **taxonomy,
-                    "Source Name":        self.portal_name,
+                records.append(self._build_record(taxonomy, **{
                     "Genus":              acc_parts[0] if acc_parts else "",
                     "Species":            acc_parts[1] if len(acc_parts) > 1 else "",
                     "Source Species ID":  str(accepted_tid),
                     "Author":             meta.get("accepted_author") or "",
-                    "Publication Name":   "",
-                    "Publication Year":   "",
                     "Source Link":        f"{self.base}/taxa/index.php?taxon={accepted_tid}",
                     "GBIF Accepted Status": "Accepted",
-                })
+                }))
 
             # Remaining rows — scraped synonyms, deduplicated
             for syn in self._scrape_synonyms(accepted_tid, taxonomy):
