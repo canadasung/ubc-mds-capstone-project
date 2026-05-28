@@ -118,7 +118,7 @@ def render() -> None:
     # ── Taxonomy table ────────────────────────────────────────────────────────
     st.dataframe(
         taxonomy_df.style.apply(_highlight_disagreements, axis=None),
-        use_container_width=True,
+        width="stretch",
     )
 
     # ── Disagreement / agreement summary ─────────────────────────────────────

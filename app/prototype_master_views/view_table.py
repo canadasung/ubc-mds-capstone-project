@@ -122,7 +122,7 @@ def render() -> None:
     st.dataframe(
         presence_df.style.apply(_bold_query, axis=1),
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         column_config=col_config,
     )
 

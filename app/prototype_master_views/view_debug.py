@@ -26,7 +26,7 @@ def render() -> None:
     st.caption(f"{len(df)} rows × {len(df.columns)} columns")
     st.dataframe(
         df,
-        use_container_width=True,
+        width="stretch",
         column_config={
             "Source Link": st.column_config.LinkColumn("Source Link"),
         },
