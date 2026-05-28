@@ -19,6 +19,8 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from scripts.utils.normalize_query_string import normalize_query_string  # noqa: E402
+from scripts.utils.router import ANIMALIA_APIS, PLANTAE_APIS, FUNGI_APIS, TaxonRouter  # noqa: E402
+from scripts.APIs_pipe.gbif import GBIFAPI  # noqa: E402
 from prototype_master_views import view_table, view_timeline, view_node, view_taxonomy, view_debug
 
 # ── CLI flags ─────────────────────────────────────────────────────────────────
@@ -34,6 +36,35 @@ USE_MOCK_DATA: bool = True
 # ── Paths ─────────────────────────────────────────────────────────────────────
 _APP_DIR = Path(__file__).parent
 _SAMPLE_DIR = _APP_DIR.parent / "data" / "sample"
+
+# ── Database sources ──────────────────────────────────────────────────────────
+# All unique API keys across every kingdom, in declaration order.
+_ALL_APIS: list[str] = list(dict.fromkeys(ANIMALIA_APIS + PLANTAE_APIS + FUNGI_APIS))
+
+_API_LABELS: dict[str, str] = {
+    "gbif":                   "GBIF",
+    "col":                    "COL",
+    "genbank":                "GenBank",
+    "tropicos":               "Tropicos",
+    "index_fungorum":         "Index Fungorum",
+    "mushroomobs":            "Mushroom Observer",
+    "symbiota_mycoportal":    "MycoPortal",
+    "symbiota_lichen":        "Lichen Portal",
+    "symbiota_bryophyte":     "Bryophyte Portal",
+    "symbiota_cch2":          "CCH2",
+    "symbiota_sernec":        "SERNEC",
+    "symbiota_nansh":         "NANSH",
+    "symbiota_swbiodiversity": "SW Biodiversity",
+    "symbiota_macroalgae":    "Macroalgae Portal",
+    "symbiota_pterido":       "Pteridophyte Portal",
+    "symbiota_neherbaria":    "NE Herbaria",
+    "symbiota_midatlantic":   "Mid-Atlantic Herbaria",
+}
+
+
+@st.cache_resource
+def _get_router() -> TaxonRouter:
+    return TaxonRouter(gbif_client=GBIFAPI())
 
 
 # ── Search helpers ────────────────────────────────────────────────────────────
@@ -140,6 +171,14 @@ st.session_state.setdefault("search_panel_open", True)          # bool
 st.session_state.setdefault("debug_mode", _cli_args.debug)      # bool — set via --debug flag
 st.session_state.setdefault("active_tab", "Debug" if _cli_args.debug else "Table")
 st.session_state.setdefault("last_search_query", "")     # str — backing store for the search field
+st.session_state.setdefault("selected_sources", [])      # list[str] — APIs selected for last search
+for _key in _ALL_APIS:
+    st.session_state.setdefault(f"source_{_key}", True)
+
+# Apply any checkbox state queued by the previous search handler, before widgets render.
+if "_pending_source_updates" in st.session_state:
+    for _k, _v in st.session_state.pop("_pending_source_updates").items():
+        st.session_state[_k] = _v
 
 # ── Top-level layout: left panel | right panel ───────────────────────────────
 # Column ratio shrinks to a thin strip when the search panel is collapsed.
@@ -181,18 +220,48 @@ with left_col:
                 placeholder="Enter species name (e.g. Amanita muscaria)",
                 key="search_query",
             )
-
-            with st.expander("Advanced options", expanded=False):
-                st.caption("Advanced search options will go here.")
-
             search_btn = st.form_submit_button("Search", width="stretch", type="primary")
+
+        with st.expander("Advanced options", expanded=False):
+            use_routing = st.checkbox(
+                "Choose databases based on kingdom",
+                value=True,
+                key="use_kingdom_routing",
+                help="Powered by GBIF. Automatically selects databases based on the kingdom of the species you search for.",
+            )
+            st.caption("Databases to search:")
+            if st.button("Select all", use_container_width=True, disabled=use_routing):
+                st.session_state["_pending_source_updates"] = {
+                    f"source_{k}": True for k in _ALL_APIS
+                }
+                _rerun_needed = True
+            if st.button("Unselect all", use_container_width=True, disabled=use_routing):
+                st.session_state["_pending_source_updates"] = {
+                    f"source_{k}": False for k in _ALL_APIS
+                }
+                _rerun_needed = True
+            for key in sorted(_ALL_APIS, key=lambda k: _API_LABELS.get(k, k)):
+                st.checkbox(
+                    _API_LABELS.get(key, key),
+                    key=f"source_{key}",
+                    disabled=use_routing,
+                )
 
     # ── Search handler ────────────────────────────────────────────────────
     # Guard: search_btn / query are only defined when the panel is open.
     if _panel_open and search_btn and query:
         try:
+            if st.session_state.get("use_kingdom_routing", True):
+                selected_sources = _get_router().route(query)
+                st.session_state["_pending_source_updates"] = {
+                    f"source_{key}": key in selected_sources for key in _ALL_APIS
+                }
+            else:
+                selected_sources = [k for k in _ALL_APIS if st.session_state.get(f"source_{k}", True)]
+
             df = run_search(query)
             st.session_state["search_results"] = df
+            st.session_state["selected_sources"] = selected_sources
             st.session_state["selected_record"] = None    # clear stale selection
             st.session_state["last_search_query"] = query # persist to backing store
             _rerun_needed = True
