@@ -306,21 +306,21 @@ class SymbiotaAPI(SpeciesAPI):
         ``taxa/taxonomy/rpc/gettaxasuggest.php``.
         """
         # Primary: find an exact name match in search() results.
+        # search() always returns a dict or raises — never None.
         data = self.search(species_name)
-        if data:
-            for item in data.get("results", []):
-                sciname = (
-                    item.get("sciname")
-                    or item.get("scientificName")
-                    or item.get("taxon", "")
-                )
-                if re.match(rf"^{re.escape(species_name)}\s*$", sciname, re.IGNORECASE):
-                    try:
-                        tid = int(item["tid"])
-                        print(f"[{self.portal_name}] Found tid={tid} for '{species_name}' via search.")
-                        return tid
-                    except (KeyError, ValueError, TypeError) as e:
-                        print(f"[{self.portal_name}] Could not parse tid from search result: {e}")
+        for item in data.get("results", []):
+            sciname = (
+                item.get("sciname")
+                or item.get("scientificName")
+                or item.get("taxon", "")
+            )
+            if re.match(rf"^{re.escape(species_name)}\s*$", sciname, re.IGNORECASE):
+                try:
+                    tid = int(item["tid"])
+                    print(f"[{self.portal_name}] Found tid={tid} for '{species_name}' via search.")
+                    return tid
+                except (KeyError, ValueError, TypeError) as e:
+                    print(f"[{self.portal_name}] Could not parse tid from search result: {e}")
 
         # Fallback: autocomplete endpoint when search returned no exact match.
         print(f"[{self.portal_name}] No exact match in search results for '{species_name}'; trying autocomplete.")
