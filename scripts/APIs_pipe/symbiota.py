@@ -112,6 +112,12 @@ class SymbiotaAPI(SpeciesAPI):
         ------
         RuntimeError
             If the portal returns HTTP 403.
+
+        Notes
+        -----
+        Prints ``[portal_name] GET {endpoint} → HTTP {status_code}`` for
+        every request so all HTTP activity is visible without needing a
+        debugger.
         """
         resp = requests.get(
             f"{self.base}/{endpoint}",
@@ -119,6 +125,7 @@ class SymbiotaAPI(SpeciesAPI):
             headers=self.HEADERS,
             timeout=timeout,
         )
+        print(f"[{self.portal_name}] GET {endpoint} → HTTP {resp.status_code}")
         if resp.status_code == 403:
             raise RuntimeError(f"403 Forbidden from {self.base}")
         return resp
