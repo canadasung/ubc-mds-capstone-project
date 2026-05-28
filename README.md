@@ -23,45 +23,80 @@ This project was developed as part of the UBC Master of Data Science (MDS) DSCI 
 ```
 ubc-mds-project/
 ├── app/
-│   └── prototype.py              # Streamlit app entry point
-├── deprecated/               # files that are unused in the code base and may not be up to date
-│   └── ...
-├── notebooks/              # demonstrate usage of some scripts
+│   ├── prototype.py              # Streamlit app entry point
+│   ├── prototype_node_graph.py   # node graph visualization prototype
+│   ├── prototype_pipe.py         # pipeline-based query prototype
+│   ├── prototype_taxonomy.py     # taxonomy tree visualization prototype
+│   └── prototype_timeline.py     # timeline visualization prototype
+├── data/
+│   └── sample/                   # sample query result CSVs for testing/demos
+│       ├── sample_table_data_amanita_muscaria.csv
+│       ├── sample_table_data_taraxacum_officinale.csv
+│       └── sample_table_data_ursus_arctos.csv
+├── deprecated/                   # files that are unused in the code base and may not be up to date
+│   ├── AntWeb.py
+│   ├── prototype_dash.py
+│   └── prototype_shiny.py
+├── notebooks/                    # demonstrate usage of some scripts
 │   ├── APIs/
 │   │   ├── BryophytePortal.ipynb
 │   │   └── ...
+│   ├── APIs_pipe/                # notebooks and logs for the pipeline-based API layer
+│   │   ├── demo_query.py
+│   │   ├── log_gbif_explained.md
+│   │   └── log_symbiota_explained.md
 │   └── utils/
-│       └── fuzzy_search.ipynb
+│       ├── fuzzy_search.ipynb
+│       ├── portals_error_missing.ipynb
+│       └── router.ipynb
 ├── reports/
 │   ├── images/
-│   ├── planned_reports/
-│   └── proposal.ipynb
+│   ├── proposal.ipynb
+│   └── proposal.pdf
 ├── scripts/
-│   ├── APIs/
-│   │   ├── planned_scripts/              # scripts that are partially implemented and may be fully implemented in the future
+│   ├── APIs/                     # individual API client scripts
+│   │   ├── planned_scripts/      # scripts that are partially implemented and may be fully implemented in the future
 │   │   │   └── iNat.py
 │   │   ├── GBIF.py
 │   │   └── ...
+│   ├── apis_pipe/                # pipeline-based API clients with unified interface
+│   │   ├── base.py               # abstract base class for pipeline API clients
+│   │   ├── col.py
+│   │   ├── gbif.py
+│   │   ├── genbank.py
+│   │   ├── index_fungorum.py
+│   │   ├── mushroomobs.py
+│   │   ├── symbiota.py
+│   │   └── tropicos.py
 │   └── utils/
-│       ├── call_APIs.py          # aggregates all API calls
-│       └── fuzzy_search.py          # performs fuzzy matching on search query
-
+│       ├── aggregator.py         # merges results across APIs
+│       ├── call_APIs.py          # aggregates all API calls (original layer)
+│       ├── call_apis_pipe.py     # aggregates all pipeline API calls
+│       ├── fuzzy_search.py       # performs fuzzy matching on search query
+│       ├── normalize_query_string.py
+│       ├── router.py             # routes queries to appropriate APIs
+│       └── synonyms.py           # handles taxonomic synonym expansion
 ├── tests/
-│   ├── APIs/          # tests for each fully implemented API
+│   ├── APIs/                     # tests for each fully implemented API
 │   │   ├── test_GBIF.py
 │   │   └── ...
+│   ├── apis_pipe/                # tests for pipeline-based API layer
+│   │   ├── test_API_online.py    # checks that external APIs are reachable
+│   │   └── test_env_configured.py
 │   ├── app/
-│   │   └── test_prototype.py
+│   │   ├── test_prototype.py
+│   │   └── test_prototype_taxonomy.py
 │   ├── utils/
 │   │   ├── test_call_apis.py
-│   │   └── test_fuzzy_search.py
+│   │   ├── test_fuzzy_search.py
+│   │   └── test_normalize_query_string.py
 │   └── conftest.py
 ├── .env.example                  # Template for environment variables
 ├── .gitignore
 ├── environment.yml               # Conda environment
-├── pyproject.toml               # sets up scripts folder as package so that API scripts can be called from tests, notebooks, and app
+├── pyproject.toml                # sets up scripts folder as package so that API scripts can be called from tests, notebooks, and app
 ├── LICENSE
-├── paths.py               # defines paths to root and each major folder
+├── paths.py                      # defines paths to root and each major folder
 └── README.md
 ```
 
