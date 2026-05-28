@@ -172,6 +172,7 @@ st.session_state.setdefault("debug_mode", _cli_args.debug)      # bool — set v
 st.session_state.setdefault("active_tab", "Debug" if _cli_args.debug else "Table")
 st.session_state.setdefault("last_search_query", "")     # str — backing store for the search field
 st.session_state.setdefault("selected_sources", [])      # list[str] — APIs selected for last search
+st.session_state.setdefault("_search_error", None)
 for _key in _ALL_APIS:
     st.session_state.setdefault(f"source_{_key}", True)
 
@@ -211,6 +212,10 @@ with left_col:
         # after the panel was collapsed and the widget didn't render).
         # We can't drop key= on a form input — without it, text typed before
         # submission would be lost on every rerun.
+        if st.session_state["_search_error"]:
+            st.error(st.session_state["_search_error"])
+            st.session_state["_search_error"] = None
+
         if "search_query" not in st.session_state:
             st.session_state["search_query"] = st.session_state["last_search_query"]
 
@@ -222,7 +227,7 @@ with left_col:
             )
             search_btn = st.form_submit_button("Search", width="stretch", type="primary")
 
-        with st.expander("Advanced options", expanded=False):
+        with st.expander("Advanced options", expanded=False, key="advanced_options"):
             use_routing = st.checkbox(
                 "Choose databases based on kingdom",
                 value=True,
@@ -250,6 +255,8 @@ with left_col:
     # ── Search handler ────────────────────────────────────────────────────
     # Guard: search_btn / query are only defined when the panel is open.
     if _panel_open and search_btn and query:
+
+        # Step 1: determine which databases to search.
         try:
             if st.session_state.get("use_kingdom_routing", True):
                 selected_sources = _get_router().route(query)
@@ -258,15 +265,21 @@ with left_col:
                 }
             else:
                 selected_sources = [k for k in _ALL_APIS if st.session_state.get(f"source_{k}", True)]
+        except Exception as e:
+            st.warning(f"Kingdom lookup failed, using all databases. ({e})")
+            selected_sources = list(_ALL_APIS)
 
+        # Step 2: read from the selected databases.
+        try:
             df = run_search(query)
             st.session_state["search_results"] = df
-            st.session_state["selected_sources"] = selected_sources
             st.session_state["selected_record"] = None    # clear stale selection
             st.session_state["last_search_query"] = query # persist to backing store
-            _rerun_needed = True
         except SearchError as e:
-            st.error(str(e))
+            st.session_state["_search_error"] = str(e)
+
+        st.session_state["selected_sources"] = selected_sources
+        _rerun_needed = True
 
 # ═══════════════════════════════════════════════════════════════════════════
 # RIGHT — Views
