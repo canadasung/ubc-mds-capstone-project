@@ -17,7 +17,7 @@ Example:
     # ['gbif', 'col', 'genbank', 'index_fungorum', 'mushroomobs', ...]
 """
 
-from scripts.APIs_pipe.base import SpeciesAPI
+from scripts.apis_pipe.base import SpeciesAPI
 
 
 class TaxonRouter:

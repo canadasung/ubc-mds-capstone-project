@@ -18,15 +18,15 @@ The returned JSON string has two top-level keys:
 import json
 from typing import List, Optional
 
-from scripts.APIs_pipe.col import COLAPI
+from scripts.apis_pipe.col import COLAPI
 
 # import API client implementations
-from scripts.APIs_pipe.gbif import GBIFAPI
-from scripts.APIs_pipe.genbank import GenBankAPI
-from scripts.APIs_pipe.index_fungorum import IndexFungorumAPI
-from scripts.APIs_pipe.mushroomobs import MushroomObserverAPI
-from scripts.APIs_pipe.symbiota import SymbiotaAPI
-from scripts.APIs_pipe.tropicos import TropicosAPI
+from scripts.apis_pipe.gbif import GBIFAPI
+from scripts.apis_pipe.genbank import GenBankAPI
+from scripts.apis_pipe.index_fungorum import IndexFungorumAPI
+from scripts.apis_pipe.mushroomobs import MushroomObserverAPI
+from scripts.apis_pipe.symbiota import SymbiotaAPI
+from scripts.apis_pipe.tropicos import TropicosAPI
 from scripts.utils.aggregator import SpeciesAggregator
 from scripts.utils.router import TaxonRouter
 from scripts.utils.synonyms import SynonymEngine
