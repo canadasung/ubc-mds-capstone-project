@@ -26,8 +26,6 @@ class GenBankAPI(SpeciesAPI):
       - occurrences(): queries the NCBI Nucleotide database for genetic sequence
         metadata records associated with a taxon.
 
-    search() is a no-op since GenBank is not used as a primary taxonomic backbone.
-
     Occurrence records represent NCBI nucleotide entries, not field observations:
     verbatimLocality holds the sequence title, eventDate is the NCBI record update
     date (not a collection date), and coordinates are always null.
@@ -35,21 +33,7 @@ class GenBankAPI(SpeciesAPI):
 
     BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 
-    def search(self, name: str) -> dict:
-        """
-        Not implemented for GenBank. GenBank is not a taxonomic backbone, so
-        there is no meaningful taxonomy resolution to perform. Returns an empty
-        dictionary so the pipeline's synonym-gathering phase is skipped cleanly.
-
-        Args:
-            name (str): The scientific name of the taxon (unused).
-
-        Returns:
-            dict: Always returns an empty dictionary.
-        """
-        return {}
-
-    def synonyms(self, name: str) -> list[dict]:
+    def search(self, name: str) -> list[dict]:
         """
         Retrieve species-level synonyms from the NCBI Taxonomy database.
 
@@ -65,7 +49,6 @@ class GenBankAPI(SpeciesAPI):
                 list if no match is found or the request fails.
         """
         try:
-            time.sleep(0.35)
             search_resp = requests.get(
                 f"{self.BASE_URL}/esearch.fcgi",
                 params={"db": "taxonomy", "term": name, "retmode": "json"},
@@ -76,7 +59,6 @@ class GenBankAPI(SpeciesAPI):
             if not ids:
                 return []
 
-            time.sleep(0.35)
             fetch_resp = requests.get(
                 f"{self.BASE_URL}/efetch.fcgi",
                 params={"db": "taxonomy", "id": ",".join(ids), "retmode": "xml"},
@@ -146,8 +128,6 @@ class GenBankAPI(SpeciesAPI):
         """
         results = []
         try:
-            # Respect NCBI's rate limit (max 3 requests per second)
-            time.sleep(0.35)
 
             # 1. Search the Nucleotide database for the organism
             search_url = f"{self.BASE_URL}/esearch.fcgi"
