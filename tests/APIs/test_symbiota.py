@@ -626,6 +626,7 @@ class TestSynonyms:
 # Integration tests: real HTTP calls, skipped if network is unavailable
 # ══════════════════════════════════════════════════════════════════════════════
 
+# Same pattern as SymbiotaAPI._INFRASPECIFIC_RE. Copied here so tests do not depend on the class internals.
 _INFRASPECIFIC_RE = re.compile(
     r"\b(var\.|subsp\.|ssp\.|f\.|fo\.|subf\.|cv\.|sect\.|subsect\.|ser\.)",
     re.IGNORECASE,
