@@ -34,12 +34,16 @@ def _source_accent(index: int, total: int, lightness: float = 0.45) -> str:
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
 
+_LABEL_WIDTH = len("Publication")  # longest label — pad all others to match
+
+
 def _field(label: str, value: str, wrap_width: int = 22) -> str:
     """Format a greyed label + value pair, wrapping long values."""
-    indent = "&nbsp;" * (len(label) + 2)
-    lines  = textwrap.wrap(value, wrap_width)
+    padding = "&nbsp;" * (_LABEL_WIDTH - len(label))
+    indent  = "&nbsp;" * (_LABEL_WIDTH + 2)
+    lines   = textwrap.wrap(value, wrap_width)
     value_html = ("<br>" + indent).join(lines) if lines else value
-    return f"<span style='color:#aaaaaa'>{label}</span>  {value_html}"
+    return f"<span style='color:#aaaaaa'>{label}{padding}</span>  {value_html}"
 
 
 def _df_to_synonyms(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
@@ -122,10 +126,12 @@ def _build_timeline(synonyms: list[dict], source_colors: dict[str, str]) -> go.F
         src_url  = syn["source"]["url"]
         color    = source_colors.get(src_name, "#3498db")
 
-        source_html = (
+        src_link = (
             f"<a href='{src_url}' target='_blank'>{src_name}</a>"
             if src_url else src_name
         )
+        src_pad     = "&nbsp;" * (_LABEL_WIDTH - len("Source"))
+        source_line = f"<span style='color:#aaaaaa'>Source{src_pad}</span>  {src_link}"
         status_line = (
             f"<br>{_field('Status', syn['status'])}"
             if syn.get("status") and syn["status"] != "—" else ""
@@ -137,7 +143,7 @@ def _build_timeline(synonyms: list[dict], source_colors: dict[str, str]) -> go.F
             f"{_field('Year',        str(year))}<br>"
             f"{_field('Author',      syn['author'])}<br>"
             f"{_field('Publication', syn['publication_name'])}<br>"
-            f"<span style='color:#aaaaaa'>Source</span>  {source_html}"
+            f"{source_line}"
             f"{status_line}"
         )
 
@@ -190,7 +196,7 @@ def _render_undated_table(entries: list[dict]) -> None:
             }
             for e in entries
         ]
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
 
 # ── Public render entry-point ─────────────────────────────────────────────────
@@ -230,7 +236,7 @@ def render() -> None:
     )
 
     fig = _build_timeline(dated, source_colors)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     if undated:
         _render_undated_table(undated)
