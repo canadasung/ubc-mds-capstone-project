@@ -264,7 +264,7 @@ class SymbiotaAPI(SpeciesAPI):
 
         # Try api/v2/taxonomy/search first (e.g. MyCoPortal), then api/v2/taxonomy (most other portals).
         # Both endpoints are always attempted because different portals use different paths as their
-        # primary search endpoint — one returning empty does not mean the other will too.
+        # primary search endpoint - one returning empty does not mean the other will too.
         got_empty_response = False
         for endpoint in ("api/v2/taxonomy/search", "api/v2/taxonomy"):
             try:
@@ -278,7 +278,7 @@ class SymbiotaAPI(SpeciesAPI):
                 if isinstance(data, dict) and data.get("results"):
                     print(f"[{self.portal_name}] '{endpoint}' succeeded: {len(data['results'])} result(s).")
                     return data
-                # Endpoint responded with HTTP 200 but no matching records — record this and keep trying.
+                # Endpoint responded with HTTP 200 but no matching records - record this and keep trying.
                 print(f"[{self.portal_name}] '{endpoint}' returned HTTP 200 but no results for '{name}'.")
                 got_empty_response = True
             except Exception as e:
@@ -326,7 +326,7 @@ class SymbiotaAPI(SpeciesAPI):
         ``taxa/taxonomy/rpc/gettaxasuggest.php``.
         """
         # Primary: find an exact name match in search() results.
-        # search() always returns a dict or raises — never None.
+        # search() always returns a dict or raises, never None.
         data = self.search(species_name)
         for item in data.get("results", []):
             sciname = (
@@ -596,7 +596,7 @@ class SymbiotaAPI(SpeciesAPI):
             records: list[dict] = []
             seen: set[str] = {species_name}
 
-            # Row 1 — the queried name itself.
+            # Row 1: the queried name itself.
             # Author is left blank when the queried name is a synonym; the accepted
             # row below carries the authoritative author string in that case.
             records.append(self._build_record(taxonomy, **{
@@ -608,7 +608,7 @@ class SymbiotaAPI(SpeciesAPI):
                 "GBIF Accepted Status": meta.get("status", ""),
             }))
 
-            # Row 2 — accepted name, only added when the queried name was a synonym.
+            # Row 2: accepted name, only added when the queried name was a synonym.
             accepted_name = meta.get("accepted_name")
             if accepted_name and accepted_name not in seen:
                 seen.add(accepted_name)
@@ -622,7 +622,7 @@ class SymbiotaAPI(SpeciesAPI):
                     "GBIF Accepted Status": "Accepted",
                 }))
 
-            # Remaining rows — scraped synonyms, deduplicated
+            # Remaining rows: scraped synonyms, deduplicated
             for syn in self._scrape_synonyms(accepted_tid, taxonomy):
                 canonical = f"{syn['Genus']} {syn['Species']}".strip()
                 if canonical and canonical not in seen:
