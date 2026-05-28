@@ -220,10 +220,8 @@ class SymbiotaAPI(SpeciesAPI):
                 rank_index[int(rid)] = str(name).strip()
 
         def lowest_in_range(lo: int, hi: int) -> str:
-            for rid in range(lo, hi + 1):
-                if rid in rank_index:
-                    return rank_index[rid]
-            return ""
+            # Returns the name at the lowest rankid within [lo, hi], or "" if none found.
+            return next((rank_index[r] for r in range(lo, hi + 1) if r in rank_index), "")
 
         return {
             "Kingdom":   str(data.get("kingdomName") or lowest_in_range(10, 15) or ""),
