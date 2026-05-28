@@ -4,6 +4,7 @@ Prototype Master — Streamlit skeleton
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -19,6 +20,12 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from scripts.utils.normalize_query_string import normalize_query_string  # noqa: E402
 from prototype_master_views import view_table, view_timeline, view_node, view_taxonomy, view_debug
+
+# ── CLI flags ─────────────────────────────────────────────────────────────────
+# Usage: streamlit run prototype_master.py -- --debug
+_parser = argparse.ArgumentParser(add_help=False)
+_parser.add_argument("--debug", action="store_true", default=False)
+_cli_args, _ = _parser.parse_known_args()
 
 # ── Search toggle ─────────────────────────────────────────────────────────────
 # Flip to False once the real API pipeline is ready.
@@ -129,9 +136,9 @@ st.markdown(
 st.session_state.setdefault("search_results", None)      # pd.DataFrame | None
 st.session_state.setdefault("selected_record", None)     # dict | None
 st.session_state.setdefault("pinned_records", [])        # list[dict]
-st.session_state.setdefault("search_panel_open", True)   # bool
-st.session_state.setdefault("debug_mode", True)          # bool
-st.session_state.setdefault("active_tab", "Debug")       # str — matches debug_mode=True default
+st.session_state.setdefault("search_panel_open", True)          # bool
+st.session_state.setdefault("debug_mode", _cli_args.debug)      # bool — set via --debug flag
+st.session_state.setdefault("active_tab", "Debug" if _cli_args.debug else "Table")
 st.session_state.setdefault("last_search_query", "")     # str — backing store for the search field
 
 # ── Top-level layout: left panel | right panel ───────────────────────────────
@@ -158,18 +165,6 @@ with left_col:
     if _panel_open:
         st.header("Search")
 
-        # Use value= (not key=) so Streamlit does not own the state.
-        # Widget-owned state gets wiped when the widget doesn't render (e.g.
-        # panel collapsed); a plain session_state key is never touched by Streamlit.
-        _debug_toggled = st.toggle("Debug Mode", value=st.session_state["debug_mode"])
-        if _debug_toggled != st.session_state["debug_mode"]:
-            st.session_state["debug_mode"] = _debug_toggled
-            if _debug_toggled:
-                st.session_state["active_tab"] = "Debug"
-            elif st.session_state.get("active_tab") == "Debug":
-                st.session_state["active_tab"] = "Table"
-            _rerun_needed = True
-
         # Wrapping in a form means pressing Enter in the text field is
         # equivalent to clicking the Search button.
         #
@@ -190,7 +185,7 @@ with left_col:
             with st.expander("Advanced options", expanded=False):
                 st.caption("Advanced search options will go here.")
 
-            search_btn = st.form_submit_button("Search", use_container_width=True, type="primary")
+            search_btn = st.form_submit_button("Search", width="stretch", type="primary")
 
     # ── Search handler ────────────────────────────────────────────────────
     # Guard: search_btn / query are only defined when the panel is open.
@@ -209,57 +204,36 @@ with left_col:
 # ═══════════════════════════════════════════════════════════════════════════
 with right_col:
 
-    # ── View-layout toggle ────────────────────────────────────────────────
-    view_mode = st.radio(
-        "View layout",
-        options=["Tabs layout", "Quadrants layout"],
-        horizontal=True,
-        key="view_mode",
+    _debug_on = st.session_state["debug_mode"]
+    _tab_options = (
+        ["Debug", "Table", "Timeline", "Node", "Taxonomic"]
+        if _debug_on
+        else ["Table", "Timeline", "Node", "Taxonomic"]
+    )
+
+    # Clamp stored tab to a valid option (e.g. after debug mode is turned off)
+    if st.session_state.get("active_tab") not in _tab_options:
+        st.session_state["active_tab"] = _tab_options[0]
+
+    active_tab = st.segmented_control(
+        "View",
+        options=_tab_options,
+        key="active_tab",
         label_visibility="collapsed",
     )
+
     st.divider()
 
-    # ── TAB MODE ──────────────────────────────────────────────────────────
-    if view_mode == "Tabs layout":
-        _debug_on = st.session_state["debug_mode"]
-        _tab_options = (
-            ["Debug", "Table", "Timeline", "Node", "Taxonomic"]
-            if _debug_on
-            else ["Table", "Timeline", "Node", "Taxonomic"]
-        )
-
-        # Clamp stored tab to a valid option (e.g. after debug mode is turned off)
-        if st.session_state.get("active_tab") not in _tab_options:
-            st.session_state["active_tab"] = _tab_options[0]
-
-        active_tab = st.segmented_control(
-            "View",
-            options=_tab_options,
-            key="active_tab",
-            label_visibility="collapsed",
-        )
-
-        if active_tab == "Debug":
-            view_debug.render()
-        elif active_tab == "Table":
-            view_table.render()
-        elif active_tab == "Timeline":
-            view_timeline.render()
-        elif active_tab == "Node":
-            view_node.render()
-        elif active_tab == "Taxonomic":
-            view_taxonomy.render()
-
-    # ── QUADRANT MODE ─────────────────────────────────────────────────────
-    else:
-        top_left, top_right = st.columns(2)
-        bot_left, bot_right = st.columns(2)
-
-        with top_left:  view_table.render()
-        with top_right: view_timeline.render()
-        with bot_left:  view_node.render()
-        with bot_right: view_taxonomy.render()
-        # Note: Debug View is intentionally excluded from the quadrant layout.
+    if active_tab == "Debug":
+        view_debug.render()
+    elif active_tab == "Table":
+        view_table.render()
+    elif active_tab == "Timeline":
+        view_timeline.render()
+    elif active_tab == "Node":
+        view_node.render()
+    elif active_tab == "Taxonomic":
+        view_taxonomy.render()
 
 # ── Deferred rerun ────────────────────────────────────────────────────────────
 # Called here — after both columns have fully rendered — so all keyed widgets
