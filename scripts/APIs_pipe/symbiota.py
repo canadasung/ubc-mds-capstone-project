@@ -217,6 +217,9 @@ class SymbiotaAPI(SpeciesAPI):
         search_params = {"taxon": name, "type": "EXACT", "limit": 100, "offset": 0}
 
         # Try api/v2/taxonomy/search first (e.g. MyCoPortal), then api/v2/taxonomy (most other portals).
+        # Both endpoints are always attempted because different portals use different paths as their
+        # primary search endpoint — one returning empty does not mean the other will too.
+        got_empty_response = False
         for endpoint in ("api/v2/taxonomy/search", "api/v2/taxonomy"):
             try:
                 resp = self._get(endpoint, search_params)
@@ -229,16 +232,20 @@ class SymbiotaAPI(SpeciesAPI):
                 if isinstance(data, dict) and data.get("results"):
                     print(f"[{self.portal_name}] '{endpoint}' succeeded: {len(data['results'])} result(s).")
                     return data
-                # API responded with 2xx but no matching records for this name.
-                # Return immediately — the portal answered definitively, no point trying the next endpoint.
+                # Endpoint responded with HTTP 200 but no matching records — record this and keep trying.
                 print(f"[{self.portal_name}] '{endpoint}' returned HTTP 200 but no results for '{name}'.")
-                return {"results": []}
+                got_empty_response = True
             except Exception as e:
                 warnings.warn(
                     f"{self.portal_name}: '{endpoint}' failed ({e}); trying next endpoint.",
                     stacklevel=2,
                 )
                 continue
+
+        # At least one endpoint answered successfully (HTTP 200) but found no records.
+        # This means the species is not in this portal, not that the API is broken.
+        if got_empty_response:
+            return {"results": []}
 
         raise RuntimeError(
             f"{self.portal_name}: both search endpoints failed for '{name}'."
