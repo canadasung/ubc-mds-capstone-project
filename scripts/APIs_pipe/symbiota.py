@@ -218,10 +218,13 @@ class SymbiotaAPI(SpeciesAPI):
         """
         Search for a taxon by scientific name.
 
-        Tries two endpoints in order, stopping at the first successful response:
+        Tries both endpoints in order. Returns as soon as either yields results.
+        If the first endpoint returns HTTP 200 with empty results, the second is
+        still tried because different portals use different paths as their primary
+        search endpoint:
 
         1. ``api/v2/taxonomy/search``: primary endpoint (e.g. MyCoPortal).
-        2. ``api/v2/taxonomy``: alternate path (e.g. Lichen Portal and others).
+        2. ``api/v2/taxonomy``: primary endpoint for most other portals.
 
         Parameters
         ----------
