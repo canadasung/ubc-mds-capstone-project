@@ -230,7 +230,9 @@ class SymbiotaAPI(SpeciesAPI):
                     print(f"[{self.portal_name}] '{endpoint}' succeeded: {len(data['results'])} result(s).")
                     return data
                 # API responded with 2xx but no matching records for this name.
+                # Return immediately — the portal answered definitively, no point trying the next endpoint.
                 print(f"[{self.portal_name}] '{endpoint}' returned HTTP 200 but no results for '{name}'.")
+                return {"results": []}
             except Exception as e:
                 warnings.warn(
                     f"{self.portal_name}: '{endpoint}' failed ({e}); trying next endpoint.",
