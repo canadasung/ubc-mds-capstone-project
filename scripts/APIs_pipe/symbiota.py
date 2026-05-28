@@ -282,6 +282,7 @@ class SymbiotaAPI(SpeciesAPI):
                 print(f"[{self.portal_name}] '{endpoint}' returned HTTP 200 but no results for '{name}'.")
                 got_empty_response = True
             except Exception as e:
+                print(f"[{self.portal_name}] '{endpoint}' raised an exception: {e}")
                 warnings.warn(
                     f"{self.portal_name}: '{endpoint}' failed ({e}); trying next endpoint.",
                     stacklevel=2,
@@ -355,6 +356,7 @@ class SymbiotaAPI(SpeciesAPI):
                     return tid
             print(f"[{self.portal_name}] Autocomplete returned no match for '{species_name}'.")
         except Exception as e:
+            print(f"[{self.portal_name}] Autocomplete raised an exception for '{species_name}': {e}")
             warnings.warn(
                 f"{self.portal_name}: autocomplete fallback failed for '{species_name}' ({e}).",
                 stacklevel=2,
