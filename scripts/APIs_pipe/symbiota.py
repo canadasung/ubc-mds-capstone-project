@@ -188,7 +188,7 @@ class SymbiotaAPI(SpeciesAPI):
             "Subfamily": lowest_in_range(*_RANK_RANGES["Subfamily"]),
         }
 
-    def search(self, name: str) -> dict | None:
+    def search(self, name: str) -> dict:
         """
         Search for a taxon by scientific name.
 
@@ -204,10 +204,15 @@ class SymbiotaAPI(SpeciesAPI):
 
         Returns
         -------
-        dict or None
-            Normalized response. List responses are wrapped as
-            ``{"results": [...]}``. Returns ``None`` when both endpoints
-            fail or return empty data.
+        dict
+            Normalized response with a ``"results"`` key. List responses are
+            wrapped as ``{"results": [...]}``. Returns ``{"results": []}``
+            when the API responds with HTTP 2xx but no matching records.
+
+        Raises
+        ------
+        RuntimeError
+            When both endpoints fail due to a network or HTTP error.
         """
         search_params = {"taxon": name, "type": "EXACT", "limit": 100, "offset": 0}
 
@@ -233,16 +238,14 @@ class SymbiotaAPI(SpeciesAPI):
                 )
                 continue
 
-        warnings.warn(
-            f"{self.portal_name}: both search endpoints failed for '{name}'.",
-            stacklevel=2,
+        raise RuntimeError(
+            f"{self.portal_name}: both search endpoints failed for '{name}'."
         )
-        return None
 
     # ---------------------------------------------------------
     # Synonym Scraping Logic
     # ---------------------------------------------------------
-    def _get_tid(self, species_name: str) -> int | None:
+    def _get_tid(self, species_name: str) -> int:
         """
         Return the internal taxon ID for an exact name match.
 
@@ -253,8 +256,13 @@ class SymbiotaAPI(SpeciesAPI):
 
         Returns
         -------
-        int or None
-            Internal taxon ID, or ``None`` if not found.
+        int
+            Internal taxon ID.
+
+        Raises
+        ------
+        LookupError
+            When no matching taxon ID is found via either method.
 
         Notes
         -----
@@ -297,7 +305,9 @@ class SymbiotaAPI(SpeciesAPI):
                 stacklevel=2,
             )
 
-        return None
+        raise LookupError(
+            f"{self.portal_name}: no taxon ID found for '{species_name}'."
+        )
 
     def _resolve_accepted_tid(self, tid: int) -> tuple[int, dict]:
         """
@@ -526,9 +536,6 @@ class SymbiotaAPI(SpeciesAPI):
 
         try:
             tid = self._get_tid(species_name)
-            if tid is None:
-                return pd.DataFrame(columns=COLUMNS)
-
             accepted_tid, meta = self._resolve_accepted_tid(tid)
             taxonomy = {
                 k: meta.get(k, "")
