@@ -549,6 +549,7 @@ class SymbiotaAPI(SpeciesAPI):
                 "GBIF Accepted Status": "Synonym",
             }))
 
+        print(f"[{self.portal_name}] Scraped {len(records)} synonym(s) from taxa page for tid={accepted_tid}.")
         return records
 
     def synonyms(self, name: str) -> pd.DataFrame:
