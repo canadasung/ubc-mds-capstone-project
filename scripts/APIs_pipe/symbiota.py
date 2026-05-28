@@ -171,6 +171,25 @@ class SymbiotaAPI(SpeciesAPI):
             **fields,
         }
 
+    def _split_binomial(self, name: str) -> tuple[str, str]:
+        """
+        Split a binomial scientific name into genus and species epithet.
+
+        Parameters
+        ----------
+        name : str
+            Scientific name, e.g. ``"Amanita muscaria"``.
+
+        Returns
+        -------
+        genus : str
+            First token of *name*, or ``""`` when *name* is empty.
+        species : str
+            Second token of *name*, or ``""`` when *name* has fewer than two tokens.
+        """
+        parts = name.split()
+        return (parts[0] if parts else ""), (parts[1] if len(parts) > 1 else "")
+
     def _extract_taxonomy(self, data: dict) -> dict:
         """
         Extract taxonomy hierarchy fields from an ``api/v2/taxonomy/{identifier}`` response.
@@ -517,9 +536,7 @@ class SymbiotaAPI(SpeciesAPI):
             if not name or self._INFRASPECIFIC_RE.search(name):
                 continue
 
-            parts           = name.split()
-            genus           = parts[0] if parts else ""
-            species_epithet = parts[1] if len(parts) > 1 else ""
+            genus, species_epithet = self._split_binomial(name)
             syn_tid         = tid_map.get(name)
             src_link        = f"{self.base}/taxa/index.php?taxon={syn_tid}" if syn_tid else ""
 
@@ -575,9 +592,7 @@ class SymbiotaAPI(SpeciesAPI):
                 for k in ["Kingdom", "Phylum", "Class", "Family", "Subfamily"]
             }
 
-            parts           = species_name.split()
-            queried_genus   = parts[0] if parts else ""
-            queried_species = parts[1] if len(parts) > 1 else ""
+            queried_genus, queried_species = self._split_binomial(species_name)
 
             records: list[dict] = []
             seen: set[str] = {species_name}
@@ -598,10 +613,10 @@ class SymbiotaAPI(SpeciesAPI):
             accepted_name = meta.get("accepted_name")
             if accepted_name and accepted_name not in seen:
                 seen.add(accepted_name)
-                acc_parts = accepted_name.split()
+                acc_genus, acc_species = self._split_binomial(accepted_name)
                 records.append(self._build_record(taxonomy, **{
-                    "Genus":              acc_parts[0] if acc_parts else "",
-                    "Species":            acc_parts[1] if len(acc_parts) > 1 else "",
+                    "Genus":              acc_genus,
+                    "Species":            acc_species,
                     "Source Species ID":  str(accepted_tid),
                     "Author":             meta.get("accepted_author") or "",
                     "Source Link":        f"{self.base}/taxa/index.php?taxon={accepted_tid}",
