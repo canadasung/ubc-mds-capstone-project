@@ -1,5 +1,5 @@
 """
-test_symbiota.py — Unit and integration tests for SymbiotaAPI.
+Unit and integration tests for SymbiotaAPI.
 
 Unit tests are fully mocked (no network). Integration tests hit real portals
 and are skipped automatically when the network is unavailable.
@@ -98,7 +98,24 @@ _NETWORK_ERRORS = (
 
 
 def _mock_resp(json_data=None, text=None, status=200):
-    """Build a minimal mock requests.Response."""
+    """
+    Build a minimal mock requests.Response.
+
+    Parameters
+    ----------
+    json_data : dict or list, optional
+        Value returned by ``response.json()``. Defaults to ``{}``.
+    text : str, optional
+        Raw response text. Defaults to the JSON-serialized *json_data*.
+    status : int, optional
+        HTTP status code. Default is 200.
+
+    Returns
+    -------
+    unittest.mock.MagicMock
+        Mock with ``ok``, ``status_code``, ``json``, ``text``, and
+        ``raise_for_status`` attributes configured.
+    """
     m = MagicMock()
     m.ok = (status < 400)
     m.status_code = status
@@ -109,7 +126,7 @@ def _mock_resp(json_data=None, text=None, status=200):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Unit tests — no network, all HTTP mocked
+# Unit tests: no network, all HTTP mocked
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestInit:
@@ -377,7 +394,7 @@ class TestResolveAcceptedTid:
             Exception("network error"),
         ]
         _, meta = self.api._resolve_accepted_tid(51234)
-        # Falls back to the synonym's own classification — Fungi is still present
+        # Falls back to the synonym's own classification; Fungi is still present
         assert meta["Kingdom"] == "Fungi"
 
 
@@ -570,7 +587,7 @@ class TestSynonyms:
     @patch.object(SymbiotaAPI, "_get_tid", return_value=95084)
     def test_no_duplicate_canonical_names(self, _, mock_resolve, mock_scrape):
         mock_resolve.return_value = (95084, self._meta_accepted)
-        # Scrape returns the queried name again — must be deduplicated
+        # Scrape returns the queried name again; it must be deduplicated
         duplicate = {**self._scraped[0], "Genus": "Amanita", "Species": "muscaria"}
         mock_scrape.return_value = [duplicate]
         df = self.api.synonyms("Amanita muscaria")
@@ -606,7 +623,7 @@ class TestSynonyms:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Integration tests — real HTTP calls, skipped if network is unavailable
+# Integration tests: real HTTP calls, skipped if network is unavailable
 # ══════════════════════════════════════════════════════════════════════════════
 
 _INFRASPECIFIC_RE = re.compile(
@@ -616,7 +633,18 @@ _INFRASPECIFIC_RE = re.compile(
 
 
 def _assert_dataframe_contract(df: pd.DataFrame, portal_name: str, species: str):
-    """Shared assertions applied to every integration test result."""
+    """
+    Assert that a synonyms DataFrame satisfies the full output contract.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Result from ``SymbiotaAPI.synonyms()``.
+    portal_name : str
+        Expected value in the ``Source Name`` column for every row.
+    species : str
+        Binomial name that was queried; expected as the first row.
+    """
     assert isinstance(df, pd.DataFrame), "synonyms() must return a DataFrame"
     assert list(df.columns) == COLUMNS, "DataFrame columns must match COLUMNS exactly"
     assert len(df) >= 1, f"Expected at least 1 row for '{species}'"
