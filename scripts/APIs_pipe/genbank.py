@@ -9,13 +9,11 @@ This module queries two separate NCBI Entrez databases:
 NCBI E-utilities API: https://www.ncbi.nlm.nih.gov/books/NBK25497/
 """
 
-import time
 import xml.etree.ElementTree as ET
 
 import requests
 
 from .base import SpeciesAPI
-
 
 class GenBankAPI(SpeciesAPI):
     """
@@ -33,12 +31,32 @@ class GenBankAPI(SpeciesAPI):
 
     BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 
-    def search(self, name: str) -> list[dict]:
+    def search(self, name: str) -> dict:
+        """
+        Query the NCBI Taxonomy database to find a record for a species name.
+
+        Args:
+            name (str): The scientific name to search for (e.g., "Amanita muscaria").
+
+        Returns:
+            dict: The JSON response from NCBI esearch, containing the esearchresult
+                with idlist, count, and other match details. Returns an empty dict
+                if the request fails.
+        """
+        resp = requests.get(
+            f"{self.BASE_URL}/esearch.fcgi",
+            params={"db": "taxonomy", "term": name, "retmode": "json"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def synonyms(self, name: str) -> list[dict]:
         """
         Retrieve species-level synonyms from the NCBI Taxonomy database.
 
-        Queries the Entrez taxonomy database (not the nucleotide database) to
-        find synonyms listed under OtherNames/Synonym in the taxon record.
+        Calls search() first to find taxonomy IDs for the name, then fetches
+        the full taxon record and extracts synonyms from OtherNames/Synonym elements.
 
         Args:
             name (str): The scientific name to query.
@@ -49,13 +67,8 @@ class GenBankAPI(SpeciesAPI):
                 list if no match is found or the request fails.
         """
         try:
-            search_resp = requests.get(
-                f"{self.BASE_URL}/esearch.fcgi",
-                params={"db": "taxonomy", "term": name, "retmode": "json"},
-                timeout=10,
-            )
-            search_resp.raise_for_status()
-            ids = search_resp.json().get("esearchresult", {}).get("idlist", [])
+            search_data = self.search(name)
+            ids = search_data.get("esearchresult", {}).get("idlist", [])
             if not ids:
                 return []
 
@@ -102,6 +115,7 @@ class GenBankAPI(SpeciesAPI):
         except Exception as e:
             print(f"GenBank Synonyms Error: {e}")
             return []
+
 
     def occurrences(self, name: str, limit: int = 10) -> list[dict]:
         """
