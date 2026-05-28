@@ -211,17 +211,21 @@ class SymbiotaAPI(SpeciesAPI):
         """
         search_params = {"taxon": name, "type": "EXACT", "limit": 100, "offset": 0}
 
-        # Primary attempt 1: /api/v2/taxonomy/search  (e.g. MyCoPortal)
-        # Primary attempt 2: /api/v2/taxonomy          (e.g. Lichen Portal, Macroalgae Portal)
+        # Try api/v2/taxonomy/search first (e.g. MyCoPortal), then api/v2/taxonomy (most other portals).
         for endpoint in ("api/v2/taxonomy/search", "api/v2/taxonomy"):
             try:
                 resp = self._get(endpoint, search_params)
-                if resp.ok:
-                    data = resp.json()
-                    if isinstance(data, list):
-                        data = {"results": data}
-                    if isinstance(data, dict) and data.get("results"):
-                        return data
+                if not resp.ok:
+                    print(f"[{self.portal_name}] '{endpoint}' returned non-2xx; trying next endpoint.")
+                    continue
+                data = resp.json()
+                if isinstance(data, list):
+                    data = {"results": data}
+                if isinstance(data, dict) and data.get("results"):
+                    print(f"[{self.portal_name}] '{endpoint}' succeeded: {len(data['results'])} result(s).")
+                    return data
+                # API responded with 2xx but no matching records for this name.
+                print(f"[{self.portal_name}] '{endpoint}' returned HTTP 200 but no results for '{name}'.")
             except Exception as e:
                 warnings.warn(
                     f"{self.portal_name}: '{endpoint}' failed ({e}); trying next endpoint.",
@@ -258,7 +262,7 @@ class SymbiotaAPI(SpeciesAPI):
         falls back to the autocomplete endpoint
         ``taxa/taxonomy/rpc/gettaxasuggest.php``.
         """
-        # Primary: extract tid from search() results
+        # Primary: find an exact name match in search() results.
         data = self.search(species_name)
         if data:
             for item in data.get("results", []):
@@ -269,18 +273,24 @@ class SymbiotaAPI(SpeciesAPI):
                 )
                 if re.match(rf"^{re.escape(species_name)}\s*$", sciname, re.IGNORECASE):
                     try:
-                        return int(item["tid"])
-                    except (KeyError, ValueError, TypeError):
-                        pass
+                        tid = int(item["tid"])
+                        print(f"[{self.portal_name}] Found tid={tid} for '{species_name}' via search.")
+                        return tid
+                    except (KeyError, ValueError, TypeError) as e:
+                        print(f"[{self.portal_name}] Could not parse tid from search result: {e}")
 
-        # Fallback: legacy autocomplete endpoint
+        # Fallback: autocomplete endpoint when search returned no exact match.
+        print(f"[{self.portal_name}] No exact match in search results for '{species_name}'; trying autocomplete.")
         try:
             resp = self._get("taxa/taxonomy/rpc/gettaxasuggest.php", {"term": species_name})
             resp.raise_for_status()
             for item in resp.json():
                 label = item.get("label", "")
                 if re.match(rf"^{re.escape(species_name)}(\s|$)", label):
-                    return int(item["id"])
+                    tid = int(item["id"])
+                    print(f"[{self.portal_name}] Found tid={tid} for '{species_name}' via autocomplete.")
+                    return tid
+            print(f"[{self.portal_name}] Autocomplete returned no match for '{species_name}'.")
         except Exception as e:
             warnings.warn(
                 f"{self.portal_name}: autocomplete fallback failed for '{species_name}' ({e}).",
@@ -372,14 +382,17 @@ class SymbiotaAPI(SpeciesAPI):
                 acc_resp = self._get(f"api/v2/taxonomy/{accepted_tid}", params={})
                 acc_resp.raise_for_status()
                 taxonomy = self._extract_taxonomy(acc_resp.json())
+                print(f"[{self.portal_name}] Classification resolved for accepted tid={accepted_tid}.")
             except Exception as e:
                 warnings.warn(
                     f"{self.portal_name}: could not fetch classification for accepted tid "
                     f"{accepted_tid} ({e}); falling back to synonym's own classification.",
                     stacklevel=2,
                 )
+                print(f"[{self.portal_name}] Using synonym's own classification as fallback for tid={accepted_tid}.")
                 taxonomy = self._extract_taxonomy(data)
 
+            print(f"[{self.portal_name}] '{sciname}' is a Synonym; accepted name is '{accepted_name}' (tid={accepted_tid}).")
             return accepted_tid, {
                 **taxonomy,
                 "sciname":          sciname,
@@ -391,6 +404,7 @@ class SymbiotaAPI(SpeciesAPI):
             }
 
         taxonomy = self._extract_taxonomy(data)
+        print(f"[{self.portal_name}] '{sciname}' is Accepted (tid={tid}).")
         return tid, {
             **taxonomy,
             "sciname":          sciname,
@@ -571,9 +585,11 @@ class SymbiotaAPI(SpeciesAPI):
                     seen.add(canonical)
                     records.append(syn)
 
+            print(f"[{self.portal_name}] Synonym lookup complete: {len(records)} record(s) built for '{species_name}'.")
             return pd.DataFrame(records, columns=COLUMNS)
 
         except Exception as e:
+            print(f"[{self.portal_name}] synonyms() failed for '{species_name}': {e}")
             warnings.warn(
                 f"{self.portal_name}: synonyms() failed for '{species_name}' ({e}); "
                 f"returning empty DataFrame.",
