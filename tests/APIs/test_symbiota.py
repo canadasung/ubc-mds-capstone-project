@@ -523,7 +523,7 @@ class TestSynonyms:
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 0
 
-    @patch.object(SymbiotaAPI, "_get_tid", return_value=None)
+    @patch.object(SymbiotaAPI, "_get_tid", side_effect=LookupError("no taxon ID found"))
     def test_unknown_species_returns_empty_dataframe(self, _):
         df = self.api.synonyms("Aaaa bbbb")
         assert isinstance(df, pd.DataFrame)
