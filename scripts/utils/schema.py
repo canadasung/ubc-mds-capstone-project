@@ -56,6 +56,27 @@ _REQUIRED_COLUMNS = {
     "api_internal_id",
 }
 
+_API_NAMES = {
+    "GBIF",
+    "COL",  # Catalogue of Life
+    "Tropicos",
+    "Index Fungorum",
+    "GenBank",
+    "Mushroom Observer",  # (prev. "mushroomobs")
+    # Symbiota Portals
+    "MyCoPortal",  # Mycology Collections Portal
+    "Lichen Portal",  # Consortium of Lichen Herbaria
+    "Bryophyte Portal",  # Consortium of Bryophyte Herbaria
+    "CCH2",  # Consortium of California Herbaria
+    "SERNEC",  # Southeast Regional Network of Expertise and Collections
+    "NANSH",  # North American Network of Small Herbaria
+    "swbiodiversity",  # SEINet New Mexico-Arizona Chapter
+    "Algae Herbarium Portal",  # (prev. macroalgae)
+    "Pterido Portal",  # Pteridophyte Collections Consortium
+    "CNH",  # Consortium of Northeastern Herbaria (prev. "neherbaria")
+    "Mid-Atlantic Herbaria Consortium",  # (prev. "midatlantic")
+}
+
 
 def _make_string_validator(col: str):
     """
@@ -104,9 +125,9 @@ def _make_taxon_validator(col: str):
     return validate
 
 
-def _validate_source_name(v: str) -> None:
+def _validate_api_name(v: str) -> None:
     """
-    Validate that a source name is a non-empty string.
+    Validate that an api name is one of the allowed values in ``_API_NAMES``.
 
     Parameters
     ----------
@@ -116,10 +137,10 @@ def _validate_source_name(v: str) -> None:
     Raises
     ------
     ValueError
-        If ``v`` is not a string or is empty/whitespace-only.
+        If ``v`` is not in ``_API_NAMES``.
     """
-    if not isinstance(v, str) or not v.strip():
-        raise ValueError(f"'Source Name' must be a non-empty string, got {v!r}")
+    if v not in _API_NAMES:
+        raise ValueError(f"'API Name' must be one of {_API_NAMES!r}, got {v!r}")
 
 
 def _validate_publication_year(v: str) -> None:
@@ -142,9 +163,9 @@ def _validate_publication_year(v: str) -> None:
         )
 
 
-def _validate_source_link(v: str) -> None:
+def _validate_api_link(v: str) -> None:
     """
-    Validate that a source link starts with ``http://`` or ``https://``, or is ``UNAVAILABLE``.
+    Validate that an api link starts with ``http://`` or ``https://``, or is ``UNAVAILABLE``.
 
     Parameters
     ----------
@@ -158,7 +179,7 @@ def _validate_source_link(v: str) -> None:
     """
     if v != UNAVAILABLE and not re.match(r"https?://", v):
         raise ValueError(
-            f"'Source Link' must start with 'http://' or 'https://', or be {UNAVAILABLE!r}, got {v!r}"
+            f"'API Link' must start with 'http://' or 'https://', or be {UNAVAILABLE!r}, got {v!r}"
         )
 
 
@@ -182,9 +203,9 @@ def _validate_status(v: str) -> None:
 
 # mapping of column name to validator function for validating synonym row values. All columns have validators, but some share the same validator (e.g. all taxon columns use the same taxon validator factory).
 _VALIDATORS = {
-    "source_name": _validate_source_name,
+    "api_name": _validate_api_name,
     "publication_year": _validate_publication_year,
-    "api_link": _validate_source_link,
+    "api_link": _validate_api_link,
     "status": _validate_status,
     **{col: _make_taxon_validator(col) for col in _TAXON_COLUMNS},
     **{col: _make_string_validator(col) for col in _STRING_COLUMNS},
