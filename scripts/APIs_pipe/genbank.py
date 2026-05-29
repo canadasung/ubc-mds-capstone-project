@@ -1,30 +1,28 @@
 """
-GenBank (NCBI Entrez) API client for retrieving genetic sequence metadata.
+GenBank (NCBI Entrez) API client for taxonomy synonyms and sequence metadata.
 
-This module queries the NCBI nucleotide database via the E-utilities API to
-surface genetic sequence records as occurrence-like entries in the pipeline.
-It does not perform taxonomy resolution or synonym gathering — those phases
-are skipped. Records contain sequence titles, accession URLs, and update dates
-rather than field observation data.
+This module queries two separate NCBI Entrez databases:
+  - Taxonomy database: synonym discovery via OtherNames/Synonym elements.
+  - Nucleotide database: genetic sequence records surfaced as occurrence-like
+    entries (sequence titles, accession URLs, update dates).
 
 NCBI E-utilities API: https://www.ncbi.nlm.nih.gov/books/NBK25497/
 """
 
-import time
+import xml.etree.ElementTree as ET
 
 import requests
 
 from .base import SpeciesAPI
 
-
 class GenBankAPI(SpeciesAPI):
     """
     Concrete implementation of the SpeciesAPI for GenBank (NCBI Entrez).
 
-    Queries the NCBI nucleotide database for genetic sequence metadata records
-    associated with a taxon. Both search() and synonyms() are stubs that return
-    empty results — GenBank is used only for sequence record discovery, not
-    taxonomy resolution.
+    Queries NCBI Entrez for two distinct data types:
+      - synonyms(): queries the NCBI Taxonomy database for species-level synonyms.
+      - occurrences(): queries the NCBI Nucleotide database for genetic sequence
+        metadata records associated with a taxon.
 
     Occurrence records represent NCBI nucleotide entries, not field observations:
     verbatimLocality holds the sequence title, eventDate is the NCBI record update
@@ -35,31 +33,89 @@ class GenBankAPI(SpeciesAPI):
 
     def search(self, name: str) -> dict:
         """
-        Not implemented for GenBank. GenBank is not a taxonomic backbone, so
-        there is no meaningful taxonomy resolution to perform. Returns an empty
-        dictionary so the pipeline's synonym-gathering phase is skipped cleanly.
+        Query the NCBI Taxonomy database to find a record for a species name.
 
         Args:
-            name (str): The scientific name of the taxon (unused).
+            name (str): The scientific name to search for (e.g., "Amanita muscaria").
 
         Returns:
-            dict: Always returns an empty dictionary.
+            dict: The JSON response from NCBI esearch, containing the esearchresult
+                with idlist, count, and other match details. Returns an empty dict
+                if the request fails.
         """
-        return {}
+        resp = requests.get(
+            f"{self.BASE_URL}/esearch.fcgi",
+            params={"db": "taxonomy", "term": name, "retmode": "json"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        return resp.json()
 
     def synonyms(self, name: str) -> list[dict]:
         """
-        Not implemented for GenBank. GenBank records genetic sequences, not
-        taxonomic aliases, so there are no synonyms to retrieve. Returns an
-        empty list to skip the pipeline's synonym-gathering phase.
+        Retrieve species-level synonyms from the NCBI Taxonomy database.
+
+        Calls search() first to find taxonomy IDs for the name, then fetches
+        the full taxon record and extracts synonyms from OtherNames/Synonym elements.
 
         Args:
-            name (str): The scientific name to query (unused).
+            name (str): The scientific name to query.
 
         Returns:
-            list[dict]: Always returns an empty list.
+            list[dict]: A list of synonym records with keys 'canonicalName',
+                'author', 'date', 'publishedIn', and 'url'. Returns an empty
+                list if no match is found or the request fails.
         """
-        return []
+        try:
+            search_data = self.search(name)
+            ids = search_data.get("esearchresult", {}).get("idlist", [])
+            if not ids:
+                return []
+
+            fetch_resp = requests.get(
+                f"{self.BASE_URL}/efetch.fcgi",
+                params={"db": "taxonomy", "id": ",".join(ids), "retmode": "xml"},
+                timeout=10,
+            )
+            fetch_resp.raise_for_status()
+
+            try:
+                root = ET.fromstring(fetch_resp.text)
+            except ET.ParseError:
+                return []
+
+            results = []
+            seen = {name.lower()}
+
+            for taxon in root.findall(".//Taxon"):
+                taxon_id = taxon.findtext("TaxId", "")
+                other_names = taxon.find("OtherNames")
+                if other_names is None:
+                    continue
+                for syn_el in other_names.findall("Synonym"):
+                    syn_name = (syn_el.text or "").strip()
+                    if not syn_name or syn_name.lower() in seen:
+                        continue
+                    seen.add(syn_name.lower())
+                    results.append(
+                        {
+                            "canonicalName": syn_name,
+                            "author": "",
+                            "date": "",
+                            "publishedIn": "",
+                            "url": f"https://www.ncbi.nlm.nih.gov/taxonomy/{taxon_id}",
+                        }
+                    )
+
+            return results
+
+        except requests.RequestException as e:
+            print(f"GenBank Synonyms Network Error: {e}")
+            return []
+        except Exception as e:
+            print(f"GenBank Synonyms Error: {e}")
+            return []
+
 
     def occurrences(self, name: str, limit: int = 10) -> list[dict]:
         """
@@ -86,8 +142,6 @@ class GenBankAPI(SpeciesAPI):
         """
         results = []
         try:
-            # Respect NCBI's rate limit (max 3 requests per second)
-            time.sleep(0.35)
 
             # 1. Search the Nucleotide database for the organism
             search_url = f"{self.BASE_URL}/esearch.fcgi"
