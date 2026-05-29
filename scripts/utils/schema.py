@@ -140,7 +140,7 @@ def _validate_api_name(v: str) -> None:
         If ``v`` is not in ``_API_NAMES``.
     """
     if v not in _API_NAMES:
-        raise ValueError(f"'API Name' must be one of {_API_NAMES!r}, got {v!r}")
+        raise ValueError(f"'api_name' must be one of {_API_NAMES!r}, got {v!r}")
 
 
 def _validate_publication_year(v: str) -> None:
@@ -159,7 +159,7 @@ def _validate_publication_year(v: str) -> None:
     """
     if v != UNAVAILABLE and not re.fullmatch(r"\d{4}", v):
         raise ValueError(
-            f"'Publication Year' must be a 4-digit year string or {UNAVAILABLE!r}, got {v!r}"
+            f"'publication_year' must be a 4-digit year string or {UNAVAILABLE!r}, got {v!r}"
         )
 
 
@@ -179,7 +179,7 @@ def _validate_api_link(v: str) -> None:
     """
     if v != UNAVAILABLE and not re.match(r"https?://", v):
         raise ValueError(
-            f"'API Link' must start with 'http://' or 'https://', or be {UNAVAILABLE!r}, got {v!r}"
+            f"'api_link' must start with 'http://' or 'https://', or be {UNAVAILABLE!r}, got {v!r}"
         )
 
 
@@ -198,7 +198,7 @@ def _validate_status(v: str) -> None:
         If ``v`` is not in ``_STATUS_VALUES``.
     """
     if v not in _STATUS_VALUES:
-        raise ValueError(f"'Status' must be one of {_STATUS_VALUES}, got {v!r}")
+        raise ValueError(f"'status' must be one of {_STATUS_VALUES}, got {v!r}")
 
 
 # mapping of column name to validator function for validating synonym row values. All columns have validators, but some share the same validator (e.g. all taxon columns use the same taxon validator factory).
