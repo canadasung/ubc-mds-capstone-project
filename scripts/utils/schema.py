@@ -113,7 +113,7 @@ def _make_taxon_validator(col: str):
     -------
     callable
         Validator that raises ``ValueError`` if the value is not a string, contains
-        whitespace, and is not equal to ``UNAVAILABLE``.
+        whitespace, or is not equal to ``UNAVAILABLE``.
     """
 
     def validate(v: str) -> None:
