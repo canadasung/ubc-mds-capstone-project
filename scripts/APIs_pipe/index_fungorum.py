@@ -3,12 +3,9 @@
 """index_fungorum.py — Index Fungorum API client.
 
 Concrete SpeciesAPI implementation for Index Fungorum, the global nomenclatural
-database for fungi. Responses come back as legacy XML, which this client parses
-into the pipeline's standard synonym dictionaries.
+database for fungi.
 
-The direct /Synonymy endpoint is unreliable (frequent HTTP 500s), so synonyms are
-resolved with a two-step query: map the name to its internal CurrentKey, then
-fetch all records sharing that key. Index Fungorum holds no occurrence data, so
+Index Fungorum holds no occurrence data, so
 `occurrences` is a no-op.
 
 Main entry point: IndexFungorumAPI().synonyms(name)
@@ -25,12 +22,7 @@ class IndexFungorumAPI(SpeciesAPI):
     """
     Concrete implementation of the SpeciesAPI for Index Fungorum.
 
-    Index Fungorum is the global nomenclatural database for fungi. Because
-    their direct /Synonymy endpoint frequently suffers from 500 Internal Server
-    Errors, this client utilizes a robust two-step relational query design:
-    1. Resolve the target species name to its internal database ID ('CurrentKey').
-    2. Query for all historical names pointing to that specific ID.
-
+    Index Fungorum is the global nomenclatural database for fungi.
     This client automatically parses the legacy XML responses into the
     pipeline's standard JSON-like dictionaries.
     """
@@ -92,7 +84,14 @@ class IndexFungorumAPI(SpeciesAPI):
                 database. Returns None if the species is not found.
         """
         try:
-            resp = requests.get(f"{self.BASE}/NameSearch", params={"SearchText": name})
+            resp = requests.get(
+                f"{self.BASE}/NameSearch",
+                params={
+                    "SearchText": name,
+                    "AnywhereInText": "false",  # only search for exact matches in the name field, not in any fields
+                    "MaxNumber": "50",  # get the top 50 matches, which should ensure we capture the accepted name even if there are many infraspecific records
+                },
+            )
             resp.raise_for_status()
         except requests.RequestException:
             return None

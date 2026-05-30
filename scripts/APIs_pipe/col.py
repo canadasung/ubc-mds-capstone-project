@@ -21,7 +21,9 @@ class COLAPI(SpeciesAPI):
     and synonymies but does not host physical occurrence or observational data.
     """
 
-    BASE = "https://api.catalogueoflife.org"
+    BASE = "https://api.checklistbank.org"
+    # COL26.5 — update this key when a newer COL release is published on ChecklistBank
+    DATASET_KEY = 315192
 
     def search(self, name: str):
         """
@@ -34,9 +36,31 @@ class COLAPI(SpeciesAPI):
             dict: The JSON response dictionary from the COL API containing matching
                 name usages, status (accepted vs. synonym), and taxonomic IDs.
         """
-        resp = requests.get(f"{self.BASE}/nameusage/search", params={"q": name})
+        resp = requests.get(
+            f"{self.BASE}/dataset/{self.DATASET_KEY}/nameusage/search",
+            params={"q": name},
+        )
         resp.raise_for_status()
         return resp.json()
+
+    def _resolve_accepted_id(self, results: list) -> str | None:
+        """
+        Return the ChecklistBank taxon ID for the accepted name in results.
+
+        If results contain an accepted name, its ID is returned directly.
+        If the first result is a synonym, its parentId (which points to the
+        accepted taxon) is returned instead.
+        """
+        # TODO: check into behavior if there are multiple accepted names and decide how we want to handle that
+        accepted = next(
+            (r for r in results if r.get("usage", {}).get("status") == "accepted"),
+            None,
+        )
+        if accepted is not None:
+            return accepted.get("id")
+
+        first = results[0]
+        return first.get("usage", {}).get("parentId")
 
     def synonyms(self, name: str):
         """
@@ -45,10 +69,6 @@ class COLAPI(SpeciesAPI):
         This process requires two steps: first, resolving the string name to a
         specific COL usage ID, and second, querying the synonyms endpoint using
         that ID.
-
-        Note: If a valid taxon has no synonyms, the COL API natively returns an
-        HTTP 404 (Not Found) for the synonyms endpoint. This method catches that
-        specific 404 and safely returns an empty list.
 
         Args:
             name (str): The scientific name to search for.
@@ -60,28 +80,21 @@ class COLAPI(SpeciesAPI):
         """
         data = self.search(name)
 
-        # If COL returns no results → skip
         results = data.get("result", [])
         if not isinstance(results, list) or len(results) == 0:
             return []
 
-        usage_id = results[0].get("id")
+        usage_id = self._resolve_accepted_id(results)
         if not usage_id:
             return []
 
-        resp = requests.get(f"{self.BASE}/nameusage/{usage_id}/synonyms")
-
-        # A 404 from COL on this specific endpoint just means "no synonyms exist"
-        if resp.status_code == 404:
-            return []
-
+        resp = requests.get(
+            f"{self.BASE}/dataset/{self.DATASET_KEY}/taxon/{usage_id}/synonyms"
+        )
         resp.raise_for_status()
 
         syns = resp.json()
-        if not isinstance(syns, list):
-            return []
-
-        return syns
+        return syns.get("homotypic", []) + syns.get("heterotypic", [])
 
     def occurrences(self, name: str, limit: int = 20):
         """
