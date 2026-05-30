@@ -1,5 +1,5 @@
 """
-test_symbiota.py — Unit and integration tests for SymbiotaAPI.
+Unit and integration tests for SymbiotaAPI.
 
 Unit tests are fully mocked (no network). Integration tests hit real portals
 and are skipped automatically when the network is unavailable.
@@ -16,13 +16,13 @@ Run everything:
 
 import json
 import re
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 import requests
 
-from scripts.APIs_pipe.symbiota import COLUMNS, _RANK_RANGES, SymbiotaAPI
+from scripts.APIs_pipe.symbiota import COLUMNS, SymbiotaAPI
 
 # ── Shared mock data ───────────────────────────────────────────────────────────
 
@@ -98,7 +98,24 @@ _NETWORK_ERRORS = (
 
 
 def _mock_resp(json_data=None, text=None, status=200):
-    """Build a minimal mock requests.Response."""
+    """
+    Build a minimal mock requests.Response.
+
+    Parameters
+    ----------
+    json_data : dict or list, optional
+        Value returned by ``response.json()``. Defaults to ``{}``.
+    text : str, optional
+        Raw response text. Defaults to the JSON-serialized *json_data*.
+    status : int, optional
+        HTTP status code. Default is 200.
+
+    Returns
+    -------
+    unittest.mock.MagicMock
+        Mock with ``ok``, ``status_code``, ``json``, ``text``, and
+        ``raise_for_status`` attributes configured.
+    """
     m = MagicMock()
     m.ok = (status < 400)
     m.status_code = status
@@ -109,7 +126,7 @@ def _mock_resp(json_data=None, text=None, status=200):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Unit tests — no network, all HTTP mocked
+# Unit tests: no network, all HTTP mocked
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestInit:
@@ -215,7 +232,7 @@ class TestExtractTaxonomy:
 
 
 class TestSearch:
-    """search() tries api/v2/taxonomy/search, then api/v2/taxonomy, then taxasearch.php."""
+    """search() tries api/v2/taxonomy/search, then api/v2/taxonomy."""
 
     def setup_method(self):
         self.api = SymbiotaAPI("https://mycoportal.org/portal")
@@ -242,22 +259,10 @@ class TestSearch:
         assert any("taxonomy" in u and "search" not in u for u in urls)
 
     @patch("scripts.APIs_pipe.symbiota.requests.get")
-    def test_falls_back_to_php_when_both_rest_endpoints_fail(self, mock_get):
-        mock_get.side_effect = [
-            _mock_resp(status=404),     # taxonomy/search fails
-            _mock_resp(status=404),     # taxonomy fails
-            _mock_resp({"taxon": "Amanita muscaria"}),  # taxasearch.php
-        ]
-        result = self.api.search("Amanita muscaria")
-        assert result is not None
-        urls = [c[0][0] for c in mock_get.call_args_list]
-        assert any("taxasearch.php" in u for u in urls)
-
-    @patch("scripts.APIs_pipe.symbiota.requests.get")
-    def test_returns_none_when_all_three_endpoints_fail(self, mock_get):
+    def test_raises_when_both_endpoints_fail(self, mock_get):
         mock_get.side_effect = Exception("network error")
-        result = self.api.search("Amanita muscaria")
-        assert result is None
+        with pytest.raises(RuntimeError):
+            self.api.search("Amanita muscaria")
 
     @patch("scripts.APIs_pipe.symbiota.requests.get")
     def test_wraps_list_response_in_results_key(self, mock_get):
@@ -290,26 +295,29 @@ class TestGetTid:
         assert self.api._get_tid("Amanita muscaria") == 95084
 
     @patch.object(SymbiotaAPI, "search")
-    def test_returns_none_when_search_has_no_match(self, mock_search):
+    def test_raises_when_search_has_no_match(self, mock_search):
         mock_search.return_value = {"results": []}
-        assert self.api._get_tid("Aaaa bbbb") is None
+        with patch("scripts.APIs_pipe.symbiota.requests.get", side_effect=Exception):
+            with pytest.raises(LookupError):
+                self.api._get_tid("Aaaa bbbb")
 
     @patch.object(SymbiotaAPI, "search")
     @patch("scripts.APIs_pipe.symbiota.requests.get")
-    def test_falls_back_to_autocomplete_when_search_returns_none(
+    def test_falls_back_to_autocomplete_when_search_returns_no_match(
         self, mock_get, mock_search
     ):
-        mock_search.return_value = None
+        mock_search.return_value = {"results": []}
         mock_get.return_value = _mock_resp(
             [{"label": "Amanita muscaria (L.) Lam.", "id": "95084"}]
         )
         assert self.api._get_tid("Amanita muscaria") == 95084
 
     @patch.object(SymbiotaAPI, "search")
-    def test_returns_none_when_both_lookups_fail(self, mock_search):
-        mock_search.return_value = None
+    def test_raises_when_both_lookups_fail(self, mock_search):
+        mock_search.return_value = {"results": []}
         with patch("scripts.APIs_pipe.symbiota.requests.get", side_effect=Exception):
-            assert self.api._get_tid("Amanita muscaria") is None
+            with pytest.raises(LookupError):
+                self.api._get_tid("Amanita muscaria")
 
     @patch.object(SymbiotaAPI, "search")
     @patch("scripts.APIs_pipe.symbiota.requests.get")
@@ -320,7 +328,8 @@ class TestGetTid:
             "results": [{"tid": 95084, "sciname": "Amanita muscaria"}]
         }
         mock_get.return_value = _mock_resp([])
-        assert self.api._get_tid("Amanita") is None
+        with pytest.raises(LookupError):
+            self.api._get_tid("Amanita")
 
 
 class TestResolveAcceptedTid:
@@ -385,7 +394,7 @@ class TestResolveAcceptedTid:
             Exception("network error"),
         ]
         _, meta = self.api._resolve_accepted_tid(51234)
-        # Falls back to the synonym's own classification — Fungi is still present
+        # Falls back to the synonym's own classification; Fungi is still present
         assert meta["Kingdom"] == "Fungi"
 
 
@@ -514,7 +523,7 @@ class TestSynonyms:
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 0
 
-    @patch.object(SymbiotaAPI, "_get_tid", return_value=None)
+    @patch.object(SymbiotaAPI, "_get_tid", side_effect=LookupError("no taxon ID found"))
     def test_unknown_species_returns_empty_dataframe(self, _):
         df = self.api.synonyms("Aaaa bbbb")
         assert isinstance(df, pd.DataFrame)
@@ -578,7 +587,7 @@ class TestSynonyms:
     @patch.object(SymbiotaAPI, "_get_tid", return_value=95084)
     def test_no_duplicate_canonical_names(self, _, mock_resolve, mock_scrape):
         mock_resolve.return_value = (95084, self._meta_accepted)
-        # Scrape returns the queried name again — must be deduplicated
+        # Scrape returns the queried name again; it must be deduplicated
         duplicate = {**self._scraped[0], "Genus": "Amanita", "Species": "muscaria"}
         mock_scrape.return_value = [duplicate]
         df = self.api.synonyms("Amanita muscaria")
@@ -614,9 +623,10 @@ class TestSynonyms:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Integration tests — real HTTP calls, skipped if network is unavailable
+# Integration tests: real HTTP calls, skipped if network is unavailable
 # ══════════════════════════════════════════════════════════════════════════════
 
+# Same pattern as SymbiotaAPI._INFRASPECIFIC_RE. Copied here so tests do not depend on the class internals.
 _INFRASPECIFIC_RE = re.compile(
     r"\b(var\.|subsp\.|ssp\.|f\.|fo\.|subf\.|cv\.|sect\.|subsect\.|ser\.)",
     re.IGNORECASE,
@@ -624,7 +634,18 @@ _INFRASPECIFIC_RE = re.compile(
 
 
 def _assert_dataframe_contract(df: pd.DataFrame, portal_name: str, species: str):
-    """Shared assertions applied to every integration test result."""
+    """
+    Assert that a synonyms DataFrame satisfies the full output contract.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Result from ``SymbiotaAPI.synonyms()``.
+    portal_name : str
+        Expected value in the ``Source Name`` column for every row.
+    species : str
+        Binomial name that was queried; expected as the first row.
+    """
     assert isinstance(df, pd.DataFrame), "synonyms() must return a DataFrame"
     assert list(df.columns) == COLUMNS, "DataFrame columns must match COLUMNS exactly"
     assert len(df) >= 1, f"Expected at least 1 row for '{species}'"
