@@ -1,15 +1,12 @@
 """
-This module serves as the dedicated connector between the application's data 
-aggregation pipeline and the Global Biodiversity Information Facility (GBIF) API. 
-It is a concrete, fully realized implementation of the `SpeciesAPI` blueprint, 
+This module serves as the dedicated connector between the application's data
+aggregation pipeline and the Global Biodiversity Information Facility (GBIF) API.
+It is a concrete, fully realized implementation of the `SpeciesAPI` blueprint,
 which can be found in base.py.
 
-It automates the retrieval of exact taxonomic matches, resolves historical 
-synonyms through secondary API routing, and extracts image-rich physical 
-occurrence records.
+It automates the retrieval of exact taxonomic matches and resolves historical
+synonyms through secondary API routing.
 """
-
-import re
 
 import requests
 
@@ -20,13 +17,13 @@ class GBIFAPI(SpeciesAPI):
     """
     Concrete implementation of the SpeciesAPI for the Global Biodiversity Information Facility (GBIF).
 
-    This client interacts directly with the GBIF REST API to perform taxonomic matching, 
-    retrieve historical synonyms, and fetch physical occurrence records mapped to Darwin Core standards.
+    This client interacts directly with the GBIF REST API to perform taxonomic matching
+    and retrieve historical synonyms.
     """
 
     BASE = "https://api.gbif.org/v1"
 
-    def search(self, name: str):
+    def search(self, name: str) -> dict:
         """
         Query the GBIF backbone taxonomy to find a precise match for a species.
 
@@ -39,15 +36,14 @@ class GBIFAPI(SpeciesAPI):
             dict: The JSON response from GBIF containing match details, including
                 the match type, taxonomic rank, and usage keys.
         """
-        resp = requests.get(
-            f"{self.BASE}/species/match", params={"name": name, "strict": "true"}
+        return self._fetch(
+            f"{self.BASE}/species/match",
+            params={"name": name, "strict": "true"},
         )
-        resp.raise_for_status()
-        return resp.json()
 
-    def _resolve_usage_key(self, match_data: dict) -> int:
+    def _get_accepted_id(self, match_data: dict) -> int:
         """
-        Helper method to extract the correct GBIF usage key from match data.
+        Extract the correct GBIF usage key from match data.
 
         If the matched taxon is classified as a synonym, GBIF provides an
         'acceptedUsageKey' pointing to the currently accepted name. This method
@@ -63,13 +59,58 @@ class GBIFAPI(SpeciesAPI):
             return match_data["acceptedUsageKey"]
         return match_data["usageKey"]
 
-    def synonyms(self, name: str):
+    def _fetch_synonyms_page(self, usage_key: int) -> list[dict]:
+        """
+        Fetch the raw synonyms list for an accepted taxon from GBIF.
+
+        Args:
+            usage_key (int): The GBIF usage key of the accepted taxon.
+
+        Returns:
+            list[dict]: The ``"results"`` array from the GBIF synonyms endpoint,
+                or an empty list when the request fails.
+        """
+        data = self._fetch(
+            f"{self.BASE}/species/{usage_key}/synonyms",
+            params={"limit": 500},
+        )
+        return data.get("results", [])
+
+    def _build_synonyms(self, raw_results: list[dict], query_name: str) -> list[dict]:
+        """
+        Convert raw GBIF synonym records into pipeline-standard synonym dicts.
+
+        Filters to SPECIES rank only, extracts authorship years, and deduplicates.
+
+        Args:
+            raw_results (list[dict]): The ``"results"`` list from GBIF's synonyms endpoint.
+            query_name (str): The original query name, used to seed deduplication.
+
+        Returns:
+            list[dict]: Pipeline-standard synonym records.
+        """
+        candidates = []
+        for item in raw_results:
+            if item.get("rank") == "SPECIES" and item.get("canonicalName"):
+                authorship = item.get("authorship", "")
+                candidates.append(
+                    self._format_synonym(
+                        name=item["canonicalName"],
+                        author=authorship,
+                        publication_date=self._extract_year(authorship),
+                        publication_name=item.get("publishedIn", ""),
+                        api_link=f"https://www.gbif.org/species/{item.get('key')}",
+                    )
+                )
+        return self._deduplicate_synonyms(candidates, seed={query_name.lower()})
+
+    def synonyms(self, name: str) -> list[dict]:
         """
         Retrieve species-level synonyms and metadata for a given scientific name.
 
-        This method first resolves the name to its accepted usage key, then queries
-        the '/species/{key}/synonyms' endpoint. It filters the results to only include
-        taxa at the 'SPECIES' rank, and extracts authorship, publication dates, and URLs.
+        First resolves the name to its accepted usage key, then fetches and
+        builds the synonym list. The accepted name itself is always the first
+        record returned.
 
         Args:
             name (str): The scientific name to query.
@@ -94,131 +135,18 @@ class GBIFAPI(SpeciesAPI):
         if match.get("matchType") == "NONE":
             return []
 
-        usage_key = self._resolve_usage_key(match)
-        resp = requests.get(
-            f"{self.BASE}/species/{usage_key}/synonyms", params={"limit": 500}
-        )
-        resp.raise_for_status()
+        usage_key = self._get_accepted_id(match)
+        authorship = match.get("authorship", "")
 
-        results = []
-
-        # Helper to extract Year from authorship string
-        def extract_year(authorship):
-            if not authorship:
-                return ""
-            year_match = re.search(r"\b(17|18|19|20)\d{2}\b", authorship)
-            return year_match.group(0) if year_match else ""
-
-        # Format accepted name
-        results.append(
-            {
-                "canonicalName": match.get("canonicalName") or name,
-                "author": match.get("authorship", ""),
-                "date": extract_year(match.get("authorship", "")),
-                "publishedIn": match.get("publishedIn", ""),
-                "url": f"https://www.gbif.org/species/{usage_key}",
-            }
+        accepted_record = self._format_synonym(
+            name=match.get("canonicalName") or name,
+            author=authorship,
+            publication_date=self._extract_year(authorship),
+            publication_name=match.get("publishedIn", ""),
+            api_link=f"https://www.gbif.org/species/{usage_key}",
         )
 
-        for item in resp.json().get("results", []):
-            if item.get("rank") == "SPECIES" and item.get("canonicalName"):
-                results.append(
-                    {
-                        "canonicalName": item["canonicalName"],
-                        "author": item.get("authorship", ""),
-                        "date": extract_year(item.get("authorship", "")),
-                        "publishedIn": item.get("publishedIn", ""),
-                        "url": f"https://www.gbif.org/species/{item.get('key')}",
-                    }
-                )
-        return results
+        raw_results = self._fetch_synonyms_page(usage_key)
+        synonym_records = self._build_synonyms(raw_results, query_name=name)
 
-    def occurrences(self, name: str, limit: int = 20):
-        """
-        Retrieves a strictly mixed batch of occurrence records with images for a specific taxon from GBIF:
-        90% Institutional Specimens and 10% Citizen Science observations.
-
-        It explicitly filters for records containing 'StillImage' media, parses
-        the media arrays, and extracts up to 3 image URLs into a custom
-        'top_3_images' key for easy access by the frontend UI.
-
-        Args:
-            name (str): The scientific name of the species to search for.
-            limit (int, optional): The maximum number of records to return.
-                Defaults to 20.
-
-        Returns:
-            list[dict]: A list of occurrence records. Each record contains standard
-                Darwin Core fields AND a custom 'top_3_images' key containing a
-                list of up to 3 image URL strings.
-        """
-        institutional_limit = int(limit * 0.90)
-        citizen_limit = limit - institutional_limit
-
-        combined_records = []
-
-        # --- Helper Function to Extract Images ---
-        def process_and_extract_images(results_list):
-            processed = []
-            for occ in results_list:
-                images = []
-                for media in occ.get("media", []):
-                    if media.get("type") == "StillImage" and media.get("identifier"):
-                        images.append(media["identifier"])
-                        if len(images) == 3:
-                            break
-
-                occ["top_3_images"] = images
-                processed.append(occ)
-            return processed
-
-        # -----------------------------------------
-
-        # 1. Query for Institutional Data (Museums, Herbaria, Universities)
-        try:
-            inst_resp = requests.get(
-                f"{self.BASE}/occurrence/search",
-                params={
-                    "scientificName": name,
-                    "limit": institutional_limit,
-                    "hasCoordinate": "true",
-                    "hasGeospatialIssue": "false",
-                    "basisOfRecord": "PRESERVED_SPECIMEN",
-                    "mediaType": "StillImage",  # Guarantee they have photos!
-                },
-            )
-            inst_resp.raise_for_status()
-            inst_data = inst_resp.json()
-
-            if "results" in inst_data:
-                # Process the images before adding them to our final list
-                processed_inst = process_and_extract_images(inst_data["results"])
-                combined_records.extend(processed_inst)
-        except Exception as e:
-            print(f"GBIF Institutional query failed: {e}")
-
-        # 2. Query for Citizen Science Data (iNaturalist, Observation Networks)
-        try:
-            cit_resp = requests.get(
-                f"{self.BASE}/occurrence/search",
-                params={
-                    "scientificName": name,
-                    "limit": citizen_limit,
-                    "hasCoordinate": "true",
-                    "hasGeospatialIssue": "false",
-                    "basisOfRecord": "HUMAN_OBSERVATION",
-                    "mediaType": "StillImage",  # Guarantee they have photos!
-                },
-            )
-            cit_resp.raise_for_status()
-            cit_data = cit_resp.json()
-
-            if "results" in cit_data:
-                # Process the images before adding them to our final list
-                processed_cit = process_and_extract_images(cit_data["results"])
-                combined_records.extend(processed_cit)
-        except Exception as e:
-            print(f"GBIF Citizen Science query failed: {e}")
-
-        # 3. Return the fully stitched, image-rich list to the aggregator
-        return combined_records
+        return [accepted_record] + synonym_records

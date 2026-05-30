@@ -2,9 +2,18 @@
 Symbiota portal client for taxonomic name and synonym retrieval.
 
 Provides a concrete SpeciesAPI implementation for Symbiota-based portals.
-Each portal runs its own instance of the Symbiota software with different 
-endpoint paths and response formats. This module abstracts those 
+Each portal runs its own instance of the Symbiota software with different
+endpoint paths and response formats. This module abstracts those
 differences and normalizes all output to the predefined schema.
+
+Symbiota is a documented exception to two base-class conventions:
+
+- ``_build_synonyms()`` is not implemented: ``synonyms()`` returns a pandas
+  DataFrame (not ``list[dict]``) because the portal schema includes taxonomy
+  columns absent from the standard five-key format.
+- ``_fetch()`` / ``_fetch_text()`` are not used: all HTTP calls go through the
+  portal-specific ``_get()`` wrapper, which adds per-request logging, 403
+  detection, and URL construction from ``self.base``.
 """
 
 
@@ -60,16 +69,6 @@ class SymbiotaAPI(SpeciesAPI):
     portal_name : str
         Source identifier written to the ``Source Name`` output column.
     """
-
-    # Symbiota portals frequently block default Python user agents to prevent
-    # server scraping. Spoofing a standard browser header bypasses basic blocks.
-    HEADERS = {"User-Agent": "Mozilla/5.0"}
-
-    # Matches rank abbreviations that indicate an infraspecific taxon to filter them out.
-    _INFRASPECIFIC_RE = re.compile(
-        r"\b(var\.|subsp\.|ssp\.|f\.|fo\.|subf\.|cv\.|sect\.|subsect\.|ser\.)",
-        re.IGNORECASE,
-    )
 
     def __init__(self, base_url: str, portal_name: str = ""):
         """
@@ -231,6 +230,10 @@ class SymbiotaAPI(SpeciesAPI):
             "Subfamily": lowest_in_range(*_RANK_RANGES["Subfamily"]),
         }
 
+    # ---------------------------------------------------------
+    # Search
+    # ---------------------------------------------------------
+
     def search(self, name: str) -> dict:
         """
         Search for a taxon by scientific name.
@@ -299,9 +302,10 @@ class SymbiotaAPI(SpeciesAPI):
         )
 
     # ---------------------------------------------------------
-    # Synonym Scraping Logic
+    # Internal ID resolution
     # ---------------------------------------------------------
-    def _get_tid(self, species_name: str) -> int:
+
+    def _get_internal_id(self, species_name: str) -> int:
         """
         Return the internal taxon ID for an exact name match.
 
@@ -366,6 +370,139 @@ class SymbiotaAPI(SpeciesAPI):
             f"{self.portal_name}: no taxon ID found for '{species_name}'."
         )
 
+    # ---------------------------------------------------------
+    # Accepted taxon resolution
+    # ---------------------------------------------------------
+
+    def _fetch_taxonomy(self, tid: int) -> dict:
+        """
+        Fetch and return the JSON taxonomy record for a taxon ID.
+
+        Parameters
+        ----------
+        tid : int
+            Internal taxon ID to fetch.
+
+        Returns
+        -------
+        dict
+            Parsed JSON response from ``api/v2/taxonomy/{tid}``.
+
+        Raises
+        ------
+        ValueError
+            If the response is not a JSON object (unexpected schema change).
+        requests.HTTPError
+            On non-2xx HTTP status.
+        """
+        resp = self._get(f"api/v2/taxonomy/{tid}", params={})
+        resp.raise_for_status()
+        data = resp.json()
+        if not isinstance(data, dict):
+            raise ValueError(
+                f"{self.portal_name}: api/v2/taxonomy/{tid} returned "
+                f"{type(data).__name__} instead of a JSON object; "
+                f"the response schema may have changed."
+            )
+        return data
+
+    def _extract_taxon_meta(self, data: dict, tid: int) -> tuple[str, str, str]:
+        """
+        Extract and validate status, sciname, and author from a taxonomy response dict.
+
+        Emits ``UserWarning`` when the status field is missing or unrecognised,
+        but continues with safe defaults rather than raising.
+
+        Parameters
+        ----------
+        data : dict
+            Parsed JSON from ``_fetch_taxonomy()``.
+        tid : int
+            The taxon ID that was fetched, used in warning messages.
+
+        Returns
+        -------
+        tuple[str, str, str]
+            ``(status, sciname, author)`` where *status* is ``"accepted"``,
+            ``"synonym"``, or an unrecognised value (treated as accepted).
+        """
+        status = data.get("status")
+        if status is None:
+            warnings.warn(
+                f"{self.portal_name}: api/v2/taxonomy/{tid} response is missing "
+                f"the 'status' field; treating as accepted. "
+                f"The response schema may have changed.",
+                stacklevel=2,
+            )
+        elif status not in ("accepted", "synonym"):
+            warnings.warn(
+                f"{self.portal_name}: api/v2/taxonomy/{tid} returned unrecognised "
+                f"status '{status}'; treating as accepted.",
+                stacklevel=2,
+            )
+        sciname = data.get("scientificName") or data.get("sciname") or ""
+        author  = data.get("author") or ""
+        return status, sciname, author
+
+    def _resolve_synonym_to_accepted(self, data: dict, tid: int) -> tuple[int, dict]:
+        """
+        Resolve a synonym taxon record to its accepted taxon, fetching classification.
+
+        Makes a second API call to fetch the accepted taxon's full classification.
+        Falls back to the synonym's own classification if that call fails.
+
+        Parameters
+        ----------
+        data : dict
+            Taxonomy record for the synonym taxon (from ``_fetch_taxonomy()``).
+        tid : int
+            Taxon ID of the synonym, used in warning messages.
+
+        Returns
+        -------
+        accepted_tid : int
+            Internal ID of the accepted taxon.
+        meta : dict
+            Combined taxonomy + metadata dict for the accepted taxon.
+        """
+        accepted = data.get("accepted") or {}
+        if not accepted.get("tid"):
+            warnings.warn(
+                f"{self.portal_name}: synonym response for tid {tid} is missing "
+                f"'accepted.tid'; the accepted taxon cannot be resolved.",
+                stacklevel=2,
+            )
+        accepted_tid    = int(accepted.get("tid", tid))
+        accepted_name   = accepted.get("scientificName") or accepted.get("sciname") or ""
+        accepted_author = accepted.get("scientificNameAuthorship") or ""
+        sciname         = data.get("scientificName") or data.get("sciname") or ""
+        author          = data.get("author") or ""
+
+        # Re-fetch the accepted taxon to get its full classification array.
+        try:
+            acc_data = self._fetch_taxonomy(accepted_tid)
+            taxonomy = self._extract_taxonomy(acc_data)
+            print(f"[{self.portal_name}] Classification resolved for accepted tid={accepted_tid}.")
+        except Exception as e:
+            warnings.warn(
+                f"{self.portal_name}: could not fetch classification for accepted tid "
+                f"{accepted_tid} ({e}); falling back to synonym's own classification.",
+                stacklevel=2,
+            )
+            print(f"[{self.portal_name}] Using synonym's own classification as fallback for tid={accepted_tid}.")
+            taxonomy = self._extract_taxonomy(data)
+
+        print(f"[{self.portal_name}] '{sciname}' is a Synonym; accepted name is '{accepted_name}' (tid={accepted_tid}).")
+        return accepted_tid, {
+            **taxonomy,
+            "sciname":          sciname,
+            "author":           author,
+            "status":           "Synonym",
+            "accepted_tid":     accepted_tid,
+            "accepted_name":    accepted_name,
+            "accepted_author":  accepted_author,
+        }
+
     def _resolve_accepted_tid(self, tid: int) -> tuple[int, dict]:
         """
         Resolve a taxon ID to its accepted form and return taxonomy metadata.
@@ -384,91 +521,12 @@ class SymbiotaAPI(SpeciesAPI):
             ``"Subfamily"``, ``"sciname"``, ``"author"``, ``"status"``
             (``"Accepted"`` or ``"Synonym"``), ``"accepted_tid"``, and
             ``"accepted_name"`` (``None`` when already accepted).
-
-        Raises
-        ------
-        ValueError
-            If the API response is not a JSON object, indicating a structural
-            change in the portal's response schema.
-
-        Notes
-        -----
-        When *tid* belongs to a synonym, a second request is made for the
-        accepted taxon to obtain its full classification. If that request
-        fails, the synonym's own classification is used.
-
-        A ``UserWarning`` is emitted when the response is missing the
-        ``"status"`` field, contains an unrecognised status value, or when
-        the synonym's ``"accepted"`` block does not include a ``"tid"``.
-        In all three cases the function continues with safe defaults rather
-        than raising.
         """
-        resp = self._get(f"api/v2/taxonomy/{tid}", params={})
-        resp.raise_for_status()
-        data = resp.json()
-
-        if not isinstance(data, dict):
-            raise ValueError(
-                f"{self.portal_name}: api/v2/taxonomy/{tid} returned "
-                f"{type(data).__name__} instead of a JSON object; "
-                f"the response schema may have changed."
-            )
-
-        status = data.get("status")
-        if status is None:
-            warnings.warn(
-                f"{self.portal_name}: api/v2/taxonomy/{tid} response is missing "
-                f"the 'status' field; treating as accepted. "
-                f"The response schema may have changed.",
-                stacklevel=2,
-            )
-        elif status not in ("accepted", "synonym"):
-            warnings.warn(
-                f"{self.portal_name}: api/v2/taxonomy/{tid} returned unrecognised "
-                f"status '{status}'; treating as accepted.",
-                stacklevel=2,
-            )
-
-        sciname = data.get("scientificName") or data.get("sciname") or ""
-        author  = data.get("author") or ""
+        data = self._fetch_taxonomy(tid)
+        status, sciname, author = self._extract_taxon_meta(data, tid)
 
         if status == "synonym":
-            accepted = data.get("accepted") or {}
-            if not accepted.get("tid"):
-                warnings.warn(
-                    f"{self.portal_name}: synonym response for tid {tid} is missing "
-                    f"'accepted.tid'; the accepted taxon cannot be resolved.",
-                    stacklevel=2,
-                )
-            accepted_tid    = int(accepted.get("tid", tid))
-            accepted_name   = accepted.get("scientificName") or accepted.get("sciname") or ""
-            accepted_author = accepted.get("scientificNameAuthorship") or ""
-
-            # Re-fetch the accepted taxon to get its full classification array.
-            try:
-                acc_resp = self._get(f"api/v2/taxonomy/{accepted_tid}", params={})
-                acc_resp.raise_for_status()
-                taxonomy = self._extract_taxonomy(acc_resp.json())
-                print(f"[{self.portal_name}] Classification resolved for accepted tid={accepted_tid}.")
-            except Exception as e:
-                warnings.warn(
-                    f"{self.portal_name}: could not fetch classification for accepted tid "
-                    f"{accepted_tid} ({e}); falling back to synonym's own classification.",
-                    stacklevel=2,
-                )
-                print(f"[{self.portal_name}] Using synonym's own classification as fallback for tid={accepted_tid}.")
-                taxonomy = self._extract_taxonomy(data)
-
-            print(f"[{self.portal_name}] '{sciname}' is a Synonym; accepted name is '{accepted_name}' (tid={accepted_tid}).")
-            return accepted_tid, {
-                **taxonomy,
-                "sciname":          sciname,
-                "author":           author,
-                "status":           "Synonym",
-                "accepted_tid":     accepted_tid,
-                "accepted_name":    accepted_name,
-                "accepted_author":  accepted_author,
-            }
+            return self._resolve_synonym_to_accepted(data, tid)
 
         taxonomy = self._extract_taxonomy(data)
         print(f"[{self.portal_name}] '{sciname}' is Accepted (tid={tid}).")
@@ -481,6 +539,84 @@ class SymbiotaAPI(SpeciesAPI):
             "accepted_name":    None,
             "accepted_author":  None,
         }
+
+    # ---------------------------------------------------------
+    # HTML synonym scraping
+    # ---------------------------------------------------------
+
+    def _fetch_taxa_page(self, tid: int) -> str:
+        """
+        Fetch the raw HTML taxa page for a given taxon ID.
+
+        Parameters
+        ----------
+        tid : int
+            Internal taxon ID whose page should be fetched.
+
+        Returns
+        -------
+        str
+            Raw HTML text of the taxa page.
+
+        Raises
+        ------
+        requests.HTTPError
+            On non-2xx HTTP status.
+        """
+        resp = self._get("taxa/index.php", {"tid": tid})
+        resp.raise_for_status()
+        return resp.text
+
+    def _extract_synonym_tids(self, syn_html: str) -> dict[str, int]:
+        """
+        Extract a name-to-tid mapping from synonym ``<a>`` links in HTML.
+
+        Performs Pass 1 of the synonym HTML parse: finds ``<a href="…?tid=N">``
+        links and builds a ``{name: tid}`` dict for use in record construction.
+
+        Parameters
+        ----------
+        syn_html : str
+            The inner HTML of the ``synonymDiv`` element.
+
+        Returns
+        -------
+        dict[str, int]
+            Mapping of synonym name strings to their internal taxon IDs.
+        """
+        tid_map: dict[str, int] = {}
+        for a_match in re.finditer(
+            r'<a[^>]*[?&]tid=(\d+)[^>]*>(.*?)</a>', syn_html, re.DOTALL
+        ):
+            inner_name = re.search(r'<i>([^<]+)</i>', a_match.group(2))
+            if inner_name:
+                tid_map[inner_name.group(1).strip()] = int(a_match.group(1))
+        return tid_map
+
+    def _extract_synonym_pairs(self, syn_html: str) -> list[tuple[str, str]]:
+        """
+        Extract (name, author) pairs from italic synonym entries in HTML.
+
+        Performs Pass 2 of the synonym HTML parse: finds ``<i>name</i> author``
+        patterns and returns the pairs, excluding infraspecific taxa.
+
+        Parameters
+        ----------
+        syn_html : str
+            The inner HTML of the ``synonymDiv`` element.
+
+        Returns
+        -------
+        list[tuple[str, str]]
+            List of ``(name, author)`` pairs for species-level synonyms.
+        """
+        pairs = []
+        for match in re.finditer(r"<i>(.*?)</i>([^<]*)", syn_html):
+            name   = match.group(1).strip()
+            author = re.sub(r"^[,\s]+|[,\s]+$", "", match.group(2).strip())
+            if name and not self._is_infraspecific(name):
+                pairs.append((name, author))
+        return pairs
 
     def _scrape_synonyms(self, accepted_tid: int, taxonomy: dict) -> list[dict]:
         """
@@ -499,46 +635,22 @@ class SymbiotaAPI(SpeciesAPI):
             One record per synonym, keyed by every column in ``COLUMNS``.
             Returns an empty list when the page has no synonym section or the
             synonym section is empty.
-
-        Notes
-        -----
-        Uses two passes over the ``synonymDiv`` HTML fragment:
-
-        1. Collect name-to-tid pairs from ``<a href="…?tid=N">`` links.
-        2. Extract ``<i>name</i> author`` pairs and look up each tid.
-
-        Infraspecific taxa are excluded.
         """
-        resp = self._get("taxa/index.php", {"tid": accepted_tid})
-        resp.raise_for_status()
+        html_text = self._fetch_taxa_page(accepted_tid)
 
-        syn_match = re.search(r'id="synonymDiv"[^>]*>(.*?)</div>', resp.text, re.DOTALL)
+        syn_match = re.search(r'id="synonymDiv"[^>]*>(.*?)</div>', html_text, re.DOTALL)
         if not syn_match:
             return []
 
         syn_html = syn_match.group(1)
+        tid_map  = self._extract_synonym_tids(syn_html)
+        pairs    = self._extract_synonym_pairs(syn_html)
 
-        # Pass 1: name → tid map from <a href="…?tid=N"> links
-        tid_map: dict[str, int] = {}
-        for a_match in re.finditer(
-            r'<a[^>]*[?&]tid=(\d+)[^>]*>(.*?)</a>', syn_html, re.DOTALL
-        ):
-            inner_name = re.search(r'<i>([^<]+)</i>', a_match.group(2))
-            if inner_name:
-                tid_map[inner_name.group(1).strip()] = int(a_match.group(1))
-
-        # Pass 2: <i>name</i> + trailing author text
         records = []
-        for match in re.finditer(r"<i>(.*?)</i>([^<]*)", syn_html):
-            name   = match.group(1).strip()
-            author = re.sub(r"^[,\s]+|[,\s]+$", "", match.group(2).strip())
-
-            if not name or self._INFRASPECIFIC_RE.search(name):
-                continue
-
+        for name, author in pairs:
             genus, species_epithet = self._split_binomial(name)
-            syn_tid         = tid_map.get(name)
-            src_link        = f"{self.base}/taxa/index.php?taxon={syn_tid}" if syn_tid else ""
+            syn_tid  = tid_map.get(name)
+            src_link = f"{self.base}/taxa/index.php?taxon={syn_tid}" if syn_tid else ""
 
             records.append(self._build_record(taxonomy, **{
                 "Genus":              genus,
@@ -551,6 +663,10 @@ class SymbiotaAPI(SpeciesAPI):
 
         print(f"[{self.portal_name}] Scraped {len(records)} synonym(s) from taxa page for tid={accepted_tid}.")
         return records
+
+    # ---------------------------------------------------------
+    # Public interface
+    # ---------------------------------------------------------
 
     def synonyms(self, name: str) -> pd.DataFrame:
         """
@@ -586,7 +702,7 @@ class SymbiotaAPI(SpeciesAPI):
         species_name = normalize_query_string(name)
 
         try:
-            tid = self._get_tid(species_name)
+            tid = self._get_internal_id(species_name)
             accepted_tid, meta = self._resolve_accepted_tid(tid)
             taxonomy = {
                 k: meta.get(k, "")
@@ -642,155 +758,3 @@ class SymbiotaAPI(SpeciesAPI):
                 stacklevel=2,
             )
             return pd.DataFrame(columns=COLUMNS)
-
-    # ---------------------------------------------------------
-    # Occurrences Logic
-    # ---------------------------------------------------------
-    def occurrences(self, name: str, limit: int = 20):
-        """
-        Retrieve occurrence records for a taxon.
-
-        Parameters
-        ----------
-        name : str
-            Scientific name of the species.
-        limit : int, optional
-            Maximum number of records to return. Default is 20.
-
-        Returns
-        -------
-        list or dict or xml.etree.ElementTree.Element
-            Parsed occurrence data. Returns an empty list when the response
-            cannot be parsed.
-
-        Raises
-        ------
-        RuntimeError
-            When the portal returns an HTML page instead of JSON or XML,
-            indicating the endpoint is unavailable or the URL is outdated.
-        """
-        resp = self._get(
-            "occurrences/search.php",
-            {"taxon": name, "limit": limit, "format": "json"},
-        )
-
-        text = resp.text.strip()
-
-        # If response starts with "<" → it's HTML, not JSON
-        if text.startswith("<!DOCTYPE html") or text.startswith("<html"):
-            # Throw an error so the Aggregator knows the endpoint is broken!
-            raise RuntimeError(
-                "Endpoint returned an HTML page instead of data. The URL may be outdated."
-            )
-
-        # Try JSON
-        try:
-            return resp.json()
-        except ValueError:
-            pass
-
-        # Try XML
-        try:
-            return ET.fromstring(text)
-        except ET.ParseError:
-            return []
-
-    # ---------------------------------------------------------
-    # Occurrences Logic & HTML Scraper
-    # ---------------------------------------------------------
-    def _scrape_occurrences_html(
-        self, html_text: str, query_name: str, limit: int
-    ) -> list[dict]:
-        """
-        Parse occurrence records from a raw HTML portal page.
-
-        This method is a fallback used when the portal occurrence endpoint
-        returns an HTML page instead of structured data. It is fragile: any
-        change to the portal's HTML layout will cause it to fail silently
-        and return an empty list.
-
-        Parameters
-        ----------
-        html_text : str
-            Raw HTML string from the portal occurrence page.
-        query_name : str
-            Scientific name that was queried, used in warning messages.
-        limit : int
-            Maximum number of records to return.
-
-        Returns
-        -------
-        list of dict
-            Parsed occurrence records. Returns an empty list on any parsing
-            failure or when ``beautifulsoup4`` is not installed.
-        """
-        try:
-            from bs4 import BeautifulSoup
-        except ImportError:
-            warnings.warn(
-                "'beautifulsoup4' is not installed; HTML occurrence scrape skipped.",
-                stacklevel=2,
-            )
-            return []
-
-        try:
-            soup = BeautifulSoup(html_text, "html.parser")
-            records = []
-
-            # Step 1: Locate the data table. (Graceful fail if missing)
-            occ_table = soup.find("table")
-            if not occ_table:
-                warnings.warn(
-                    f"{self.portal_name}: no data table found for '{query_name}'; "
-                    f"the portal's HTML layout may have changed.",
-                    stacklevel=2,
-                )
-                return []
-
-            # Step 2: Extract column headers. (Graceful fail if missing)
-            headers = [th.get_text(strip=True) for th in occ_table.find_all("th")]
-            if not headers:
-                warnings.warn(
-                    f"{self.portal_name}: table headers missing for '{query_name}'; "
-                    f"the portal's HTML layout may have changed.",
-                    stacklevel=2,
-                )
-                return []
-
-            # Step 3: Iterate through rows and map to headers
-            rows = occ_table.find_all("tr")
-            for row in rows[1:]:  # Skip the header row
-                cols = row.find_all("td")
-                if not cols:
-                    continue
-
-                record = {}
-                for i, col in enumerate(cols):
-                    if i < len(headers):
-                        raw_key = headers[i].lower()
-                        val = col.get_text(separator=" ", strip=True)
-                        record[raw_key] = val
-
-                        # CRITICAL: Artificially inject "scientificName" so the
-                        # Streamlit prototype_pipe.py can recognize the occurrence!
-                        if (
-                            "scientific name" in raw_key
-                            or "taxon" in raw_key
-                            or "name" in raw_key
-                        ):
-                            record["scientificName"] = val
-
-                records.append(record)
-
-                # Enforce limit manually since the API URL limit was ignored by the server
-                if len(records) >= limit:
-                    break
-
-            return records
-
-        except Exception as e:
-            warnings.warn(
-                f"{self.portal_name}: HTML occurrence parsing failed for '{query_name}' ({e}).",
-                stacklevel=2,
-            )
-            return []

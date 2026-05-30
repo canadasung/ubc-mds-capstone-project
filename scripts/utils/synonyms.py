@@ -11,6 +11,11 @@ class SynonymEngine:
 
     Normalizes the output into a unified format containing provenance data, metadata
     (authors, dates), and confidence scores.
+
+    All API clients are expected to return synonyms as ``list[dict]`` in the
+    pipeline-standard ``_format_synonym()`` format with keys:
+    ``"name"``, ``"author"``, ``"publication_date"``, ``"publication_name"``,
+    ``"api_link"``.
     """
 
     def __init__(self, gbif, tropicos, index_fungorum, col):
@@ -76,6 +81,33 @@ class SynonymEngine:
             },
         }
 
+    def _wrap_standard(self, s: dict, source: str, confidence: float) -> dict:
+        """
+        Wrap a pipeline-standard ``_format_synonym()`` record into the engine's output format.
+
+        All backbone API clients return synonyms with the standardized keys
+        ``"name"``, ``"author"``, ``"publication_date"``, ``"publication_name"``,
+        ``"api_link"``. This helper reads those keys uniformly.
+
+        Args:
+            s (dict): A synonym record from a ``_format_synonym()``-compliant client.
+            source (str): The source label (e.g. ``"GBIF"``).
+            confidence (float): Confidence score to attach.
+
+        Returns:
+            dict: Engine-format synonym dict.
+        """
+        return self._wrap(
+            name=s.get("name", ""),
+            source=source,
+            raw=s,
+            confidence=confidence,
+            author=s.get("author", ""),
+            date=s.get("publication_date", ""),
+            published_in=s.get("publication_name", ""),
+            url=s.get("api_link", ""),
+        )
+
     def get_synonyms(self, name: str):
         """
         Retrieve, aggregate, and deduplicate synonyms for a given scientific name.
@@ -101,20 +133,8 @@ class SynonymEngine:
         try:
             gbif_syns = self.gbif.synonyms(name)
             for s in gbif_syns:
-                synonyms.append(
-                    self._wrap(
-                        name=s.get("canonicalName", ""),
-                        source="GBIF",
-                        raw=s,
-                        confidence=1.0
-                        if s.get("canonicalName", "").lower() == name.lower()
-                        else 0.9,
-                        author=s.get("author", ""),
-                        date=s.get("date", ""),
-                        published_in=s.get("publishedIn", ""),
-                        url=s.get("url", ""),
-                    )
-                )
+                confidence = 1.0 if s.get("name", "").lower() == name.lower() else 0.9
+                synonyms.append(self._wrap_standard(s, source="GBIF", confidence=confidence))
         except Exception as e:
             print(f"GBIF Synonym Error: {e}")
 
@@ -124,25 +144,8 @@ class SynonymEngine:
         if "tropicos" in apis:
             try:
                 for s in self.tropicos.synonyms(name):
-                    name_text = s.get("NameText", "")
-                    if name_text:
-                        synonyms.append(
-                            self._wrap(
-                                name=name_text,
-                                source="Tropicos",
-                                raw=s,
-                                confidence=0.9,
-                                author=s.get("ScientificNameWithAuthors", "")
-                                .replace(name_text, "")
-                                .strip()
-                                or s.get("Author", ""),
-                                date=s.get("DisplayDate", ""),
-                                published_in=s.get("DisplayReference", ""),
-                                url=f"https://www.tropicos.org/name/{s.get('NameId')}"
-                                if s.get("NameId")
-                                else "",
-                            )
-                        )
+                    if s.get("name"):
+                        synonyms.append(self._wrap_standard(s, source="Tropicos", confidence=0.9))
             except Exception as e:
                 print(f"Tropicos Synonym Error: {e}")
 
@@ -151,27 +154,9 @@ class SynonymEngine:
         # ---------------------------------------------------------
         if "index_fungorum" in apis:
             try:
-                if_syns = self.index_fungorum.synonyms(name)
-                # Safely check if it's a list of dicts (in case it still returns raw XML strings)
-                if isinstance(if_syns, list):
-                    for s in if_syns:
-                        if_name = s.get("name") or s.get("canonicalName")
-                        if isinstance(s, dict) and if_name:
-                            synonyms.append(
-                                self._wrap(
-                                    name=if_name,
-                                    source="Index Fungorum",
-                                    raw=s,
-                                    confidence=0.8,
-                                    author=s.get("authorship", "")
-                                    or s.get("author", ""),
-                                    date=s.get("year", "") or s.get("date", ""),
-                                    published_in=s.get("publishedIn", ""),
-                                    url=f"http://www.indexfungorum.org/names/NamesRecord.asp?RecordID={s.get('id')}"
-                                    if s.get("id")
-                                    else "",
-                                )
-                            )
+                for s in self.index_fungorum.synonyms(name):
+                    if s.get("name"):
+                        synonyms.append(self._wrap_standard(s, source="Index Fungorum", confidence=0.8))
             except Exception as e:
                 print(f"Index Fungorum Synonym Error: {e}")
 
@@ -181,22 +166,8 @@ class SynonymEngine:
         if "col" in apis:
             try:
                 for s in self.col.synonyms(name):
-                    col_name = s.get("name")
-                    if col_name:
-                        synonyms.append(
-                            self._wrap(
-                                name=col_name,
-                                source="COL",
-                                raw=s,
-                                confidence=0.7,
-                                author=s.get("authorship", ""),
-                                date="",  # COL does not strictly separate publication year in basic endpoints
-                                published_in=s.get("publishedIn", ""),
-                                url=f"https://www.catalogueoflife.org/data/taxon/{s.get('id')}"
-                                if s.get("id")
-                                else "",
-                            )
-                        )
+                    if s.get("name"):
+                        synonyms.append(self._wrap_standard(s, source="COL", confidence=0.7))
             except Exception as e:
                 print(f"COL Synonym Error: {e}")
 
@@ -206,8 +177,6 @@ class SynonymEngine:
         seen = set()
         unique = []
         for s in synonyms:
-            # 1. s["name"] checks that the string is not empty or None
-            # 2. s["name"] not in seen checks that we haven't processed this name yet
             if s["name"] and s["name"] not in seen:
                 seen.add(s["name"])
                 unique.append(s)

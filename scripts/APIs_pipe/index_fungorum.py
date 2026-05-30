@@ -5,15 +5,14 @@
 Concrete SpeciesAPI implementation for Index Fungorum, the global nomenclatural
 database for fungi.
 
-Index Fungorum holds no occurrence data, so
-`occurrences` is a no-op.
+Index Fungorum exposes a legacy ASMX web service (XML over HTTP) rather than a
+REST/JSON API. Both fetch methods use ``_fetch_text()`` from the base class
+because all responses from this service are XML.
 
 Main entry point: IndexFungorumAPI().synonyms(name)
 """
 
 import xml.etree.ElementTree as ET
-
-import requests
 
 from .base import SpeciesAPI
 
@@ -50,14 +49,17 @@ class IndexFungorumAPI(SpeciesAPI):
             dict: A match descriptor with 'name', 'matchType', and 'key' if the
                 name resolves to a CurrentKey; an empty dict if not found.
         """
-        current_key = self._get_current_key(name)
+        current_key = self._get_internal_id(name)
         if current_key:
             return {"name": name, "matchType": "EXACT", "key": current_key}
         return {}
 
     def _parse_xml(self, xml_text: str) -> list[ET.Element]:
         """
-        Safely parse raw XML text into ElementTree objects.
+        Safely parse raw XML text into a list of IndexFungorum record elements.
+
+        Overrides the base class ``_parse_xml`` to return the IndexFungorum-specific
+        ``IndexFungorum`` child elements rather than the root element.
 
         Args:
             xml_text (str): The raw XML response from the ASMX web service.
@@ -72,36 +74,41 @@ class IndexFungorumAPI(SpeciesAPI):
         except ET.ParseError:
             return []
 
-    def _get_current_key(self, name: str) -> int | None:
+    def _fetch_name_search(self, name: str) -> str:
         """
-        Query the NameSearch endpoint to resolve a species name to its internal ID.
+        Fetch raw XML from the NameSearch endpoint for a given species name.
 
         Args:
             name (str): The scientific name to search for.
 
         Returns:
-            int | None: The integer representing the accepted 'CurrentKey' in the
-                database. Returns None if the species is not found.
+            str: Raw XML response text, or ``""`` on request failure.
         """
-        try:
-            resp = requests.get(
-                f"{self.BASE}/NameSearch",
-                params={
-                    "SearchText": name,
-                    "AnywhereInText": "false",  # only search for exact matches in the name field, not in any fields
-                    "MaxNumber": "50",  # get the top 50 matches, which should ensure we capture the accepted name even if there are many infraspecific records
-                },
-            )
-            resp.raise_for_status()
-        except requests.RequestException:
-            return None
+        return self._fetch_text(
+            f"{self.BASE}/NameSearch",
+            params={
+                "SearchText": name,
+                "AnywhereInText": "false",  # only search for exact matches in the name field, not in any fields
+                "MaxNumber": "50",  # get the top 50 matches, which should ensure we capture the accepted name even if there are many infraspecific records
+            },
+        )
 
-        records = self._parse_xml(resp.text)
+    def _find_current_key(self, records: list[ET.Element], name: str) -> int | None:
+        """
+        Search parsed IndexFungorum records for the CurrentKey matching *name*.
 
+        Performs a case-insensitive exact match on the name field and returns
+        the integer CurrentKey of the first matching record.
+
+        Args:
+            records (list[ET.Element]): Parsed ``IndexFungorum`` XML record elements.
+            name (str): The scientific name to match against.
+
+        Returns:
+            int | None: The CurrentKey integer, or ``None`` if not found.
+        """
         for record in records:
             rec_name = (record.findtext(self._TAGS["name"]) or "").strip()
-
-            # Ensure we only grab the key if it's an exact match
             if rec_name.lower() == name.lower():
                 key_str = record.findtext(self._TAGS["current_key"])
                 if key_str:
@@ -110,6 +117,72 @@ class IndexFungorumAPI(SpeciesAPI):
                     except ValueError:
                         continue
         return None
+
+    def _get_internal_id(self, name: str) -> int | None:
+        """
+        Resolve a species name to its Index Fungorum internal CurrentKey ID.
+
+        Args:
+            name (str): The scientific name to search for.
+
+        Returns:
+            int | None: The integer CurrentKey, or None if the species is not found.
+        """
+        xml_text = self._fetch_name_search(name)
+        if not xml_text:
+            return None
+        records = self._parse_xml(xml_text)
+        return self._find_current_key(records, name)
+
+    def _fetch_names_by_key(self, current_key: int) -> str:
+        """
+        Fetch raw XML for all names sharing a given CurrentKey.
+
+        Args:
+            current_key (int): The Index Fungorum CurrentKey to look up.
+
+        Returns:
+            str: Raw XML response text, or ``""`` on request failure.
+        """
+        return self._fetch_text(
+            f"{self.BASE}/NamesByCurrentKey",
+            params={"CurrentKey": str(current_key)},
+        )
+
+    def _build_synonyms(self, records: list[ET.Element], query_name: str) -> list[dict]:
+        """
+        Convert parsed IndexFungorum XML records into pipeline-standard synonym dicts.
+
+        Filters to species-level records only (``rank == "sp."``), then builds
+        and deduplicates the output list.
+
+        Args:
+            records (list[ET.Element]): Parsed ``IndexFungorum`` XML record elements.
+            query_name (str): The original query name, used to seed deduplication.
+
+        Returns:
+            list[dict]: Pipeline-standard synonym records.
+        """
+        candidates = []
+        for record in records:
+            syn_name = (record.findtext(self._TAGS["name"]) or "").strip()
+            rank = (record.findtext(self._TAGS["rank"]) or "").strip()
+            author = (record.findtext(self._TAGS["authors"]) or "").strip()
+            record_id = (record.findtext(self._TAGS["record_id"]) or "").strip()
+
+            if syn_name and rank == "sp.":
+                candidates.append(
+                    self._format_synonym(
+                        name=syn_name,
+                        author=author,
+                        api_link=(
+                            f"https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID={record_id}"
+                            if record_id
+                            else ""
+                        ),
+                    )
+                )
+        return self._deduplicate_synonyms(candidates, seed={query_name.lower()})
 
     def synonyms(self, name: str) -> list[dict]:
         """
@@ -126,62 +199,13 @@ class IndexFungorumAPI(SpeciesAPI):
             list[dict]: A list of synonym dictionaries formatted for the pipeline
                 (canonicalName, author, date, publishedIn, url).
         """
-        # Step 1: Find the internal database ID
-        current_key = self._get_current_key(name)
+        current_key = self._get_internal_id(name)
         if not current_key:
             return []
 
-        # Step 2: Ask for all records that share this ID
-        try:
-            resp = requests.get(
-                f"{self.BASE}/NamesByCurrentKey",
-                params={"CurrentKey": str(current_key)},
-            )
-            resp.raise_for_status()
-        except requests.RequestException as e:
-            print(f"Index Fungorum Synonyms Error: {e}")
+        xml_text = self._fetch_names_by_key(current_key)
+        if not xml_text:
             return []
 
-        records = self._parse_xml(resp.text)
-        results = []
-        seen = set()
-
-        for record in records:
-            syn_name = (record.findtext(self._TAGS["name"]) or "").strip()
-            rank = (record.findtext(self._TAGS["rank"]) or "").strip()
-            author = (record.findtext(self._TAGS["authors"]) or "").strip()
-            record_id = (record.findtext(self._TAGS["record_id"]) or "").strip()
-
-            # Filter for species-level only, and prevent exact duplicates
-            if syn_name and rank == "sp." and syn_name.lower() not in seen:
-                seen.add(syn_name.lower())
-
-                # Format to strictly match the pipeline standard!
-                results.append(
-                    {
-                        "canonicalName": syn_name,
-                        "author": author,
-                        "date": "",
-                        "publishedIn": "",
-                        "url": f"https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID={record_id}"
-                        if record_id
-                        else "",
-                    }
-                )
-
-        return results
-
-    def occurrences(self, name: str, limit: int = 20) -> list[dict]:
-        """
-        Retrieve occurrence records for a specific taxon.
-
-        Args:
-            name (str): The scientific name of the fungus.
-            limit (int, optional): Maximum records to return. Defaults to 20.
-
-        Returns:
-            list: Always returns an empty list. Index Fungorum is strictly a
-                nomenclatural database detailing the naming of fungi; it does
-                not store or expose physical specimen or observational data.
-        """
-        return []
+        records = self._parse_xml(xml_text)
+        return self._build_synonyms(records, query_name=name)

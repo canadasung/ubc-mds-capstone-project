@@ -1,32 +1,28 @@
 """
-GenBank (NCBI Entrez) API client for taxonomy synonyms and sequence metadata.
+GenBank (NCBI Entrez) API client for taxonomy synonyms.
 
-This module queries two separate NCBI Entrez databases:
-  - Taxonomy database: synonym discovery via OtherNames/Synonym elements.
-  - Nucleotide database: genetic sequence records surfaced as occurrence-like
-    entries (sequence titles, accession URLs, update dates).
+This module queries the NCBI Entrez Taxonomy database for synonym discovery
+via OtherNames/Synonym elements.
 
 NCBI E-utilities API: https://www.ncbi.nlm.nih.gov/books/NBK25497/
 """
 
 import xml.etree.ElementTree as ET
 
-import requests
-
 from .base import SpeciesAPI
+
 
 class GenBankAPI(SpeciesAPI):
     """
     Concrete implementation of the SpeciesAPI for GenBank (NCBI Entrez).
 
-    Queries NCBI Entrez for two distinct data types:
-      - synonyms(): queries the NCBI Taxonomy database for species-level synonyms.
-      - occurrences(): queries the NCBI Nucleotide database for genetic sequence
-        metadata records associated with a taxon.
+    Queries the NCBI Taxonomy database for species-level synonyms.
 
-    Occurrence records represent NCBI nucleotide entries, not field observations:
-    verbatimLocality holds the sequence title, eventDate is the NCBI record update
-    date (not a collection date), and coordinates are always null.
+    The two fetch methods use different base helpers because NCBI's Entrez
+    API serves different content types per endpoint:
+
+    - ``esearch.fcgi`` (used by ``search()``) returns JSON → uses ``_fetch()``.
+    - ``efetch.fcgi`` (used by ``synonyms()``) returns XML → uses ``_fetch_text()``.
     """
 
     BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
@@ -43,13 +39,58 @@ class GenBankAPI(SpeciesAPI):
                 with idlist, count, and other match details. Returns an empty dict
                 if the request fails.
         """
-        resp = requests.get(
+        return self._fetch(
             f"{self.BASE_URL}/esearch.fcgi",
             params={"db": "taxonomy", "term": name, "retmode": "json"},
-            timeout=10,
         )
-        resp.raise_for_status()
-        return resp.json()
+
+    def _fetch_taxon_xml(self, ids: list[str]) -> str:
+        """
+        Fetch raw XML taxon records for a list of NCBI taxonomy IDs.
+
+        Args:
+            ids (list[str]): NCBI taxonomy IDs returned by ``search()``.
+
+        Returns:
+            str: Raw XML response text from the efetch endpoint,
+                or ``""`` on request failure.
+        """
+        return self._fetch_text(
+            f"{self.BASE_URL}/efetch.fcgi",
+            params={"db": "taxonomy", "id": ",".join(ids), "retmode": "xml"},
+        )
+
+    def _build_synonyms(self, xml_root: ET.Element, query_name: str) -> list[dict]:
+        """
+        Extract pipeline-standard synonym records from a parsed NCBI taxon XML tree.
+
+        Walks the ElementTree for ``OtherNames/Synonym`` elements and builds
+        one record per unique synonym name.
+
+        Args:
+            xml_root (ET.Element): Root element of the parsed efetch XML response.
+            query_name (str): The original query name, used to seed deduplication.
+
+        Returns:
+            list[dict]: Pipeline-standard synonym records.
+        """
+        candidates = []
+        for taxon in xml_root.findall(".//Taxon"):
+            taxon_id = taxon.findtext("TaxId", "")
+            other_names = taxon.find("OtherNames")
+            if other_names is None:
+                continue
+            for syn_el in other_names.findall("Synonym"):
+                syn_name = (syn_el.text or "").strip()
+                if not syn_name:
+                    continue
+                candidates.append(
+                    self._format_synonym(
+                        name=syn_name,
+                        api_link=f"https://www.ncbi.nlm.nih.gov/taxonomy/{taxon_id}",
+                    )
+                )
+        return self._deduplicate_synonyms(candidates, seed={query_name.lower()})
 
     def synonyms(self, name: str) -> list[dict]:
         """
@@ -72,132 +113,16 @@ class GenBankAPI(SpeciesAPI):
             if not ids:
                 return []
 
-            fetch_resp = requests.get(
-                f"{self.BASE_URL}/efetch.fcgi",
-                params={"db": "taxonomy", "id": ",".join(ids), "retmode": "xml"},
-                timeout=10,
-            )
-            fetch_resp.raise_for_status()
-
-            try:
-                root = ET.fromstring(fetch_resp.text)
-            except ET.ParseError:
+            xml_text = self._fetch_taxon_xml(ids)
+            if not xml_text:
                 return []
 
-            results = []
-            seen = {name.lower()}
+            root = self._parse_xml(xml_text)
+            if root is None:
+                return []
 
-            for taxon in root.findall(".//Taxon"):
-                taxon_id = taxon.findtext("TaxId", "")
-                other_names = taxon.find("OtherNames")
-                if other_names is None:
-                    continue
-                for syn_el in other_names.findall("Synonym"):
-                    syn_name = (syn_el.text or "").strip()
-                    if not syn_name or syn_name.lower() in seen:
-                        continue
-                    seen.add(syn_name.lower())
-                    results.append(
-                        {
-                            "canonicalName": syn_name,
-                            "author": "",
-                            "date": "",
-                            "publishedIn": "",
-                            "url": f"https://www.ncbi.nlm.nih.gov/taxonomy/{taxon_id}",
-                        }
-                    )
+            return self._build_synonyms(root, query_name=name)
 
-            return results
-
-        except requests.RequestException as e:
-            print(f"GenBank Synonyms Network Error: {e}")
-            return []
         except Exception as e:
             print(f"GenBank Synonyms Error: {e}")
             return []
-
-
-    def occurrences(self, name: str, limit: int = 10) -> list[dict]:
-        """
-        Retrieve genetic sequence metadata records for a taxon from NCBI.
-
-        Executes a two-step query:
-        1. esearch.fcgi — retrieves internal UIDs for sequences matching the taxon.
-        2. esummary.fcgi — fetches metadata for those UIDs (title, accession, date).
-
-        Results are formatted to match the pipeline's standard occurrence dict, with
-        the following caveats: verbatimLocality holds the sequence title (not a place
-        name), eventDate is the NCBI record update date (not a collection date), and
-        coordinates are always null.
-
-        Args:
-            name (str): The scientific name of the organism (e.g., 'Amanita muscaria').
-            limit (int, optional): Maximum number of sequence records to retrieve.
-                Defaults to 10 to stay within NCBI's rate limit of 3 requests/second.
-
-        Returns:
-            list[dict]: A list of dicts with keys: 'scientificName', 'eventDate',
-                'decimalLatitude', 'decimalLongitude', 'verbatimLocality',
-                'top_3_images', 'source', and 'occurrenceID' (URL to the NCBI record).
-        """
-        results = []
-        try:
-
-            # 1. Search the Nucleotide database for the organism
-            search_url = f"{self.BASE_URL}/esearch.fcgi"
-            search_params = {
-                "db": "nucleotide",
-                "term": f"{name}[Organism]",
-                "retmode": "json",
-                "retmax": limit,
-            }
-            search_resp = requests.get(search_url, params=search_params, timeout=10)
-            search_resp.raise_for_status()
-            search_data = search_resp.json()
-
-            id_list = search_data.get("esearchresult", {}).get("idlist", [])
-            if not id_list:
-                return []
-
-            # 2. Fetch the metadata summary for those specific sequence IDs
-            sum_url = f"{self.BASE_URL}/esummary.fcgi"
-            sum_params = {
-                "db": "nucleotide",
-                "id": ",".join(id_list),
-                "retmode": "json",
-            }
-            sum_resp = requests.get(sum_url, params=sum_params, timeout=10)
-            sum_resp.raise_for_status()
-            sum_data = sum_resp.json()
-
-            records = sum_data.get("result", {})
-
-            # 3. Format strictly to the pipeline standard
-            for uid in id_list:
-                if uid in records:
-                    rec = records[uid]
-
-                    # Construct a direct URL to the NCBI sequence page
-                    accession = rec.get("accessionversion", uid)
-                    url = f"https://www.ncbi.nlm.nih.gov/nuccore/{accession}"
-
-                    results.append(
-                        {
-                            "scientificName": name,
-                            "eventDate": rec.get("updatedate", ""),
-                            "decimalLatitude": None,
-                            "decimalLongitude": None,
-                            # We use the sequence title as the "locality" so the UI has text to display
-                            "verbatimLocality": rec.get("title", ""),
-                            "top_3_images": [],  # DNA doesn't have field photos!
-                            "source": "GenBank (NCBI)",
-                            "occurrenceID": url,
-                        }
-                    )
-
-        except requests.RequestException as e:
-            print(f"GenBank API Network Error: {e}")
-        except Exception as e:
-            print(f"GenBank Parsing Error: {e}")
-
-        return results
