@@ -1,55 +1,64 @@
-"""COL.py — Catalogue of Life API client.
-
-Concrete SpeciesAPI implementation for the Catalogue of Life (COL), served via
-the ChecklistBank API. COL is a global taxonomic checklist: it provides accepted
-names and synonymies but hosts no occurrence data, so `occurrences` is a no-op.
-
-Main entry point: COLAPI().synonyms(name)
 """
+Catalogue of Life API client.
 
-import requests
+SpeciesAPI implementation for the Catalogue of Life (COL), served via the ChecklistBank API. COL is a global taxonomic checklist that provides accepted names and synonymies.
+"""
 
 from .base import SpeciesAPI
 
 
 class COLAPI(SpeciesAPI):
     """
-    Concrete implementation of the SpeciesAPI for the Catalogue of Life (COL).
-
-    The Catalogue of Life (often served via ChecklistBank) is a comprehensive
-    global checklist of species. It provides authoritative taxonomic hierarchies
-    and synonymies but does not host physical occurrence or observational data.
+    Implementation of SpeciesAPI for the Catalogue of Life (COL).
     """
 
-    BASE = "https://api.checklistbank.org"
+    BASE_URL = "https://api.checklistbank.org"
     # COL26.5 — update this key when a newer COL release is published on ChecklistBank
     DATASET_KEY = 315192
 
-    def search(self, name: str):
+    def _fetch_query_data(self, name: str) -> dict:
         """
         Search the Catalogue of Life for a specific taxonomic name.
 
-        Args:
-            name (str): The scientific name to search for (e.g., "Amanita muscaria").
+        Parameters
+        ----------
+        name : str
+            The scientific name to search for (e.g. ``"Amanita muscaria"``).
 
-        Returns:
-            dict: The JSON response dictionary from the COL API containing matching
-                name usages, status (accepted vs. synonym), and taxonomic IDs.
+        Returns
+        -------
+        dict
+            The full JSON search response, including a ``"result"`` key
+            containing a list of matching name-usage records.
         """
-        resp = requests.get(
-            f"{self.BASE}/dataset/{self.DATASET_KEY}/nameusage/search",
+        return self._fetch_JSON(
+            f"{self.BASE_URL}/dataset/{self.DATASET_KEY}/nameusage/search",
             params={"q": name},
         )
-        resp.raise_for_status()
-        return resp.json()
 
-    def _resolve_accepted_id(self, results: list) -> str | None:
+    def _extract_internal_accepted_id(self, results: list) -> str:
         """
         Return the ChecklistBank taxon ID for the accepted name in results.
 
-        If results contain an accepted name, its ID is returned directly.
-        If the first result is a synonym, its parentId (which points to the
-        accepted taxon) is returned instead.
+        If an accepted name is present, the ID of the first accepted record is
+        returned. Otherwise, the ``parentId`` of the first result is used as a
+        fallback (i.e. the record is a synonym, and its parent is the accepted name).
+
+        Parameters
+        ----------
+        results : list
+            The list of name-usage records from the ``"result"`` key of the
+            search response.
+
+        Returns
+        -------
+        str
+            The internal ChecklistBank taxon ID of the accepted name.
+
+        Raises
+        ------
+        LookupError
+            When neither an accepted record nor a ``parentId`` can be found.
         """
         # TODO: check into behavior if there are multiple accepted names and decide how we want to handle that
         accepted = next(
@@ -60,53 +69,74 @@ class COLAPI(SpeciesAPI):
             return accepted.get("id")
 
         first = results[0]
-        return first.get("usage", {}).get("parentId")
+        usage_id = first.get("usage", {}).get("parentId")
+        if usage_id is not None:
+            return usage_id
+        else:
+            raise LookupError(
+                f"{type(self).__name__} error, was unable to extract internal accepted id."
+            )
 
-    def synonyms(self, name: str):
+    def _fetch_synonym_data(self, raw_data: dict) -> list:
         """
-        Retrieve taxonomic synonyms for a given scientific name.
+        Fetch raw synonym data for the accepted taxon.
 
-        This process requires two steps: first, resolving the string name to a
-        specific COL usage ID, and second, querying the synonyms endpoint using
-        that ID.
+        Extracts the results list from the search response, resolves the
+        accepted taxon ID, then queries the synonyms endpoint.
 
-        Args:
-            name (str): The scientific name to search for.
+        Parameters
+        ----------
+        raw_data : dict
+            The full JSON search response returned by ``_fetch_query_data``.
 
-        Returns:
-            list[dict]: A list of synonym records associated with the taxon.
-                Returns an empty list if the initial search fails, if no ID is
-                found, or if the taxon has no recorded synonyms.
+        Returns
+        -------
+        list
+            Combined list of homotypic and heterotypic synonym records.
         """
-        data = self.search(name)
+        results = raw_data.get("result", [])
+        usage_id = self._extract_internal_accepted_id(results)
 
-        results = data.get("result", [])
-        if not isinstance(results, list) or len(results) == 0:
-            return []
-
-        usage_id = self._resolve_accepted_id(results)
-        if not usage_id:
-            return []
-
-        resp = requests.get(
-            f"{self.BASE}/dataset/{self.DATASET_KEY}/taxon/{usage_id}/synonyms"
+        syns = self._fetch_JSON(
+            f"{self.BASE_URL}/dataset/{self.DATASET_KEY}/taxon/{usage_id}/synonyms",
         )
-        resp.raise_for_status()
 
-        syns = resp.json()
         return syns.get("homotypic", []) + syns.get("heterotypic", [])
 
-    def occurrences(self, name: str, limit: int = 20):
+    def _compile_synonyms(self, synonym_data: list) -> list[dict]:
         """
-        Retrieve occurrence records for a specific taxon.
+        Convert raw ChecklistBank synonym records into pipeline-standard synonym dicts.
 
-        Args:
-            name (str): The scientific name of the species.
-            limit (int, optional): Maximum records to return. Defaults to 20.
+        Parameters
+        ----------
+        synonym_data : list
+            List of raw synonym records as returned by ``_fetch_synonym_data``.
 
-        Returns:
-            list: Always returns an empty list. The Catalogue of Life is purely
-                a taxonomic checklist and naming database; it does not track
-                or serve physical occurrence data.
+        Returns
+        -------
+        list of dict
+            Pipeline-standard synonym records, deduplicated by name.
         """
-        return []
+        candidates = []
+        seen = set()
+        for s in synonym_data:
+            name_obj = s.get("name", {})
+            syn_name = name_obj.get("scientificName", "")
+            if not syn_name or syn_name in seen:
+                continue
+            seen.add(syn_name)
+            taxon_id = s.get("id", "")
+            candidates.append(
+                self._format_synonym(
+                    name=syn_name,
+                    author=name_obj.get("authorship", ""),
+                    # note for future: COl can fill original source using 'name_obj.get("link", "")'
+                    api_link=(
+                        f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"
+                        if taxon_id
+                        else ""
+                    ),
+                )
+            )
+
+        return candidates

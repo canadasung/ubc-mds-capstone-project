@@ -1,18 +1,13 @@
 """
 Top-level entry point for the species data pipeline.
 
-This module wires together all API clients, the TaxonRouter, the SynonymEngine,
-and the SpeciesAggregator into a single callable function (`call_apis`). Callers
-only need to provide a scientific name; the pipeline handles routing, synonym
-discovery, and occurrence retrieval automatically.
+This module wires together all API clients, the TaxonRouter, and the SynonymEngine
+into a single callable function (`call_apis_pipe`). Callers only need to provide a
+scientific name; the pipeline handles routing and synonym discovery automatically.
 
 Typical usage:
     from scripts.utils.call_apis_pipe import call_apis
     payload = call_apis("Amanita muscaria")
-
-The returned JSON string has two top-level keys:
-  - "synonyms": official, symbiota, and independent synonym records
-  - "occurrences": per-source occurrence records and request statuses
 """
 
 import json
@@ -27,7 +22,6 @@ from scripts.apis_pipe.index_fungorum import IndexFungorumAPI
 from scripts.apis_pipe.mushroomobs import MushroomObserverAPI
 from scripts.apis_pipe.symbiota import SymbiotaAPI
 from scripts.apis_pipe.tropicos import TropicosAPI
-from scripts.utils.aggregator import SpeciesAggregator
 from scripts.utils.router import TaxonRouter
 from scripts.utils.synonyms import SynonymEngine
 
@@ -40,9 +34,8 @@ def _make_clients() -> dict:
     Initialize and return a dictionary of all active API clients.
 
     Each key is the canonical string identifier used throughout the pipeline
-    (by TaxonRouter, SynonymEngine, and SpeciesAggregator). Symbiota portals
-    are keyed by the pattern "symbiota_<portal>" so they can be identified as
-    a group downstream.
+    (by TaxonRouter and SynonymEngine). Symbiota portals are keyed by the
+    pattern "symbiota_<portal>" so they can be identified as a group downstream.
 
     Returns:
         dict: Mapping of string key → initialized SpeciesAPI instance.
@@ -70,34 +63,25 @@ def _make_clients() -> dict:
     return clients
 
 
-def call_apis(
-    query: str, sources: Optional[List[Source]] = None, limit: int = 20
-) -> str:
+def call_apis(query: str, sources: Optional[List[Source]] = None) -> str:
     """
-    Orchestrate synonym and occurrence retrieval for a scientific name.
+    Orchestrate synonym retrieval for a scientific name.
 
-    Runs the full pipeline in five steps:
+    Runs the full pipeline in three steps:
       1. Fetch official synonyms from backbone APIs (GBIF, COL, Tropicos, Index Fungorum).
       2. Fetch synonyms from Symbiota portals and independent sources (e.g. Mushroom Observer).
-      3. Consolidate all discovered names into a deduplicated list for occurrence searching.
-      4. Query each selected API for occurrences under the primary name and all synonyms.
-      5. Return a single JSON payload combining synonyms and occurrences.
+      3. Return a single JSON payload combining all synonym groups.
 
     Args:
         query (str): The accepted scientific name to search (e.g. "Amanita muscaria").
         sources (Optional[List[str]]): Explicit list of API keys (matching keys in
             `_make_clients()`) to query. If None, TaxonRouter selects sources based
             on the taxon's kingdom.
-        limit (int): Maximum occurrence records to retrieve per API per name query.
-            Defaults to 20.
 
     Returns:
-        str: JSON string with two top-level keys:
+        str: JSON string with one top-level key:
             - "synonyms": dict with "official", "symbiota", and "independent" sub-keys,
               each containing synonym records from those source groups.
-            - "occurrences": dict keyed by API name, each value containing a "status"
-              field ("success" / "warning" / "error") and either a "data" list or a
-              "message" string.
     """
     clients = _make_clients()
 
@@ -109,8 +93,6 @@ def call_apis(
         clients["index_fungorum"],
         clients["col"],
     )
-
-    agg = SpeciesAggregator(clients=clients, router=router)
 
     # Decide which APIs to query
     selected = sources if sources else router.route(query)
@@ -144,42 +126,13 @@ def call_apis(
                 except Exception:
                     pass
 
-    # --- 3. Consolidate String Names for the Aggregator ---
-    # We must extract ALL the names we just found so the occurrence search is complete!
-    synonyms_list = []
-    seen = {query.lower()}
-
-    for s in official_syns:
-        nm = s.get("name")
-        if nm and nm.lower() not in seen:
-            seen.add(nm.lower())
-            synonyms_list.append(nm)
-
-    # Add the local/independent string names as well
-    for syn_dict in [symbiota_syns, independent_syns]:
-        for api_key, syn_records in syn_dict.items():
-            for rec in syn_records:
-                nm = rec.get("canonicalName")
-                if nm and nm.lower() not in seen:
-                    seen.add(nm.lower())
-                    synonyms_list.append(nm)
-
-    # --- 4. Fetch Occurrences ---
-    try:
-        occurrences = agg.occurrences(
-            query, synonyms=synonyms_list, apis=selected, limit=limit
-        )
-    except Exception as e:
-        occurrences = {"status": "error", "message": f"Occurrence lookup failed: {e}"}
-
-    # --- 5. Return the Master JSON Payload ---
+    # --- 3. Return the Master JSON Payload ---
     master_payload = {
         "synonyms": {
             "official": official_syns,
             "symbiota": symbiota_syns,
             "independent": independent_syns,
         },
-        "occurrences": occurrences,
     }
 
     return json.dumps(master_payload, indent=2)

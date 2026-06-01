@@ -10,7 +10,7 @@ of databases to search for that kingdom.
     # ['gbif', 'col', 'genbank', 'index_fungorum', 'mushroomobs', ...]
 """
 
-from scripts.apis_pipe.base import SpeciesAPI
+from scripts.APIs_pipe.base import SpeciesAPI
 
 ANIMALIA_APIS: list[str] = [
     "gbif",
