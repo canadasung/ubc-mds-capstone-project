@@ -153,7 +153,7 @@ class SpeciesAPI(ABC):
         )
         return bool(_INFRASPECIFIC_RE.search(string))
 
-    def _extract_year(self, string: str) -> str:
+    def _extract_publication_year(self, string: str) -> str:
         """
         Extract a four-digit publication year from a scientific name string.
 
@@ -171,12 +171,12 @@ class SpeciesAPI(ABC):
 
     def _extract_author(self, string: str) -> str:
         """
-        Extract the authorship string from a scientific name.
+        Extract the authorship string from a string.
 
         Parameters
         ----------
         string : str
-            A scientific name string that may include an authorship component.
+            A string that may contain an authorship component, such as a scientific name or a full citation.
 
         Returns
         -------
@@ -203,6 +203,22 @@ class SpeciesAPI(ABC):
         -------
         str
             The original authorship string, or ``""`` if not found.
+        """
+        return "Not yet implemented"
+
+    def _extract_publication_name(self, string: str) -> str:
+        """
+        Extract a publication name from a string.
+
+        Parameters
+        ----------
+        string : str
+            A string that may contain a publication name, such as a full citation or the "published in" field from an API response.
+
+        Returns
+        -------
+        str
+            The publication name string, or ``""`` if not found.
         """
         return "Not yet implemented"
 

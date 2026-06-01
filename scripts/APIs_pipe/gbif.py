@@ -4,6 +4,8 @@ GBIF API client.
 SpeciesAPI implementation for GBIF. GBIF is a... (todo: fill in)
 """
 
+import re
+
 from .base import SpeciesAPI
 
 
@@ -14,128 +16,150 @@ class GBIFAPI(SpeciesAPI):
 
     BASE_URL = "https://api.gbif.org/v1"
 
-    def fetch_query_data(self, name: str) -> dict:
-        """
-        Query the GBIF backbone taxonomy to find a precise match for a species. Uses the '/species/match' endpoint with strict matching enabled.
+    # Regular expression to extract a leading year from a GBIF "publishedIn" string.
+    _PUBLISHED_IN_RE: re.Pattern = re.compile(r"^\((\d{4})\)\.\s*")
 
-        Args:
-            name (str): The scientific name to search for (e.g., "Amanita muscaria").
-
-        Returns:
-            dict: The JSON response from GBIF containing match details, including
-                the match type, taxonomic rank, and usage keys.
+    def _fetch_query_data(self, name: str) -> dict:
         """
-        return self._fetch_JSON(
+        Query the GBIF backbone taxonomy to find a precise match for a species.
+
+        Uses the ``/species/match`` endpoint with strict matching enabled.
+        Returns an empty dict when GBIF reports no match so that the base
+        ``get_synonyms`` pipeline short-circuits cleanly.
+
+        Parameters
+        ----------
+        name : str
+            The scientific name to search (e.g. ``"Amanita muscaria"``).
+
+        Returns
+        -------
+        dict
+            Parsed JSON match response, or ``{}`` if no match is found.
+        """
+        data = self._fetch_JSON(
             f"{self.BASE_URL}/species/match",
             params={"name": name, "strict": "true"},
         )
+        if data.get("matchType") == "NONE":
+            return {}
+        return data
 
     def _extract_internal_accepted_id(self, raw_data: dict) -> str:
         """
-        Extract the id for the accepted species name from the match data.
+        Extract the accepted taxon's GBIF usage key from match data.
 
-        If the matched taxon is classified as a synonym, GBIF provides an 'acceptedUsageKey' pointing to the currently accepted name.
+        If the matched taxon is a synonym, GBIF provides an
+        ``acceptedUsageKey`` pointing to the currently accepted name.
 
-        Args:
-            match_data (dict): The dictionary returned by the `search` method.
+        Parameters
+        ----------
+        raw_data : dict
+            The dictionary returned by ``_fetch_query_data``.
 
-        Returns:
-            str: The internal ID of the accepted name.
+        Returns
+        -------
+        str
+            The GBIF usage key of the accepted taxon.
         """
         if "acceptedUsageKey" in raw_data:
             return str(raw_data["acceptedUsageKey"])
         return str(raw_data["usageKey"])
 
-    def fetch_synonym_data(self, raw_data: dict) -> list[dict]:
+    def _fetch_synonym_data(self, raw_data: dict) -> list[dict]:
         """
         Fetch the raw synonyms list for an accepted taxon from GBIF.
 
-        Args:
-            usage_key (int): The GBIF usage key of the accepted taxon.
+        Parameters
+        ----------
+        raw_data : dict
+            The parsed response returned by ``_fetch_query_data``.
 
-        Returns:
-            list[dict]: The ``"results"`` array from the GBIF synonyms endpoint,
-                or an empty list when the request fails.
+        Returns
+        -------
+        list of dict
+            The ``"results"`` array from the GBIF synonyms endpoint,
+            or ``[]`` when the request fails or returns no results.
         """
         usage_key = self._extract_internal_accepted_id(raw_data)
-
         data = self._fetch_JSON(
             f"{self.BASE_URL}/species/{usage_key}/synonyms",
             params={"limit": 500},
         )
         return data.get("results", [])
 
-    def compile_synonyms(self, synonym_data: list[dict]) -> list[dict]:
+    def _extract_publication_year(self, string: str) -> str:
+        """
+        Extract the publication year from a GBIF ``publishedIn`` string.
+
+        Parameters
+        ----------
+        string : str
+            A GBIF ``publishedIn`` value, e.g.
+            ``"(1788). Hist. Fung. Halifax (Huddersfield) 2: 46"``.
+
+        Returns
+        -------
+        str
+            Four-digit year string, or ``""`` if the pattern is absent.
+        """
+        m = self._PUBLISHED_IN_RE.match(string)
+        return m.group(1) if m else ""
+
+    def _extract_publication_name(self, string: str) -> str:
+        """
+        Extract the publication name from a GBIF ``publishedIn`` string.
+
+        Strips the leading year prefix (e.g. ``"(1788). "``) and returns
+        the remainder as the publication name.
+
+        Parameters
+        ----------
+        string : str
+            A GBIF ``publishedIn`` value.
+
+        Returns
+        -------
+        str
+            The publication name, or the original string if no prefix is found.
+        """
+        return self._PUBLISHED_IN_RE.sub("", string)
+
+    def _compile_synonyms(self, synonym_data: list[dict]) -> list[dict]:
         """
         Convert raw GBIF synonym records into pipeline-standard synonym dicts.
 
+        Filters to species-rank results only and deduplicates by canonical name.
 
-        Args:
-        todo: have AI adjust
+        Parameters
+        ----------
+        synonym_data : list of dict
+            Raw synonym records as returned by ``_fetch_synonym_data``.
 
-        Returns:
-            list[dict]: Pipeline-standard synonym records.
+        Returns
+        -------
+        list of dict
+            Pipeline-standard synonym records produced by ``_format_synonym``.
         """
         candidates = []
         seen = set()
         for item in synonym_data:
-            if item.get("rank") == "SPECIES" and item.get("canonicalName"):
-                if item not in seen:
-                    seen.add(item)
+            canonical_name = item.get("canonicalName")
+            if item.get("rank") == "SPECIES" and canonical_name:
+                if canonical_name not in seen:
+                    seen.add(canonical_name)
+                    published_in = item.get("publishedIn", "")
                     candidates.append(
                         self._format_synonym(
-                            name=item["canonicalName"],
+                            name=canonical_name,
                             author=item.get("authorship", ""),
-                            publication_year=self._extract_year(),
-                            publication_name=item.get("publishedIn", ""),
+                            publication_year=self._extract_publication_year(
+                                published_in
+                            ),
+                            publication_name=self._extract_publication_name(
+                                published_in
+                            ),
                             api_link=f"https://www.gbif.org/species/{item.get('key')}",
                         )
                     )
         return candidates
-
-    def get_synonyms(self, name: str) -> list[dict]:
-        """
-        Retrieve species-level synonyms and metadata for a given scientific name.
-
-        First resolves the name to its accepted usage key, then fetches and
-        builds the synonym list. The accepted name itself is always the first
-        record returned.
-
-        Args:
-            name (str): The scientific name to query.
-
-        Returns:
-            list[dict]: A list of dictionaries containing the canonical names and
-                associated metadata. The first item is always the currently accepted
-                taxon, followed by any discovered synonyms.
-                Example:
-                [
-                    {
-                        "canonicalName": "Amanita muscaria",
-                        "author": "(L.) Lam.",
-                        "date": "1783",
-                        "publishedIn": "Encycl. Méth. Bot. 1(1): 111",
-                        "url": "https://www.gbif.org/species/3328328"
-                    },
-                    ...
-                ]
-        """
-        match = self.search(name)
-        if match.get("matchType") == "NONE":
-            return []
-
-        usage_key = self._extract_internal_accepted_id(match)
-        authorship = match.get("authorship", "")
-
-        accepted_record = self._format_synonym(
-            name=match.get("canonicalName") or name,
-            author=authorship,
-            publication_date=self._extract_year(authorship),
-            publication_name=match.get("publishedIn", ""),
-            api_link=f"https://www.gbif.org/species/{usage_key}",
-        )
-
-        raw_results = self._fetch_synonyms_page(usage_key)
-        synonym_records = self._synonyms(raw_results, query_name=name)
-
-        return [accepted_record] + synonym_records
