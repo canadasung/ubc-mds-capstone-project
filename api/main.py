@@ -8,6 +8,7 @@ Run with:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routers.search import router as search_router
+from api.routers.taxonomy import router as taxonomy_router
 
 app = FastAPI(title="Species Synonym API")
 
@@ -19,3 +20,4 @@ app.add_middleware(
 )
 
 app.include_router(search_router)
+app.include_router(taxonomy_router)
