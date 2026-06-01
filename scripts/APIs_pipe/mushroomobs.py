@@ -4,8 +4,8 @@ scripts/apis_pipe/mushroomobs.py
 Mushroom Observer API v2 client for the UBC MDS species aggregation pipeline.
 
 Mushroom Observer (https://mushroomobserver.org) is a community-driven database
-of fungal observations. This module provides synonyms: fetching historical
-species-level aliases for a given accepted name, filtering out misspellings,
+of fungal observations. This module provides synonyms by fetching historical
+species-level aliases for a given accepted name then filtering out misspellings,
 "sp." placeholders, and infraspecific taxa (varieties, forms, subspecies) so
 the output matches what other pipeline sources (GBIF, Symbiota) return.
 """
@@ -33,6 +33,8 @@ class MushroomObserverAPI(SpeciesAPI):
 
     BASE_URL = "https://mushroomobserver.org/api2"
 
+    # TODO: ask AI, can I shorten the below?
+
     # Maps rank abbreviations found in MushroomObserver names to category keys.
     # Order matters: longer/more specific patterns must come before shorter ones.
     _RANK_PATTERNS: list[tuple[re.Pattern, str]] = [
@@ -52,19 +54,25 @@ class MushroomObserverAPI(SpeciesAPI):
 
     def search(self, name: str) -> dict:
         """
-        No-op implementation required by ``SpeciesAPI``.
-
-        Mushroom Observer is used exclusively for synonym look-ups; it is not
-        used as a primary taxonomic backbone. Callers should use ``synonyms()``
-        directly.
+        Fetch raw data from the Mushroom Observer names endpoint.
 
         Args:
-            name (str): Ignored.
+            name (str): The scientific name to query.
 
         Returns:
-            dict: Always an empty dict.
+            dict: Parsed JSON response from the ``/names`` endpoint,
+                or ``{}`` on any network or HTTP error.
         """
-        return {}
+        return self._fetch_JSON(
+            f"{self.BASE_URL}/names",
+            params={
+                "name": name,
+                "include_synonyms": "true",
+                "detail": "high",
+                "format": "json",
+            },
+            timeout=15,
+        )
 
     def _parse_synonym(self, full_name: str, species_name: str) -> tuple[str, str]:
         """
@@ -87,70 +95,7 @@ class MushroomObserverAPI(SpeciesAPI):
                 return category, pattern.split(full_name)[-1]
         return "synonyms", full_name.removeprefix(species_name).strip() or full_name
 
-    def _fetch_names_data(self, name: str) -> dict:
-        """
-        Fetch raw synonym data from the Mushroom Observer names endpoint.
-
-        Args:
-            name (str): The accepted scientific name to query.
-
-        Returns:
-            dict: Parsed JSON response from the ``/names`` endpoint,
-                or ``{}`` on any network or HTTP error.
-        """
-        return self._fetch(
-            f"{self.BASE_URL}/names",
-            params={
-                "name": name,
-                "include_synonyms": "true",
-                "detail": "high",
-                "format": "json",
-            },
-            timeout=15,
-        )
-
-    def _build_synonyms(self, data: dict, query_name: str) -> list[dict]:
-        """
-        Convert raw Mushroom Observer name data into pipeline-standard synonym dicts.
-
-        Filters out misspellings, vague ``sp.`` records, and infraspecific taxa,
-        then deduplicates the result.
-
-        Args:
-            data (dict): Parsed JSON response from ``_fetch_names_data()``.
-            query_name (str): The original query name, used to seed deduplication.
-
-        Returns:
-            list[dict]: Pipeline-standard synonym records.
-        """
-        if data.get("number_of_records", 0) == 0:
-            return []
-
-        candidates = []
-        for result in data.get("results", []):
-            for synonym in result.get("synonyms", []):
-                full_name = synonym.get("name", "")
-
-                if not full_name or " sp." in full_name:
-                    continue
-                if synonym.get("misspelled", False):
-                    continue
-
-                category, _ = self._parse_synonym(full_name, query_name)
-                if category != "synonyms":
-                    continue
-
-                candidates.append(
-                    self._format_synonym(
-                        name=full_name,
-                        author=synonym.get("author", ""),
-                        api_link=f"https://mushroomobserver.org/name/show_name/{synonym.get('id', '')}",
-                    )
-                )
-
-        return self._deduplicate_synonyms(candidates, seed={query_name.lower()})
-
-    def synonyms(self, name: str) -> list[dict]:
+    def get_synonyms(self, name: str) -> list[dict]:
         """
         Retrieve a filtered list of taxonomic synonyms from Mushroom Observer.
 
@@ -166,7 +111,31 @@ class MushroomObserverAPI(SpeciesAPI):
                 'publishedIn', and 'url'. Returns an empty list if the query fails
                 or no valid synonyms are found.
         """
-        data = self._fetch_names_data(name)
-        if not data:
-            return []
-        return self._build_synonyms(data, query_name=name)
+        data = self.search(name)
+
+        candidates = []
+        seen = set()  # track seen synonyms to prevent duplicates
+        for result in data.get("results", []):
+            for synonym in result.get("synonyms", []):
+                full_name = synonym.get("name", "")
+
+                if not full_name or " sp." in full_name:
+                    continue
+                if synonym.get("misspelled", False):
+                    continue
+
+                if full_name not in seen:
+                    seen.add(full_name)
+                    category, _ = self._parse_synonym(full_name, name)
+                    if category != "synonyms":
+                        continue
+
+                    candidates.append(
+                        self._format_synonym(
+                            name=full_name,
+                            author=synonym.get("author", ""),
+                            api_link=f"https://mushroomobserver.org/name/show_name/{synonym.get('id', '')}",
+                        )
+                    )
+
+        return candidates

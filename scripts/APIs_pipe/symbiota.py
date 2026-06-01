@@ -16,7 +16,6 @@ Symbiota is a documented exception to two base-class conventions:
   detection, and URL construction from ``self.base``.
 """
 
-
 import re
 import warnings
 import xml.etree.ElementTree as ET
@@ -25,8 +24,8 @@ from urllib.parse import urlparse
 import pandas as pd
 import requests
 
+from ..utils.normalize_strings import normalize_scientific_name
 from .base import SpeciesAPI
-from ..utils.normalize_query_string import normalize_query_string
 
 # Canonical column order for all synonym DataFrames produced by this module.
 # Matches the schema defined in data/sample/*.csv.
@@ -51,9 +50,9 @@ COLUMNS = [
 # api/v2/taxonomy/{identifier} classification array. Boundaries are derived from
 # observed Symbiota portal responses; the lowest rankid within each range wins.
 _RANK_RANGES: dict[str, tuple[int, int]] = {
-    "Phylum":    (25,  45),
-    "Class":     (50,  75),
-    "Family":    (130, 155),
+    "Phylum": (25, 45),
+    "Class": (50, 75),
+    "Family": (130, 155),
     "Subfamily": (155, 170),
 }
 
@@ -86,7 +85,7 @@ class SymbiotaAPI(SpeciesAPI):
         if portal_name:
             self.portal_name = portal_name
         else:
-            host = urlparse(base_url).netloc   # e.g. "mycoportal.org"
+            host = urlparse(base_url).netloc  # e.g. "mycoportal.org"
             self.portal_name = host.split(".")[0]  # e.g. "mycoportal"
 
     def _get(self, endpoint: str, params: dict, timeout: int = 30):
@@ -220,13 +219,15 @@ class SymbiotaAPI(SpeciesAPI):
 
         def lowest_in_range(lo: int, hi: int) -> str:
             # Returns the name at the lowest rankid within [lo, hi], or "" if none found.
-            return next((rank_index[r] for r in range(lo, hi + 1) if r in rank_index), "")
+            return next(
+                (rank_index[r] for r in range(lo, hi + 1) if r in rank_index), ""
+            )
 
         return {
-            "Kingdom":   str(data.get("kingdomName") or lowest_in_range(10, 15) or ""),
-            "Phylum":    lowest_in_range(*_RANK_RANGES["Phylum"]),
-            "Class":     lowest_in_range(*_RANK_RANGES["Class"]),
-            "Family":    lowest_in_range(*_RANK_RANGES["Family"]),
+            "Kingdom": str(data.get("kingdomName") or lowest_in_range(10, 15) or ""),
+            "Phylum": lowest_in_range(*_RANK_RANGES["Phylum"]),
+            "Class": lowest_in_range(*_RANK_RANGES["Class"]),
+            "Family": lowest_in_range(*_RANK_RANGES["Family"]),
             "Subfamily": lowest_in_range(*_RANK_RANGES["Subfamily"]),
         }
 
@@ -273,16 +274,22 @@ class SymbiotaAPI(SpeciesAPI):
             try:
                 resp = self._get(endpoint, search_params)
                 if not resp.ok:
-                    print(f"[{self.portal_name}] '{endpoint}' returned non-2xx; trying next endpoint.")
+                    print(
+                        f"[{self.portal_name}] '{endpoint}' returned non-2xx; trying next endpoint."
+                    )
                     continue
                 data = resp.json()
                 if isinstance(data, list):
                     data = {"results": data}
                 if isinstance(data, dict) and data.get("results"):
-                    print(f"[{self.portal_name}] '{endpoint}' succeeded: {len(data['results'])} result(s).")
+                    print(
+                        f"[{self.portal_name}] '{endpoint}' succeeded: {len(data['results'])} result(s)."
+                    )
                     return data
                 # Endpoint responded with HTTP 200 but no matching records - record this and keep trying.
-                print(f"[{self.portal_name}] '{endpoint}' returned HTTP 200 but no results for '{name}'.")
+                print(
+                    f"[{self.portal_name}] '{endpoint}' returned HTTP 200 but no results for '{name}'."
+                )
                 got_empty_response = True
             except Exception as e:
                 print(f"[{self.portal_name}] '{endpoint}' raised an exception: {e}")
@@ -305,7 +312,7 @@ class SymbiotaAPI(SpeciesAPI):
     # Internal ID resolution
     # ---------------------------------------------------------
 
-    def _get_internal_id(self, species_name: str) -> int:
+    def _extract_internal_id(self, species_name: str) -> int:
         """
         Return the internal taxon ID for an exact name match.
 
@@ -342,25 +349,39 @@ class SymbiotaAPI(SpeciesAPI):
             if re.match(rf"^{re.escape(species_name)}\s*$", sciname, re.IGNORECASE):
                 try:
                     tid = int(item["tid"])
-                    print(f"[{self.portal_name}] Found tid={tid} for '{species_name}' via search.")
+                    print(
+                        f"[{self.portal_name}] Found tid={tid} for '{species_name}' via search."
+                    )
                     return tid
                 except (KeyError, ValueError, TypeError) as e:
-                    print(f"[{self.portal_name}] Could not parse tid from search result: {e}")
+                    print(
+                        f"[{self.portal_name}] Could not parse tid from search result: {e}"
+                    )
 
         # Fallback: autocomplete endpoint when search returned no exact match.
-        print(f"[{self.portal_name}] No exact match in search results for '{species_name}'; trying autocomplete.")
+        print(
+            f"[{self.portal_name}] No exact match in search results for '{species_name}'; trying autocomplete."
+        )
         try:
-            resp = self._get("taxa/taxonomy/rpc/gettaxasuggest.php", {"term": species_name})
+            resp = self._get(
+                "taxa/taxonomy/rpc/gettaxasuggest.php", {"term": species_name}
+            )
             resp.raise_for_status()
             for item in resp.json():
                 label = item.get("label", "")
                 if re.match(rf"^{re.escape(species_name)}(\s|$)", label):
                     tid = int(item["id"])
-                    print(f"[{self.portal_name}] Found tid={tid} for '{species_name}' via autocomplete.")
+                    print(
+                        f"[{self.portal_name}] Found tid={tid} for '{species_name}' via autocomplete."
+                    )
                     return tid
-            print(f"[{self.portal_name}] Autocomplete returned no match for '{species_name}'.")
+            print(
+                f"[{self.portal_name}] Autocomplete returned no match for '{species_name}'."
+            )
         except Exception as e:
-            print(f"[{self.portal_name}] Autocomplete raised an exception for '{species_name}': {e}")
+            print(
+                f"[{self.portal_name}] Autocomplete raised an exception for '{species_name}': {e}"
+            )
             warnings.warn(
                 f"{self.portal_name}: autocomplete fallback failed for '{species_name}' ({e}).",
                 stacklevel=2,
@@ -441,7 +462,7 @@ class SymbiotaAPI(SpeciesAPI):
                 stacklevel=2,
             )
         sciname = data.get("scientificName") or data.get("sciname") or ""
-        author  = data.get("author") or ""
+        author = data.get("author") or ""
         return status, sciname, author
 
     def _resolve_synonym_to_accepted(self, data: dict, tid: int) -> tuple[int, dict]:
@@ -472,35 +493,41 @@ class SymbiotaAPI(SpeciesAPI):
                 f"'accepted.tid'; the accepted taxon cannot be resolved.",
                 stacklevel=2,
             )
-        accepted_tid    = int(accepted.get("tid", tid))
-        accepted_name   = accepted.get("scientificName") or accepted.get("sciname") or ""
+        accepted_tid = int(accepted.get("tid", tid))
+        accepted_name = accepted.get("scientificName") or accepted.get("sciname") or ""
         accepted_author = accepted.get("scientificNameAuthorship") or ""
-        sciname         = data.get("scientificName") or data.get("sciname") or ""
-        author          = data.get("author") or ""
+        sciname = data.get("scientificName") or data.get("sciname") or ""
+        author = data.get("author") or ""
 
         # Re-fetch the accepted taxon to get its full classification array.
         try:
             acc_data = self._fetch_taxonomy(accepted_tid)
             taxonomy = self._extract_taxonomy(acc_data)
-            print(f"[{self.portal_name}] Classification resolved for accepted tid={accepted_tid}.")
+            print(
+                f"[{self.portal_name}] Classification resolved for accepted tid={accepted_tid}."
+            )
         except Exception as e:
             warnings.warn(
                 f"{self.portal_name}: could not fetch classification for accepted tid "
                 f"{accepted_tid} ({e}); falling back to synonym's own classification.",
                 stacklevel=2,
             )
-            print(f"[{self.portal_name}] Using synonym's own classification as fallback for tid={accepted_tid}.")
+            print(
+                f"[{self.portal_name}] Using synonym's own classification as fallback for tid={accepted_tid}."
+            )
             taxonomy = self._extract_taxonomy(data)
 
-        print(f"[{self.portal_name}] '{sciname}' is a Synonym; accepted name is '{accepted_name}' (tid={accepted_tid}).")
+        print(
+            f"[{self.portal_name}] '{sciname}' is a Synonym; accepted name is '{accepted_name}' (tid={accepted_tid})."
+        )
         return accepted_tid, {
             **taxonomy,
-            "sciname":          sciname,
-            "author":           author,
-            "status":           "Synonym",
-            "accepted_tid":     accepted_tid,
-            "accepted_name":    accepted_name,
-            "accepted_author":  accepted_author,
+            "sciname": sciname,
+            "author": author,
+            "status": "Synonym",
+            "accepted_tid": accepted_tid,
+            "accepted_name": accepted_name,
+            "accepted_author": accepted_author,
         }
 
     def _resolve_accepted_tid(self, tid: int) -> tuple[int, dict]:
@@ -532,12 +559,12 @@ class SymbiotaAPI(SpeciesAPI):
         print(f"[{self.portal_name}] '{sciname}' is Accepted (tid={tid}).")
         return tid, {
             **taxonomy,
-            "sciname":          sciname,
-            "author":           author,
-            "status":           "Accepted",
-            "accepted_tid":     tid,
-            "accepted_name":    None,
-            "accepted_author":  None,
+            "sciname": sciname,
+            "author": author,
+            "status": "Accepted",
+            "accepted_tid": tid,
+            "accepted_name": None,
+            "accepted_author": None,
         }
 
     # ---------------------------------------------------------
@@ -586,9 +613,9 @@ class SymbiotaAPI(SpeciesAPI):
         """
         tid_map: dict[str, int] = {}
         for a_match in re.finditer(
-            r'<a[^>]*[?&]tid=(\d+)[^>]*>(.*?)</a>', syn_html, re.DOTALL
+            r"<a[^>]*[?&]tid=(\d+)[^>]*>(.*?)</a>", syn_html, re.DOTALL
         ):
-            inner_name = re.search(r'<i>([^<]+)</i>', a_match.group(2))
+            inner_name = re.search(r"<i>([^<]+)</i>", a_match.group(2))
             if inner_name:
                 tid_map[inner_name.group(1).strip()] = int(a_match.group(1))
         return tid_map
@@ -612,7 +639,7 @@ class SymbiotaAPI(SpeciesAPI):
         """
         pairs = []
         for match in re.finditer(r"<i>(.*?)</i>([^<]*)", syn_html):
-            name   = match.group(1).strip()
+            name = match.group(1).strip()
             author = re.sub(r"^[,\s]+|[,\s]+$", "", match.group(2).strip())
             if name and not self._is_infraspecific(name):
                 pairs.append((name, author))
@@ -643,32 +670,39 @@ class SymbiotaAPI(SpeciesAPI):
             return []
 
         syn_html = syn_match.group(1)
-        tid_map  = self._extract_synonym_tids(syn_html)
-        pairs    = self._extract_synonym_pairs(syn_html)
+        tid_map = self._extract_synonym_tids(syn_html)
+        pairs = self._extract_synonym_pairs(syn_html)
 
         records = []
         for name, author in pairs:
             genus, species_epithet = self._split_binomial(name)
-            syn_tid  = tid_map.get(name)
+            syn_tid = tid_map.get(name)
             src_link = f"{self.base}/taxa/index.php?taxon={syn_tid}" if syn_tid else ""
 
-            records.append(self._build_record(taxonomy, **{
-                "Genus":              genus,
-                "Species":            species_epithet,
-                "Source Species ID":  str(syn_tid) if syn_tid else "",
-                "Author":             author,
-                "Source Link":        src_link,
-                "GBIF Accepted Status": "Synonym",
-            }))
+            records.append(
+                self._build_record(
+                    taxonomy,
+                    **{
+                        "Genus": genus,
+                        "Species": species_epithet,
+                        "Source Species ID": str(syn_tid) if syn_tid else "",
+                        "Author": author,
+                        "Source Link": src_link,
+                        "GBIF Accepted Status": "Synonym",
+                    },
+                )
+            )
 
-        print(f"[{self.portal_name}] Scraped {len(records)} synonym(s) from taxa page for tid={accepted_tid}.")
+        print(
+            f"[{self.portal_name}] Scraped {len(records)} synonym(s) from taxa page for tid={accepted_tid}."
+        )
         return records
 
     # ---------------------------------------------------------
     # Public interface
     # ---------------------------------------------------------
 
-    def synonyms(self, name: str) -> pd.DataFrame:
+    def get_synonyms(self, name: str) -> pd.DataFrame:
         """
         Return a DataFrame of the queried name and all its synonyms.
 
@@ -699,10 +733,10 @@ class SymbiotaAPI(SpeciesAPI):
         if not name or not name.strip():
             return pd.DataFrame(columns=COLUMNS)
 
-        species_name = normalize_query_string(name)
+        species_name = normalize_scientific_name(name)
 
         try:
-            tid = self._get_internal_id(species_name)
+            tid = self._extract_internal_id(species_name)
             accepted_tid, meta = self._resolve_accepted_tid(tid)
             taxonomy = {
                 k: meta.get(k, "")
@@ -717,28 +751,40 @@ class SymbiotaAPI(SpeciesAPI):
             # Row 1: the queried name itself.
             # Author is left blank when the queried name is a synonym; the accepted
             # row below carries the authoritative author string in that case.
-            records.append(self._build_record(taxonomy, **{
-                "Genus":              queried_genus,
-                "Species":            queried_species,
-                "Source Species ID":  str(tid),
-                "Author":             meta.get("author", "") if meta.get("status") == "Accepted" else "",
-                "Source Link":        f"{self.base}/taxa/index.php?taxon={tid}",
-                "GBIF Accepted Status": meta.get("status", ""),
-            }))
+            records.append(
+                self._build_record(
+                    taxonomy,
+                    **{
+                        "Genus": queried_genus,
+                        "Species": queried_species,
+                        "Source Species ID": str(tid),
+                        "Author": meta.get("author", "")
+                        if meta.get("status") == "Accepted"
+                        else "",
+                        "Source Link": f"{self.base}/taxa/index.php?taxon={tid}",
+                        "GBIF Accepted Status": meta.get("status", ""),
+                    },
+                )
+            )
 
             # Row 2: accepted name, only added when the queried name was a synonym.
             accepted_name = meta.get("accepted_name")
             if accepted_name and accepted_name not in seen:
                 seen.add(accepted_name)
                 acc_genus, acc_species = self._split_binomial(accepted_name)
-                records.append(self._build_record(taxonomy, **{
-                    "Genus":              acc_genus,
-                    "Species":            acc_species,
-                    "Source Species ID":  str(accepted_tid),
-                    "Author":             meta.get("accepted_author") or "",
-                    "Source Link":        f"{self.base}/taxa/index.php?taxon={accepted_tid}",
-                    "GBIF Accepted Status": "Accepted",
-                }))
+                records.append(
+                    self._build_record(
+                        taxonomy,
+                        **{
+                            "Genus": acc_genus,
+                            "Species": acc_species,
+                            "Source Species ID": str(accepted_tid),
+                            "Author": meta.get("accepted_author") or "",
+                            "Source Link": f"{self.base}/taxa/index.php?taxon={accepted_tid}",
+                            "GBIF Accepted Status": "Accepted",
+                        },
+                    )
+                )
 
             # Remaining rows: scraped synonyms, deduplicated
             for syn in self._scrape_synonyms(accepted_tid, taxonomy):
@@ -747,7 +793,9 @@ class SymbiotaAPI(SpeciesAPI):
                     seen.add(canonical)
                     records.append(syn)
 
-            print(f"[{self.portal_name}] Synonym lookup complete: {len(records)} record(s) built for '{species_name}'.")
+            print(
+                f"[{self.portal_name}] Synonym lookup complete: {len(records)} record(s) built for '{species_name}'."
+            )
             return pd.DataFrame(records, columns=COLUMNS)
 
         except Exception as e:

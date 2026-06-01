@@ -39,7 +39,7 @@ class GenBankAPI(SpeciesAPI):
                 with idlist, count, and other match details. Returns an empty dict
                 if the request fails.
         """
-        return self._fetch(
+        return self._fetch_JSON(
             f"{self.BASE_URL}/esearch.fcgi",
             params={"db": "taxonomy", "term": name, "retmode": "json"},
         )
@@ -60,7 +60,7 @@ class GenBankAPI(SpeciesAPI):
             params={"db": "taxonomy", "id": ",".join(ids), "retmode": "xml"},
         )
 
-    def _build_synonyms(self, xml_root: ET.Element, query_name: str) -> list[dict]:
+    def _synonyms(self, xml_root: ET.Element, query_name: str) -> list[dict]:
         """
         Extract pipeline-standard synonym records from a parsed NCBI taxon XML tree.
 
@@ -92,7 +92,7 @@ class GenBankAPI(SpeciesAPI):
                 )
         return self._deduplicate_synonyms(candidates, seed={query_name.lower()})
 
-    def synonyms(self, name: str) -> list[dict]:
+    def get_synonyms(self, name: str) -> list[dict]:
         """
         Retrieve species-level synonyms from the NCBI Taxonomy database.
 
@@ -121,7 +121,7 @@ class GenBankAPI(SpeciesAPI):
             if root is None:
                 return []
 
-            return self._build_synonyms(root, query_name=name)
+            return self._synonyms(root, query_name=name)
 
         except Exception as e:
             print(f"GenBank Synonyms Error: {e}")

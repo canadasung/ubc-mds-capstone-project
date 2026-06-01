@@ -37,7 +37,7 @@ class IndexFungorumAPI(SpeciesAPI):
         "authors": "AUTHORS",
     }
 
-    def search(self, name: str) -> dict:
+    def search(self, name: str) -> str:
         """Verify whether a name exists in the Index Fungorum database.
 
         Satisfies the SpeciesAPI abstract base class requirement.
@@ -49,30 +49,53 @@ class IndexFungorumAPI(SpeciesAPI):
             dict: A match descriptor with 'name', 'matchType', and 'key' if the
                 name resolves to a CurrentKey; an empty dict if not found.
         """
-        current_key = self._get_internal_id(name)
-        if current_key:
-            return {"name": name, "matchType": "EXACT", "key": current_key}
-        return {}
 
-    def _parse_xml(self, xml_text: str) -> list[ET.Element]:
-        """
-        Safely parse raw XML text into a list of IndexFungorum record elements.
+        # NOTE: come back to fix this. I don't think I should need XML parsing by default, just need to fix the index fungorum API more..?
 
-        Overrides the base class ``_parse_xml`` to return the IndexFungorum-specific
-        ``IndexFungorum`` child elements rather than the root element.
+        xml_text = self._fetch_text(
+            f"{self.BASE}/NameSearch",
+            params={
+                "SearchText": name,
+                "AnywhereInText": "false",  # only search for exact matches in the name field, not in any fields
+                "MaxNumber": "50",  # get the top 50 matches, which should ensure we capture the accepted name even if there are many infraspecific records
+            },
+        )
 
-        Args:
-            xml_text (str): The raw XML response from the ASMX web service.
+        root = self._parse_xml(xml_text)
 
-        Returns:
-            list[ET.Element]: A list of parsed 'IndexFungorum' XML record blocks.
-                Returns an empty list if parsing fails.
-        """
-        try:
-            root = ET.fromstring(xml_text)
-            return root.findall("IndexFungorum")
-        except ET.ParseError:
-            return []
+        if root is not None:
+            records = root.findall("IndexFungorum")
+
+        else:
+            print("Error parsing XML response from Index Fungorum.")
+            return ""
+
+        current_key = self._find_current_key(records, name)
+
+        return self._fetch_text(
+            f"{self.BASE}/NamesByCurrentKey",
+            params={"CurrentKey": str(current_key)},
+        )
+
+    # def _parse_xml(self, xml_text: str) -> list[ET.Element]:
+    #     """
+    #     Safely parse raw XML text into a list of IndexFungorum record elements.
+
+    #     Overrides the base class ``_parse_xml`` to return the IndexFungorum-specific
+    #     ``IndexFungorum`` child elements rather than the root element.
+
+    #     Args:
+    #         xml_text (str): The raw XML response from the ASMX web service.
+
+    #     Returns:
+    #         list[ET.Element]: A list of parsed 'IndexFungorum' XML record blocks.
+    #             Returns an empty list if parsing fails.
+    #     """
+    #     try:
+    #         root = ET.fromstring(xml_text)
+    #         return root.findall("IndexFungorum")
+    #     except ET.ParseError:
+    #         return []
 
     def _fetch_name_search(self, name: str) -> str:
         """
@@ -118,7 +141,7 @@ class IndexFungorumAPI(SpeciesAPI):
                         continue
         return None
 
-    def _get_internal_id(self, name: str) -> int | None:
+    def _extract_internal_id(self, name: str) -> int | None:
         """
         Resolve a species name to its Index Fungorum internal CurrentKey ID.
 
@@ -149,7 +172,7 @@ class IndexFungorumAPI(SpeciesAPI):
             params={"CurrentKey": str(current_key)},
         )
 
-    def _build_synonyms(self, records: list[ET.Element], query_name: str) -> list[dict]:
+    def _synonyms(self, records: list[ET.Element], query_name: str) -> list[dict]:
         """
         Convert parsed IndexFungorum XML records into pipeline-standard synonym dicts.
 
@@ -184,7 +207,7 @@ class IndexFungorumAPI(SpeciesAPI):
                 )
         return self._deduplicate_synonyms(candidates, seed={query_name.lower()})
 
-    def synonyms(self, name: str) -> list[dict]:
+    def get_synonyms(self, name: str) -> list[dict]:
         """
         Retrieve a clean, pipeline-standard list of synonyms for a fungal name.
 
@@ -199,7 +222,7 @@ class IndexFungorumAPI(SpeciesAPI):
             list[dict]: A list of synonym dictionaries formatted for the pipeline
                 (canonicalName, author, date, publishedIn, url).
         """
-        current_key = self._get_internal_id(name)
+        current_key = self._extract_internal_id(name)
         if not current_key:
             return []
 
@@ -207,5 +230,5 @@ class IndexFungorumAPI(SpeciesAPI):
         if not xml_text:
             return []
 
-        records = self._parse_xml(xml_text)
-        return self._build_synonyms(records, query_name=name)
+        records = self.search(name)
+        return self._synonyms(records, query_name=name)

@@ -1,33 +1,22 @@
 """
-This module serves as the dedicated connector between the application's data
-aggregation pipeline and the Global Biodiversity Information Facility (GBIF) API.
-It is a concrete, fully realized implementation of the `SpeciesAPI` blueprint,
-which can be found in base.py.
+GBIF API client.
 
-It automates the retrieval of exact taxonomic matches and resolves historical
-synonyms through secondary API routing.
+SpeciesAPI implementation for GBIF. GBIF is a... (todo: fill in)
 """
-
-import requests
 
 from .base import SpeciesAPI
 
 
 class GBIFAPI(SpeciesAPI):
     """
-    Concrete implementation of the SpeciesAPI for the Global Biodiversity Information Facility (GBIF).
-
-    This client interacts directly with the GBIF REST API to perform taxonomic matching
-    and retrieve historical synonyms.
+    Implementation of SpeciesAPI for GBIF.
     """
 
-    BASE = "https://api.gbif.org/v1"
+    BASE_URL = "https://api.gbif.org/v1"
 
-    def search(self, name: str) -> dict:
+    def fetch_query_data(self, name: str) -> dict:
         """
-        Query the GBIF backbone taxonomy to find a precise match for a species.
-
-        Uses the '/species/match' endpoint with strict matching enabled.
+        Query the GBIF backbone taxonomy to find a precise match for a species. Uses the '/species/match' endpoint with strict matching enabled.
 
         Args:
             name (str): The scientific name to search for (e.g., "Amanita muscaria").
@@ -36,30 +25,28 @@ class GBIFAPI(SpeciesAPI):
             dict: The JSON response from GBIF containing match details, including
                 the match type, taxonomic rank, and usage keys.
         """
-        return self._fetch(
-            f"{self.BASE}/species/match",
+        return self._fetch_JSON(
+            f"{self.BASE_URL}/species/match",
             params={"name": name, "strict": "true"},
         )
 
-    def _get_accepted_id(self, match_data: dict) -> int:
+    def _extract_internal_accepted_id(self, raw_data: dict) -> str:
         """
-        Extract the correct GBIF usage key from match data.
+        Extract the id for the accepted species name from the match data.
 
-        If the matched taxon is classified as a synonym, GBIF provides an
-        'acceptedUsageKey' pointing to the currently accepted name. This method
-        prioritizes the accepted key to ensure downstream queries use the valid taxon.
+        If the matched taxon is classified as a synonym, GBIF provides an 'acceptedUsageKey' pointing to the currently accepted name.
 
         Args:
             match_data (dict): The dictionary returned by the `search` method.
 
         Returns:
-            int: The official numeric ID of the accepted name.
+            str: The internal ID of the accepted name.
         """
-        if "acceptedUsageKey" in match_data:
-            return match_data["acceptedUsageKey"]
-        return match_data["usageKey"]
+        if "acceptedUsageKey" in raw_data:
+            return str(raw_data["acceptedUsageKey"])
+        return str(raw_data["usageKey"])
 
-    def _fetch_synonyms_page(self, usage_key: int) -> list[dict]:
+    def fetch_synonym_data(self, raw_data: dict) -> list[dict]:
         """
         Fetch the raw synonyms list for an accepted taxon from GBIF.
 
@@ -70,41 +57,43 @@ class GBIFAPI(SpeciesAPI):
             list[dict]: The ``"results"`` array from the GBIF synonyms endpoint,
                 or an empty list when the request fails.
         """
-        data = self._fetch(
-            f"{self.BASE}/species/{usage_key}/synonyms",
+        usage_key = self._extract_internal_accepted_id(raw_data)
+
+        data = self._fetch_JSON(
+            f"{self.BASE_URL}/species/{usage_key}/synonyms",
             params={"limit": 500},
         )
         return data.get("results", [])
 
-    def _build_synonyms(self, raw_results: list[dict], query_name: str) -> list[dict]:
+    def compile_synonyms(self, synonym_data: list[dict]) -> list[dict]:
         """
         Convert raw GBIF synonym records into pipeline-standard synonym dicts.
 
-        Filters to SPECIES rank only, extracts authorship years, and deduplicates.
 
         Args:
-            raw_results (list[dict]): The ``"results"`` list from GBIF's synonyms endpoint.
-            query_name (str): The original query name, used to seed deduplication.
+        todo: have AI adjust
 
         Returns:
             list[dict]: Pipeline-standard synonym records.
         """
         candidates = []
-        for item in raw_results:
+        seen = set()
+        for item in synonym_data:
             if item.get("rank") == "SPECIES" and item.get("canonicalName"):
-                authorship = item.get("authorship", "")
-                candidates.append(
-                    self._format_synonym(
-                        name=item["canonicalName"],
-                        author=authorship,
-                        publication_date=self._extract_year(authorship),
-                        publication_name=item.get("publishedIn", ""),
-                        api_link=f"https://www.gbif.org/species/{item.get('key')}",
+                if item not in seen:
+                    seen.add(item)
+                    candidates.append(
+                        self._format_synonym(
+                            name=item["canonicalName"],
+                            author=item.get("authorship", ""),
+                            publication_year=self._extract_year(),
+                            publication_name=item.get("publishedIn", ""),
+                            api_link=f"https://www.gbif.org/species/{item.get('key')}",
+                        )
                     )
-                )
-        return self._deduplicate_synonyms(candidates, seed={query_name.lower()})
+        return candidates
 
-    def synonyms(self, name: str) -> list[dict]:
+    def get_synonyms(self, name: str) -> list[dict]:
         """
         Retrieve species-level synonyms and metadata for a given scientific name.
 
@@ -135,7 +124,7 @@ class GBIFAPI(SpeciesAPI):
         if match.get("matchType") == "NONE":
             return []
 
-        usage_key = self._get_accepted_id(match)
+        usage_key = self._extract_internal_accepted_id(match)
         authorship = match.get("authorship", "")
 
         accepted_record = self._format_synonym(
@@ -147,6 +136,6 @@ class GBIFAPI(SpeciesAPI):
         )
 
         raw_results = self._fetch_synonyms_page(usage_key)
-        synonym_records = self._build_synonyms(raw_results, query_name=name)
+        synonym_records = self._synonyms(raw_results, query_name=name)
 
         return [accepted_record] + synonym_records
