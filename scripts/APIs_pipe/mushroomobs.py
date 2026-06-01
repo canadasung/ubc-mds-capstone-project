@@ -1,67 +1,34 @@
 """
-scripts/apis_pipe/mushroomobs.py
---------------------------------
-Mushroom Observer API v2 client for the UBC MDS species aggregation pipeline.
+Mushroom Observer API client.
 
 Mushroom Observer (https://mushroomobserver.org) is a community-driven database
-of fungal observations. This module provides synonyms by fetching historical
-species-level aliases for a given accepted name then filtering out misspellings,
-"sp." placeholders, and infraspecific taxa (varieties, forms, subspecies) so
-the output matches what other pipeline sources (GBIF, Symbiota) return.
+of fungal observations.
 """
-
-import re
 
 from .base import SpeciesAPI
 
 
 class MushroomObserverAPI(SpeciesAPI):
     """
-    Mushroom Observer API v2 client.
-
-    Implements ``SpeciesAPI`` to supply fungal species-level synonyms from
-    the Mushroom Observer community database.
-
-    Attributes:
-        BASE_URL (str): Root URL for all API v2 requests.
-        _RANK_PATTERNS (list[tuple[re.Pattern, str]]): Ordered list of
-            (compiled regex, category) pairs used by ``_parse_synonym`` to
-            classify infraspecific rank abbreviations. Longer/more-specific
-            patterns are listed before shorter ones to avoid false matches
-            (e.g. ``subsp.`` before ``s.``).
+    Implementation of SpeciesAPI for Mushroom Observer.
     """
 
     BASE_URL = "https://mushroomobserver.org/api2"
 
-    # TODO: ask AI, can I shorten the below?
-
-    # Maps rank abbreviations found in MushroomObserver names to category keys.
-    # Order matters: longer/more specific patterns must come before shorter ones.
-    _RANK_PATTERNS: list[tuple[re.Pattern, str]] = [
-        (re.compile(r"\bsubsp\.\s*", re.IGNORECASE), "subspecies"),
-        (re.compile(r"\bssp\.\s*", re.IGNORECASE), "subspecies"),
-        (re.compile(r"\bs\.\s*", re.IGNORECASE), "subspecies"),
-        (re.compile(r"\bvar\.\s*", re.IGNORECASE), "varieties"),
-        (re.compile(r"\bv\.\s*", re.IGNORECASE), "varieties"),
-        (re.compile(r"\bform\.\s*", re.IGNORECASE), "forms"),
-        (re.compile(r"\bfo\.\s*", re.IGNORECASE), "forms"),
-        (re.compile(r"\bf\.\s*", re.IGNORECASE), "forms"),
-        (re.compile(r"\bsubsect\.\s*", re.IGNORECASE), "subsections"),
-        (re.compile(r"\bsect\.\s*", re.IGNORECASE), "sections"),
-        (re.compile(r"\bsubgen\.\s*", re.IGNORECASE), "subgenera"),
-        (re.compile(r"\bsubg\.\s*", re.IGNORECASE), "subgenera"),
-    ]
-
-    def search(self, name: str) -> dict:
+    def _fetch_query_data(self, name: str) -> dict:
         """
         Fetch raw data from the Mushroom Observer names endpoint.
 
-        Args:
-            name (str): The scientific name to query.
+        Parameters
+        ----------
+        name : str
+            The scientific name to query.
 
-        Returns:
-            dict: Parsed JSON response from the ``/names`` endpoint,
-                or ``{}`` on any network or HTTP error.
+        Returns
+        -------
+        dict
+            JSON response from the ``/names`` endpoint,
+            or ``{}`` on any network or HTTP error.
         """
         return self._fetch_JSON(
             f"{self.BASE_URL}/names",
@@ -74,68 +41,64 @@ class MushroomObserverAPI(SpeciesAPI):
             timeout=15,
         )
 
-    def _parse_synonym(self, full_name: str, species_name: str) -> tuple[str, str]:
+    def _fetch_synonym_data(self, raw_data: dict) -> list:
         """
-        Extract the taxonomic rank category and specific epithet from a full name string.
+        Flatten synonym records from all results into a single list.
 
-        Iterates through predefined regex patterns to identify infraspecific ranks
-        (e.g., subspecies, varieties). If no specific rank is found, it defaults
-        to the general "synonyms" category.
+        The Mushroom Observer API embeds synonyms directly inside each result
+        record, so no second network request is needed.
 
-        Args:
-            full_name (str): The complete taxonomic name string to parse.
-            species_name (str): The base species name used to strip out the epithet.
+        Parameters
+        ----------
+        raw_data : dict
+            The full JSON response returned by ``_fetch_query_data``.
 
-        Returns:
-            tuple[str, str]: A tuple containing the category string (e.g., "varieties")
-                and the extracted epithet or cleaned name.
+        Returns
+        -------
+        list
+            Flat list of raw synonym dicts extracted from all result records.
         """
-        for pattern, category in self._RANK_PATTERNS:
-            if pattern.search(full_name):
-                return category, pattern.split(full_name)[-1]
-        return "synonyms", full_name.removeprefix(species_name).strip() or full_name
+        synonyms = []
+        for result in raw_data.get("results", []):
+            synonyms.extend(result.get("synonyms", []))
+        return synonyms
 
-    def get_synonyms(self, name: str) -> list[dict]:
+    def _compile_synonyms(self, synonym_data: list) -> list[dict]:
         """
-        Retrieve a filtered list of taxonomic synonyms from Mushroom Observer.
+        Filter and convert raw Mushroom Observer synonym records into pipeline-standard dicts.
 
-        Queries the API v2 '/names' endpoint, then filters and deduplicates the
-        results via ``_build_synonyms()``.
+        Skips misspellings, "sp." placeholders, infraspecific taxa, and
+        duplicates. Deduplication is performed by case-sensitive name comparison
+        as the loop fills candidates.
 
-        Args:
-            name (str): The accepted scientific name to query.
+        Parameters
+        ----------
+        synonym_data : list
+            Flat list of raw synonym dicts as returned by ``_fetch_synonym_data``.
 
-        Returns:
-            list[dict]: A list of synonym records formatted for the main aggregator.
-                Each dictionary contains 'canonicalName', 'author', 'date',
-                'publishedIn', and 'url'. Returns an empty list if the query fails
-                or no valid synonyms are found.
+        Returns
+        -------
+        list of dict
+            Pipeline-standard synonym records, deduplicated by name.
         """
-        data = self.search(name)
-
         candidates = []
-        seen = set()  # track seen synonyms to prevent duplicates
-        for result in data.get("results", []):
-            for synonym in result.get("synonyms", []):
-                full_name = synonym.get("name", "")
-
-                if not full_name or " sp." in full_name:
-                    continue
-                if synonym.get("misspelled", False):
-                    continue
-
-                if full_name not in seen:
-                    seen.add(full_name)
-                    category, _ = self._parse_synonym(full_name, name)
-                    if category != "synonyms":
-                        continue
-
-                    candidates.append(
-                        self._format_synonym(
-                            name=full_name,
-                            author=synonym.get("author", ""),
-                            api_link=f"https://mushroomobserver.org/name/show_name/{synonym.get('id', '')}",
-                        )
-                    )
-
+        seen = set()
+        for synonym in synonym_data:
+            full_name = synonym.get("name", "")
+            if not full_name or full_name in seen:
+                continue
+            if " sp." in full_name:
+                continue
+            if synonym.get("misspelled", False):
+                continue
+            if self._is_infraspecific(full_name):
+                continue
+            seen.add(full_name)
+            candidates.append(
+                self._format_synonym(
+                    name=full_name,
+                    author=synonym.get("author", ""),
+                    api_link=f"https://mushroomobserver.org/name/show_name/{synonym.get('id', '')}",
+                )
+            )
         return candidates
