@@ -98,7 +98,6 @@ class MushroomObserverAPI(SpeciesAPI):
                 self._format_synonym(
                     name=full_name,
                     author=synonym.get("author", ""),
-                    api_link=f"https://mushroomobserver.org/name/show_name/{synonym.get('id', '')}",
                 )
             )
         return candidates
