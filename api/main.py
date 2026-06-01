@@ -44,12 +44,44 @@ _ALL_APIS: list[str] = list(dict.fromkeys(ANIMALIA_APIS + PLANTAE_APIS + FUNGI_A
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _query_to_filename(query: str) -> str:
+    """Convert a search query to the snake_case filename stem used in sample files.
+
+    Parameters
+    ----------
+    query : str
+        Raw search query, for example ``"Amanita muscaria"``.
+
+    Returns
+    -------
+    str
+        Lowercase, underscore-separated filename stem with non-alphanumeric
+        characters removed, for example ``"amanita_muscaria"``.
+    """
     normalized = normalize_query_string(query)
     filename = normalized.lower().replace(" ", "_")
     return re.sub(r"[^a-z0-9_]", "", filename)
 
 
 def _mock_search(query: str):
+    """Load pre-computed sample data for a given query from a CSV file.
+
+    Parameters
+    ----------
+    query : str
+        Species name to look up. Must match the stem of a file in
+        ``data/sample/`` of the form ``sample_table_data_{name}.csv``.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Contents of the matching CSV file.
+
+    Raises
+    ------
+    HTTPException
+        404 if no sample file exists for the query. The response body
+        includes a list of available sample names.
+    """
     csv_path = _SAMPLE_DIR / f"sample_table_data_{_query_to_filename(query)}.csv"
     if not csv_path.exists():
         available = [
@@ -68,7 +100,14 @@ def _mock_search(query: str):
 
 @app.get("/api/sources")
 def get_sources():
-    """Return the list of all known API source keys."""
+    """Return the list of all known data source keys.
+
+    Returns
+    -------
+    dict
+        A dictionary with a single key ``"sources"`` containing an ordered
+        list of API identifier strings.
+    """
     return {"sources": _ALL_APIS}
 
 
@@ -78,11 +117,35 @@ def search(
     use_routing: bool = Query(True),
     mock: bool = Query(True),  # flip to False once live pipeline is ready
 ):
-    """
-    Search for species synonyms.
+    """Search for taxonomic synonyms for a given species name.
 
-    Returns rows as a list of dicts (same shape as the CSV columns),
-    plus the resolved source list.
+    Parameters
+    ----------
+    query : str
+        Species name to search for. Must be at least one character.
+    use_routing : bool, optional
+        If ``True``, the set of sources queried is determined automatically
+        based on the kingdom of the species. If ``False``, all known sources
+        are queried. Defaults to ``True``.
+    mock : bool, optional
+        If ``True``, results are read from pre-computed sample CSV files.
+        If ``False``, the live API pipeline is called. Defaults to ``True``.
+
+    Returns
+    -------
+    dict
+        A dictionary with three keys:
+
+        - ``"query"`` : the normalised search string.
+        - ``"sources"`` : list of source keys that were queried.
+        - ``"results"`` : list of result records, each a flat dictionary
+          corresponding to one row of the underlying data.
+
+    Raises
+    ------
+    HTTPException
+        404 if mock data is requested but no sample file exists for the query.
+        501 if ``mock=False``, as live search is not yet implemented.
     """
     query = query.strip()
 
