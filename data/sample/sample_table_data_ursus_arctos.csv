@@ -1,4 +1,4 @@
-Source Name,Kingdom,Phylum,Class,Family,Subfamily,Genus,Species,Source Species ID,Author,Publication Name,Publication Year,Source Link,GBIF Accepted Status
-GBIF,Animalia,Chordata,Mammalia,Ursidae,Ursinae,Ursus,arctos,2433433,,,,https://www.gbif.org/species/2433433,Accepted
-GBIF,Animalia,Chordata,Mammalia,Ursidae,Ursinae,Ursus,horribilis,8471830,Ord,,1815,https://www.gbif.org/species/8471830,Synonym
-GBIF,Animalia,Chordata,Mammalia,Ursidae,Ursinae,Ursus,procerus,8547600,Miller,,1899,https://www.gbif.org/species/8547600,Synonym
+api_name,kingdom,phylum,class,family,subfamily,genus,species,api_internal_id,author,publication_name,publication_year,api_link,status,source_name
+GBIF,Animalia,Chordata,Mammalia,Ursidae,Ursinae,Ursus,arctos,2433433,,,,https://www.gbif.org/species/2433433,Accepted,
+GBIF,Animalia,Chordata,Mammalia,Ursidae,Ursinae,Ursus,horribilis,8471830,Ord,,1815,https://www.gbif.org/species/8471830,Synonym,
+GBIF,Animalia,Chordata,Mammalia,Ursidae,Ursinae,Ursus,procerus,8547600,Miller,,1899,https://www.gbif.org/species/8547600,Synonym,
