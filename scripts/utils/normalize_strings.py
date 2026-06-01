@@ -1,14 +1,14 @@
-def normalize_query_string(query: str) -> str:
-    """Normalize a species name query string.
+def normalize_scientific_name(name: str) -> str:
+    """Normalize a scientific name string.
 
     Steps: strip leading/trailing whitespace, collapse internal whitespace
     (including tabs), lowercase everything, then capitalize the first letter.
 
     Args:
-        query: Raw species name string, e.g. from user input.
+        name: Two word string representing a species name, with the first word representing the Genus and the second word representing the Species.
 
     Returns:
-        Normalized species name string.
+        Normalized species name string in the format "Genus species".
 
     Examples:
         >>> normalize_query_string("amanita muscaria")
@@ -16,5 +16,6 @@ def normalize_query_string(query: str) -> str:
         >>> normalize_query_string(" AMANITA  MUSCARIA")
         'Amanita muscaria'
     """
-    normalized = " ".join(query.split())
+    # TODO: add remove punctuation??
+    normalized = " ".join(name.split())
     return normalized.lower().capitalize()
