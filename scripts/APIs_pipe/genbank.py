@@ -54,7 +54,7 @@ class GenBankAPI(SpeciesAPI):
             Parsed root element of the efetch XML response, or ``None`` on error.
         """
         ids = raw_data.get("esearchresult", {}).get("idlist", [])
-        return self._fetch_text(
+        return self._fetch_XML(
             f"{self.BASE_URL}/efetch.fcgi",
             params={"db": "taxonomy", "id": ",".join(ids), "retmode": "xml"},
         )

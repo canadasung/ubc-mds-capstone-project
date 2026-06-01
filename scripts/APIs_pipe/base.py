@@ -72,13 +72,13 @@ class SpeciesAPI(ABC):
             print(f"{type(self).__name__} fetch error [{url}]: {e}")
             return {}
 
-    def _fetch_text(
+    def _fetch_XML(
         self, url: str, params: dict = {}, timeout: int = 10
     ) -> ET.Element | None:
         """
         Make a GET request and return the parsed XML root element.
 
-        Used by children that consume XML or HTML responses. On error, prints a
+        Used by children that consume XML responses. On error, prints a
         message and returns ``None`` so callers can check for it.
 
         Parameters

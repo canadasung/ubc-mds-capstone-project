@@ -56,7 +56,7 @@ class IndexFungorumAPI(SpeciesAPI):
             The first record element whose name field matches *name*, or
             ``None`` if no match is found.
         """
-        root = self._fetch_text(
+        root = self._fetch_XML(
             f"{self.BASE_URL}/NameSearch",
             params={
                 "SearchText": name,
@@ -112,7 +112,7 @@ class IndexFungorumAPI(SpeciesAPI):
         current_key = self._extract_internal_accepted_id(raw_data)
         if not current_key:
             return None
-        return self._fetch_text(
+        return self._fetch_XML(
             f"{self.BASE_URL}/NamesByCurrentKey",
             params={"CurrentKey": current_key},
             timeout=60,
