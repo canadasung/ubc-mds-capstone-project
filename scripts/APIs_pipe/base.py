@@ -474,19 +474,14 @@ class SpeciesAPI(ABC):
             return []
         assert raw_data is not None
 
-        print("Got raw data")
-
         synonym_data = self._fetch_synonym_data(raw_data)
         if self._is_empty(synonym_data):
             return []
         assert synonym_data is not None
-
-        print("Got synonym data")
 
         synonyms = self._compile_synonyms(synonym_data)
         if self._is_empty(synonyms):
             return []
         assert synonyms is not None
 
-        print("Got compiled synonyms")
         return synonyms
