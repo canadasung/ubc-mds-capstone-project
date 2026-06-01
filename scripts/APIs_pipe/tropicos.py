@@ -1,44 +1,35 @@
-"""tropicos.py — Tropicos API client.
+"""
+Tropicos API client.
 
-Concrete SpeciesAPI implementation for Tropicos, the botanical database maintained
-by the Missouri Botanical Garden. Tropicos requires a registered API key (loaded
-from TROPICOS_API_KEY) and uses a relational model: names must first be resolved
-to an internal NameId before taxonomic data can be queried.
-
-Main entry point: TropicosAPI().synonyms(name)
+SpeciesAPI implementation for Tropicos, a botanical database maintained by the Missouri Botanical Garden. Unlike open APIs, Tropicos requires a registered API key for all requests.
 """
 
 import os
 
 from dotenv import load_dotenv
 
-from scripts.utils.normalize_strings import normalize_scientific_name
 from tests.APIs_pipe.test_env_configured import _PLACEHOLDER_TROPICOS
 
 from .base import SpeciesAPI
 
-load_dotenv()  # Load TROPICOS_API_KEY from .env
+load_dotenv()
 
 
 class TropicosAPI(SpeciesAPI):
     """
-    Concrete implementation of the SpeciesAPI for the Tropicos database.
-
-    Tropicos is maintained by the Missouri Botanical Garden and focuses heavily
-    on botanical (plant) data. Unlike open APIs, Tropicos requires a registered
-    API key for all requests.
+    Implementation of SpeciesAPI for Tropicos.
     """
 
-    BASE = "http://services.tropicos.org"
+    BASE_URL = "http://services.tropicos.org"
 
     def __init__(self):
         """
-        Load the registered Tropicos API key from the TROPICOS_API_KEY environment variable set in the
-        `.env` file.
+        Load the registered Tropicos API key from the TROPICOS_API_KEY environment variable.
 
-        Raises:
-            ValueError: If the TROPICOS_API_KEY
-                environment variable is missing.
+        Raises
+        ------
+        ValueError
+            If the TROPICOS_API_KEY environment variable is missing or is still the placeholder value.
         """
         self.key = os.getenv("TROPICOS_API_KEY")
         if not self.key or self.key == _PLACEHOLDER_TROPICOS:
@@ -46,21 +37,23 @@ class TropicosAPI(SpeciesAPI):
                 "Tropicos API key not provided. Set TROPICOS_API_KEY in the `.env` file."
             )
 
-    def _search(self, name: str) -> dict:
+    def _fetch_query_data(self, name: str) -> list:
         """
-        Search the Tropicos database for a given query.
+        Search the Tropicos database for a given scientific name.
 
-        Args:
-            name (str): The scientific name to search for.
+        Parameters
+        ----------
+        name : str
+            The scientific name to search for (e.g. ``"Amanita muscaria"``).
 
-        Returns:
-            dict: A raw JSON response from the /Name/Search endpoint.
+        Returns
+        -------
+        list
+            The raw JSON response list from the /Name/Search endpoint, or ``[]``
+            if no results are found.
         """
-
-        name = normalize_scientific_name(name)
-
-        return self._fetch_JSON(
-            f"{self.BASE}/Name/Search",
+        results = self._fetch_JSON(
+            f"{self.BASE_URL}/Name/Search",
             params={
                 "name": name,
                 "type": "exact",
@@ -68,66 +61,128 @@ class TropicosAPI(SpeciesAPI):
                 "format": "json",
             },
         )
+        # The API returns an empty dict for network/HTTP errors, so we check for a list (successful response type) before returning.
+        if not isinstance(results, list) or len(results) == 0:
+            return []
+        return results
 
-        # TODO: what does first look like? The search function should be extracting any information itself, just returning raw search results, so let's see if we can return `first` instead of this extraction.
-        # if isinstance(results, list) and len(results) > 0:
-        #     first = results[0]
-        #     if "NameId" in first:
-        #         return {
-        #             "name": first.get("ScientificName", name),
-        #             "matchType": "EXACT",
-        #             "key": first.get("NameId"),
-        #         }
-        # else:
-        #     print("No results.")
-        #     return {}
-
-    def _
-
-    def _extract_internal_accepted_id(self, name: str):
-        # Note: double check that tropicos does not have an accepted ID link so only need to return the internal id
-        return self._search(name)["key"]
-
-    def get_synonyms(self, name: str) -> list[dict]:
+    def _extract_internal_id(self, raw_data: list) -> str:
         """
-        Retrieve a pipeline-standard list of taxonomic synonyms for a plant species.
+        Extract the Tropicos NameId from the first search result.
 
-        Args:
-            name (str): The scientific name of the plant.
+        Parameters
+        ----------
+        raw_data : list
+            The list returned by ``_fetch_query_data``.
 
-        Returns:
-            list[dict]: A list of synonym dictionaries formatted for the pipeline.
+        Returns
+        -------
+        str
+            The internal Tropicos NameId.
+
+        Raises
+        ------
+        LookupError
+            When no NameId can be found in the first result.
         """
+        name_id = raw_data[0].get("NameId")
+        if name_id is None:
+            raise LookupError(
+                f"{type(self).__name__} error: could not extract NameId from search result."
+            )
+        return str(name_id)
 
-        # Fetch synonym data
-        synonym_data = self._fetch_JSON(
-            f"{self.BASE}/Name/{self._extract_internal_accepted_id(name)}/Synonyms",
+    def _extract_internal_accepted_id(self, raw_data: list) -> str:
+        """
+        Resolve a NameId to the accepted name's NameId.
+
+        Queries the /Name/{id}/AcceptedNames endpoint. If the searched name is a
+        synonym, the first accepted name's NameId is returned. If no accepted
+        names are found (i.e. the searched name is itself the accepted name), the
+        original NameId is returned unchanged.
+
+        Parameters
+        ----------
+        raw_data : list
+            The list returned by ``_fetch_query_data``.
+
+        Returns
+        -------
+        str
+            The NameId of the accepted name.
+        """
+        name_id = self._extract_internal_id(raw_data)
+        accepted = self._fetch_JSON(
+            f"{self.BASE_URL}/Name/{name_id}/AcceptedNames",
             params={
                 "apikey": self.key,
                 "format": "json",
             },
         )
+        if isinstance(accepted, list) and len(accepted) > 0:
+            accepted_id = accepted[0].get("AcceptedName", {}).get("NameId")
+            if accepted_id is not None:
+                return str(accepted_id)
+        return name_id
 
-        # For ea
+    def _fetch_synonym_data(self, raw_data: list) -> list:
+        """
+        Fetch raw synonym records for the accepted taxon resolved from the search results.
+
+        Parameters
+        ----------
+        raw_data : list
+            The list returned by ``_fetch_query_data``.
+
+        Returns
+        -------
+        list
+            The raw JSON synonym list from the /Name/{id}/Synonyms endpoint,
+            or ``[]`` if no synonyms are found.
+        """
+        accepted_id = self._extract_internal_accepted_id(raw_data)
+        results = self._fetch_JSON(
+            f"{self.BASE_URL}/Name/{accepted_id}/Synonyms",
+            params={
+                "apikey": self.key,
+                "format": "json",
+            },
+        )
+        if not isinstance(results, list):
+            return []
+        return results
+
+    def _compile_synonyms(self, synonym_data: list) -> list[dict]:
+        """
+        Convert raw Tropicos synonym records into pipeline-standard synonym dicts.
+
+        Parameters
+        ----------
+        synonym_data : list
+            Raw synonym records as returned by ``_fetch_synonym_data``. Each
+            record nests the actual name data under a ``"SynonymName"`` key.
+
+        Returns
+        -------
+        list of dict
+            Pipeline-standard synonym records, deduplicated by name.
+        """
         candidates = []
-        seen = set()  # track seen synonyms to prevent duplicates
+        seen = set()
         for item in synonym_data:
-            # Tropicos nests the actual synonym data under "SynonymName"
             syn_info = item.get("SynonymName", {})
             syn_name = syn_info.get("ScientificName")
-            if not syn_name:
+            if not syn_name or syn_name in seen:
                 continue
-            if syn_name not in seen:
-                seen.add(syn_name)
-                syn_id = syn_info.get("NameId")
-                candidates.append(
-                    self._format_synonym(
-                        name=syn_name,
-                        author=syn_info.get("Author", ""),
-                        api_link=f"https://www.tropicos.org/name/{syn_id}"
-                        if syn_id
-                        else "",
-                    )
+            seen.add(syn_name)
+            syn_id = syn_info.get("NameId")
+            candidates.append(
+                self._format_synonym(
+                    name=syn_name,
+                    author=syn_info.get("Author", ""),
+                    api_link=(
+                        f"https://www.tropicos.org/name/{syn_id}" if syn_id else ""
+                    ),
                 )
-
+            )
         return candidates
