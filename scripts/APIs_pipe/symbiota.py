@@ -1,4 +1,6 @@
 """
+Symbiota API client
+
 Symbiota portal client for taxonomic name and synonym retrieval.
 
 Provides a concrete SpeciesAPI implementation for Symbiota-based portals.
@@ -6,14 +8,11 @@ Each portal runs its own instance of the Symbiota software with different
 endpoint paths and response formats. This module abstracts those
 differences and normalizes all output to the predefined schema.
 
-Symbiota is a documented exception to two base-class conventions:
-
-- ``_build_synonyms()`` is not implemented: ``synonyms()`` returns a pandas
-  DataFrame (not ``list[dict]``) because the portal schema includes taxonomy
-  columns absent from the standard five-key format.
-- ``_fetch()`` / ``_fetch_text()`` are not used: all HTTP calls go through the
-  portal-specific ``_get()`` wrapper, which adds per-request logging, 403
-  detection, and URL construction from ``self.base``.
+All HTTP calls go through the portal-specific ``_get()`` wrapper rather than
+the base-class ``_fetch_JSON`` / ``_fetch_text`` helpers, since each Symbiota
+portal has a dynamic base URL set at construction time. Two transport paths are
+used for redundancy: the JSON REST API resolves taxon IDs and taxonomy, and the
+HTML taxa page provides the synonym list.
 """
 
 import re
@@ -63,11 +62,16 @@ class SymbiotaAPI(SpeciesAPI):
 
     Attributes
     ----------
+    BASE_URL : str
+        Empty string placeholder; the real URL is supplied at construction time
+        via *base_url* and stored as ``self.base``.
     base : str
         Normalized base URL with the trailing slash removed.
     portal_name : str
         Source identifier written to the ``Source Name`` output column.
     """
+
+    BASE_URL = ""
 
     def __init__(self, base_url: str, portal_name: str = ""):
         """
@@ -123,9 +127,6 @@ class SymbiotaAPI(SpeciesAPI):
             headers=self.HEADERS,
             timeout=timeout,
         )
-        print(f"[{self.portal_name}] GET {endpoint} → HTTP {resp.status_code}")
-        if resp.status_code == 403:
-            raise RuntimeError(f"403 Forbidden from {self.base}")
         return resp
 
     # ---------------------------------------------------------
@@ -699,12 +700,101 @@ class SymbiotaAPI(SpeciesAPI):
         return records
 
     # ---------------------------------------------------------
+    # Required template methods
+    # ---------------------------------------------------------
+
+    def _fetch_query_data(self, name: str) -> dict:
+        """
+        Resolve *name* to its taxon ID and accepted-taxon metadata.
+
+        Uses the JSON REST API (``_extract_internal_id`` + ``_resolve_accepted_tid``).
+
+        Parameters
+        ----------
+        name : str
+            Normalised scientific name.
+
+        Returns
+        -------
+        dict
+            ``{"tid": int, "accepted_tid": int, "meta": dict}`` where *meta*
+            contains taxonomy hierarchy keys and status fields from
+            ``_resolve_accepted_tid``.
+
+        Raises
+        ------
+        LookupError
+            When no taxon ID can be resolved for *name*.
+        """
+        tid = self._extract_internal_id(name)
+        accepted_tid, meta = self._resolve_accepted_tid(tid)
+        return {"tid": tid, "accepted_tid": accepted_tid, "meta": meta}
+
+    def _fetch_synonym_data(self, raw_data: dict) -> list[dict]:
+        """
+        Scrape the accepted taxon's HTML page for synonym records.
+
+        Uses the PHP taxa page (``_scrape_synonyms``) for redundancy: the JSON
+        API provides ID/taxonomy resolution while the HTML page provides the
+        synonym list.
+
+        Parameters
+        ----------
+        raw_data : dict
+            The dict returned by ``_fetch_query_data``.
+
+        Returns
+        -------
+        list of dict
+            Raw synonym records in Symbiota's extended column format,
+            as produced by ``_scrape_synonyms``.
+        """
+        accepted_tid = raw_data["accepted_tid"]
+        meta = raw_data["meta"]
+        taxonomy = {
+            k: meta.get(k, "")
+            for k in ["Kingdom", "Phylum", "Class", "Family", "Subfamily"]
+        }
+        return self._scrape_synonyms(accepted_tid, taxonomy)
+
+    def _compile_synonyms(self, synonym_data: list[dict]) -> list[dict]:
+        """
+        Deduplicate synonym records produced by ``_fetch_synonym_data``.
+
+        Deduplication is performed inside the loop as candidates are collected,
+        keyed by the canonical ``"Genus Species"`` string.
+
+        Parameters
+        ----------
+        synonym_data : list of dict
+            Raw synonym records in Symbiota's extended column format.
+
+        Returns
+        -------
+        list of dict
+            Deduplicated synonym records preserving input order.
+        """
+        candidates = []
+        seen: set[str] = set()
+        for syn in synonym_data:
+            canonical = f"{syn.get('Genus', '')} {syn.get('Species', '')}".strip()
+            if canonical and canonical not in seen:
+                seen.add(canonical)
+                candidates.append(syn)
+        return candidates
+
+    # ---------------------------------------------------------
     # Public interface
     # ---------------------------------------------------------
 
     def get_synonyms(self, name: str) -> pd.DataFrame:
         """
         Return a DataFrame of the queried name and all its synonyms.
+
+        Overrides the base-class method to return a DataFrame rather than
+        ``list[dict]`` because Symbiota records carry taxonomy columns
+        (Kingdom, Phylum, Class, Family, Subfamily) absent from the standard
+        five-key format.
 
         Parameters
         ----------
@@ -736,21 +826,23 @@ class SymbiotaAPI(SpeciesAPI):
         species_name = normalize_scientific_name(name)
 
         try:
-            tid = self._extract_internal_id(species_name)
-            accepted_tid, meta = self._resolve_accepted_tid(tid)
+            raw_data = self._fetch_query_data(species_name)
+            tid = raw_data["tid"]
+            accepted_tid = raw_data["accepted_tid"]
+            meta = raw_data["meta"]
             taxonomy = {
                 k: meta.get(k, "")
                 for k in ["Kingdom", "Phylum", "Class", "Family", "Subfamily"]
             }
-
             queried_genus, queried_species = self._split_binomial(species_name)
 
             records: list[dict] = []
-            seen: set[str] = {species_name}
+            seen: set[str] = set()
 
             # Row 1: the queried name itself.
             # Author is left blank when the queried name is a synonym; the accepted
             # row below carries the authoritative author string in that case.
+            seen.add(species_name)
             records.append(
                 self._build_record(
                     taxonomy,
@@ -786,8 +878,8 @@ class SymbiotaAPI(SpeciesAPI):
                     )
                 )
 
-            # Remaining rows: scraped synonyms, deduplicated
-            for syn in self._scrape_synonyms(accepted_tid, taxonomy):
+            # Remaining rows: compiled synonyms, deduplicated against queried and accepted names.
+            for syn in self._compile_synonyms(self._fetch_synonym_data(raw_data)):
                 canonical = f"{syn['Genus']} {syn['Species']}".strip()
                 if canonical and canonical not in seen:
                     seen.add(canonical)
@@ -799,9 +891,11 @@ class SymbiotaAPI(SpeciesAPI):
             return pd.DataFrame(records, columns=COLUMNS)
 
         except Exception as e:
-            print(f"[{self.portal_name}] synonyms() failed for '{species_name}': {e}")
+            print(
+                f"[{self.portal_name}] get_synonyms() failed for '{species_name}': {e}"
+            )
             warnings.warn(
-                f"{self.portal_name}: synonyms() failed for '{species_name}' ({e}); "
+                f"{self.portal_name}: get_synonyms() failed for '{species_name}' ({e}); "
                 f"returning empty DataFrame.",
                 stacklevel=2,
             )
