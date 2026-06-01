@@ -1,7 +1,7 @@
 """
 GBIF API client.
 
-SpeciesAPI implementation for GBIF. GBIF is a... (todo: fill in)
+SpeciesAPI implementation for GBIF. GBIF is an international open-data infrastructure that aggregates occurrence records and taxonomic data from institutions worldwide, enabling free access to hundreds of millions of biodiversity observations.
 """
 
 import re

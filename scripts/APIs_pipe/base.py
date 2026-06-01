@@ -253,10 +253,10 @@ class SpeciesAPI(ABC):
     def _format_synonym(
         self,
         name: str,
-        author: str = "",
-        publication_year: str = "",
-        publication_name: str = "",
-        api_link: str = "",
+        author: str = "U",
+        publication_year: str = "U",
+        publication_name: str = "U",
+        api_link: str = "U",
     ) -> dict:
         """
         Construct a pipeline-standard synonym record.
