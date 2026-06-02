@@ -81,9 +81,10 @@ class ITISAPI(SpeciesAPI):
         """
         Resolve a TSN to the accepted name's TSN.
 
-        If the term record indicates the name is not accepted (i.e. it is a
-        synonym), queries ``getAcceptedNamesFromTSN`` to obtain the accepted
-        TSN. Otherwise, the original TSN is returned unchanged.
+        If the term record indicates the name is a synonym (``nameUsage`` is
+        ``"not accepted"`` for plants and algae, or ``"invalid"`` for animals
+        and bacteria), queries ``getAcceptedNamesFromTSN`` to obtain the
+        accepted TSN. Otherwise, the original TSN is returned unchanged.
 
         Parameters
         ----------
