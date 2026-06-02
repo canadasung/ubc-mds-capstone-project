@@ -96,7 +96,7 @@ class ITISAPI(SpeciesAPI):
             The TSN of the accepted name.
         """
         tsn = self._extract_internal_id(raw_data)
-        if raw_data.get("nameUsage") != "not accepted":
+        if raw_data.get("nameUsage") not in ("not accepted", "invalid"):
             return tsn
         data = self._fetch_JSON(
             f"{self.BASE_URL}/getAcceptedNamesFromTSN",
