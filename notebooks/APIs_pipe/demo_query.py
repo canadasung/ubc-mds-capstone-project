@@ -163,7 +163,7 @@ def run_demo():
 
     # 4. Save the results for the team to review
     print("\nWriting results to JSON files...")
-    os.makedirs("notebooks/APIs_pipe/demo_results", exist_ok=True)
+    os.makedirs("notebooks/apis_pipe/demo_results", exist_ok=True)
 
     # Save Official Synonyms
     with open(
