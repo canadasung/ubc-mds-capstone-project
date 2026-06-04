@@ -11,6 +11,7 @@ import {
   Box,
   Divider,
   Group,
+  ScrollArea,
   Switch,
   Title,
 } from "@mantine/core";
@@ -54,7 +55,11 @@ export default function Page() {
       </AppShell.Header>
 
       <AppShell.Navbar p="md">
-        <SearchPanel />
+        {/* ScrollArea lets the search panel scroll when "Advanced options" is
+            expanded and its content is taller than the navbar. */}
+        <ScrollArea h="100%" type="auto" scrollbarSize={8}>
+          <SearchPanel />
+        </ScrollArea>
       </AppShell.Navbar>
 
       <AppShell.Main>
