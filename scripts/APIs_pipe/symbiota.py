@@ -19,8 +19,6 @@ import re
 # import xml.etree.ElementTree as ET  # only needed if taxonomy extraction is re-enabled
 from urllib.parse import urlparse
 
-from scripts.utils.normalize_strings import normalize_scientific_name
-
 from .base import SpeciesAPI
 
 # Canonical column order for extended Symbiota synonym DataFrames.
@@ -339,25 +337,16 @@ class SymbiotaAPI(SpeciesAPI):
             params={"tid": accepted_id},
             timeout=30,
         )
-        print(html_text)
-
-        print(f"synonymDiv present: {'synonymDiv' in html_text}")
 
         syn_match = re.search(r'id="synonymDiv"[^>]*>(.*?)</div>', html_text, re.DOTALL)
         if not syn_match:
             return []
 
         syn_html = syn_match.group(1)
-        print(syn_html)
-        id_map = self._extract_synonym_ids(syn_html)
         pairs = self._extract_synonym_pairs(syn_html)
 
-        print(id_map)
-
-        return [
-            {"name": name, "author": author, "id": id_map.get(name, "")}
-            for name, author in pairs
-        ]
+        # Note: The raw HTML response for a search of the accepted ID page does not provide synonym IDs. In future, we could attempt to provide syonym IDs by making additional API calls for each synonym name to resolve their IDs. For now, I've removed the ID field.
+        return [{"name": name, "author": author} for name, author in pairs]
 
     def _compile_synonyms(self, synonym_data: list[dict]) -> list[dict]:
         """
@@ -382,14 +371,10 @@ class SymbiotaAPI(SpeciesAPI):
             name = item["name"]
             if name.lower() not in seen:
                 seen.add(name.lower())
-                id = item["id"]
                 results.append(
                     self._format_synonym(
                         name=name,
                         author=item.get("author", ""),
-                        api_link=f"{self.BASE_URL}/taxa/index.php?taxon={id}"
-                        if id
-                        else "",
                     )
                 )
         return results
