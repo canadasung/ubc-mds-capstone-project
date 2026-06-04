@@ -39,13 +39,42 @@ class SpeciesAPI(ABC):
     # Query methods (to be used by children to implement the required methods, can be optionally overridden but should work for most children as-is)
     # ------------------------------------------------------------------
 
+    def _fetch(
+        self, url: str, params: dict = {}, timeout: int = 10
+    ) -> requests.Response | None:
+        """
+        Make a GET request to the specified URL with error handling.
+
+        Parameters
+        ----------
+        url : str
+            The full URL to send the GET request to.
+        params : dict, optional
+            Query parameters to include in the request. Default is an empty dict.
+        timeout : int, optional
+            Request timeout in seconds. Default is 10.
+
+        Returns
+        -------
+        requests.Response or None
+            The response object if the request is successful; None if an error occurs.
+        """
+        try:
+            response = requests.get(
+                url, params=params, headers=self.HEADERS, timeout=timeout
+            )
+            response.raise_for_status()
+            return response
+        except requests.RequestException as e:
+            print(f"{type(self).__name__} fetch error [{url}]: {e}")
+            return None
+
     def _fetch_JSON(self, url: str, params: dict = {}, timeout: int = 10) -> dict:
         """
         Make a GET request to a REST JSON endpoint and return the parsed response.
 
         Used by children that query standard REST APIs returning JSON. On network
-        or HTTP error, prints a message and returns an empty dict so callers can
-        handle it cleanly.
+        or HTTP error, prints a message and returns an empty dict.
 
         Parameters
         ----------
@@ -62,24 +91,15 @@ class SpeciesAPI(ABC):
             Parsed JSON response, or ``{}`` on any error.
         """
 
-        try:
-            resp = requests.get(
-                url, params=params, headers=self.HEADERS, timeout=timeout
-            )
-            resp.raise_for_status()
-            return resp.json()
-        except requests.RequestException as e:
-            print(f"{type(self).__name__} fetch error [{url}]: {e}")
-            return {}
+        response = self._fetch(url, params=params, timeout=timeout)
+        return response.json() if response is not None else {}
 
-    def _fetch_XML(
-        self, url: str, params: dict = {}, timeout: int = 10
-    ) -> ET.Element | None:
+    def _fetch_XML(self, url: str, params: dict = {}, timeout: int = 10) -> ET.Element:
         """
         Make a GET request and return the parsed XML root element.
 
-        Used by children that consume XML responses. On error, prints a
-        message and returns ``None`` so callers can check for it.
+        Used by children that consume XML responses. On network, HTTP, or
+        parse error, prints a message and returns an empty ``ET.Element``.
 
         Parameters
         ----------
@@ -92,39 +112,43 @@ class SpeciesAPI(ABC):
 
         Returns
         -------
-        xml.etree.ElementTree.Element or None
-            Parsed root element of the XML response, or ``None`` on any error.
+        xml.etree.ElementTree.Element
+            Parsed root element of the XML response, or an empty element
+            on any error.
         """
-        try:
-            resp = requests.get(
-                url, params=params, headers=self.HEADERS, timeout=timeout
-            )
-            resp.raise_for_status()
+        response = self._fetch(url, params=params, timeout=timeout)
+        if response is not None:
+            try:
+                return ET.fromstring(response.text)
+            except ET.ParseError:
+                print(f"{type(self).__name__} error parsing XML.")
+        return ET.Element(
+            "empty"
+        )  # tag name chosen to avoid confusion with valid root tags in responses, will be treated as empty by _is_empty()
 
-            return self._parse_xml(resp.text)
-        except requests.RequestException as e:
-            print(f"{type(self).__name__} fetch error [{url}]: {e}")
-            return None
-
-    def _parse_xml(self, xml_text: str) -> ET.Element | None:
+    def _fetch_HTML(self, url: str, params: dict = {}, timeout: int = 10) -> str:
         """
-        Safely parse an XML string and return the root element.
+        Make a GET request and return the raw HTML response text.
+
+        Used by children that scrape HTML pages. On network or HTTP error,
+        prints a message and returns an empty string.
 
         Parameters
         ----------
-        xml_text : str
-            Raw XML response text.
+        url : str
+            Full URL of the endpoint.
+        params : dict, optional
+            URL query parameters.
+        timeout : int, optional
+            Request timeout in seconds. Default is 10.
 
         Returns
         -------
-        xml.etree.ElementTree.Element or None
-            The parsed root element, or ``None`` if parsing fails.
+        str
+            Raw HTML text of the response, or ``""`` on any error.
         """
-        try:
-            return ET.fromstring(xml_text)
-        except ET.ParseError:
-            print(f"{type(self).__name__} error parsing XML.")
-            return None
+        response = self._fetch(url, params=params, timeout=timeout)
+        return response.text if response is not None else ""
 
     # ------------------------------------------------------------------
     # Helper methods (to be used by children in their implementations of the required methods,can be optionally overridden but should work for most children as-is)
