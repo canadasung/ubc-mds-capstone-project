@@ -85,7 +85,7 @@ class MushroomObserverAPI(SpeciesAPI):
         dict
             The full JSON response dict.
         """
-        return raw_data
+        return raw_data.get("results", [])  # TODO: add error handling
 
     def _compile_synonym_search_term(
         self, synonym_search_term_data: dict
@@ -107,9 +107,8 @@ class MushroomObserverAPI(SpeciesAPI):
             One-item list with the search term record, or ``[]`` if no
             suitable result is found.
         """
-        for result in synonym_search_term_data.get(
-            "results", []
-        ):  # TODO: add error handling for missing "results" key
+        # TODO: bug here, this is duplicating the entry when the search term is a synonym itself. when the search term is an accepted name this is working as expected. Likely an issue with the formatting of how mushroom observer returns that the code is not matching. Seems like the returned data is not symmetrical whether you search an "accepted" name or a "synonym", even though mushroom observer itself does not classify anything to accepted or synonym
+        for result in synonym_search_term_data:
             name = result["name"]
             if not name or result.get("misspelled", False):
                 continue

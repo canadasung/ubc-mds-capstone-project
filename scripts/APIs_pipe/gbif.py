@@ -47,12 +47,37 @@ class GBIFAPI(SpeciesAPI):
 
         return data
 
+    def _extract_internal_id(self, raw_data: dict) -> str:
+        """
+        Extract the GBIF usage key from a raw API response dict.
+
+        GBIF uses ``usageKey`` in ``/species/match`` responses and ``key`` in
+        ``/species/{id}`` responses. This method handles both.
+
+        Parameters
+        ----------
+        raw_data : dict
+            A parsed GBIF API response containing either a ``usageKey`` or
+            ``key`` field.
+
+        Returns
+        -------
+        str
+            The GBIF usage key for the queried taxon.
+
+        Raises
+        ------
+        KeyError
+            If neither ``usageKey`` nor ``key`` is present in ``raw_data``.
+        """
+        return str(raw_data.get("usageKey") or raw_data["key"])
+
     def _extract_internal_accepted_id(self, raw_data: dict) -> str:
         """
         Extract the accepted taxon's GBIF usage key from match data.
 
         If the matched taxon is a synonym, GBIF provides an
-        ``acceptedUsageKey`` pointing to the currently accepted name.
+        ``acceptedUsageKey`` pointing to the currently accepted name. Else, we get the "usageKey" or "key"
 
         Parameters
         ----------
@@ -66,7 +91,8 @@ class GBIFAPI(SpeciesAPI):
         """
         if "acceptedUsageKey" in raw_data:
             return str(raw_data["acceptedUsageKey"])
-        return str(raw_data["usageKey"])
+        else:
+            return self._extract_internal_id(raw_data)
 
     def _fetch_synonym_data(self, raw_data: dict) -> list[dict]:
         """
@@ -83,9 +109,9 @@ class GBIFAPI(SpeciesAPI):
             The ``"results"`` array from the GBIF synonyms endpoint,
             or ``[]`` when the request fails or returns no results.
         """
-        usage_key = self._extract_internal_accepted_id(raw_data)
+        self.accepted_id = self._extract_internal_accepted_id(raw_data)
         data = self._fetch_JSON(
-            f"{self.BASE_URL}/species/{usage_key}/synonyms",
+            f"{self.BASE_URL}/species/{self.accepted_id}/synonyms",
             params={"limit": 500},
         )
         return data.get(
@@ -155,8 +181,7 @@ class GBIFAPI(SpeciesAPI):
             return raw_data
         else:
             # If the match was a synonym, fetch the accepted taxon's record to get the metadata.
-            accepted_key = raw_data["acceptedUsageKey"]
-            accepted = self._fetch_JSON(f"{self.BASE_URL}/species/{accepted_key}")
+            accepted = self._fetch_JSON(f"{self.BASE_URL}/species/{self.accepted_id}")
             return accepted  # TODO: add error handling for failed request
 
     def _compile_synonym_search_term(

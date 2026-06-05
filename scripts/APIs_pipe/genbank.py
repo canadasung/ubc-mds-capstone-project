@@ -33,7 +33,7 @@ class GenBankAPI(SpeciesAPI):
         """
         data = self._fetch_JSON(
             f"{self.BASE_URL}/esearch.fcgi",
-            params={"db": "taxonomy", "term": name, "retmode": "json"},
+            params={"db": "taxonomy", "term": f"{name}[Scientific Name]", "retmode": "json"},
         )
         if not data.get("esearchresult", {}).get("idlist"):
             return {}

@@ -33,7 +33,7 @@ class COLAPI(SpeciesAPI):
         """
         return self._fetch_JSON(
             f"{self.BASE_URL}/dataset/{self.DATASET_KEY}/nameusage/search",
-            params={"q": name},
+            params={"q": name, "type": "EXACT"},
         )
 
     def _extract_internal_accepted_id(self, results: list) -> str:
