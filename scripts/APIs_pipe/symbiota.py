@@ -1,17 +1,12 @@
 """
 Symbiota API client
 
-Symbiota portal client for taxonomic name and synonym retrieval.
-
 Provides a concrete SpeciesAPI implementation for Symbiota-based portals.
 Each portal runs its own instance of the Symbiota software with different
 endpoint paths and response formats. This module abstracts those
 differences and normalizes all output to the predefined schema.
 
-HTTP calls use the base-class ``_fetch_JSON`` helper, with ``_portal_url``
-constructing the full URL from ``self.base`` for each endpoint. The HTML taxa
-page (synonym scraping) still calls ``requests.get`` directly since it returns
-text, not JSON.
+HTTP calls use the base-class ``_fetch_JSON`` helper and constructs the full URL from ``self.base`` for each endpoint.
 """
 
 import re
@@ -175,28 +170,29 @@ class SymbiotaAPI(SpeciesAPI):
     # HTML synonym scraping extractors (internal helpers)
     # ---------------------------------------------------------
 
-    def _extract_synonym_ids(self, syn_html: str) -> dict[str, int]:
-        """
-        Extract a name-to-id mapping from synonym ``<a>`` links in HTML.
+    # NOTE: the below is unnecessary, as symbiota portals do not provide separate pages for recognized synonyms, only the page for the accepted taxon, whose ID we already know from the search results.
+    # def _extract_synonym_ids(self, syn_html: str) -> dict[str, int]:
+    #     """
+    #     Extract a name-to-id mapping from synonym ``<a>`` links in HTML.
 
-        Parameters
-        ----------
-        syn_html : str
-            The inner HTML of the ``synonymDiv`` element.
+    #     Parameters
+    #     ----------
+    #     syn_html : str
+    #         The inner HTML of the ``synonymDiv`` element.
 
-        Returns
-        -------
-        dict[str, int]
-            Mapping of synonym name strings to their internal taxon IDs.
-        """
-        id_map: dict[str, int] = {}
-        for a_match in re.finditer(
-            r"<a[^>]*[?&]tid=(\d+)[^>]*>(.*?)</a>", syn_html, re.DOTALL
-        ):
-            inner_name = re.search(r"<i>([^<]+)</i>", a_match.group(2))
-            if inner_name:
-                id_map[inner_name.group(1).strip()] = int(a_match.group(1))
-        return id_map
+    #     Returns
+    #     -------
+    #     dict[str, int]
+    #         Mapping of synonym name strings to their internal taxon IDs.
+    #     """
+    #     id_map: dict[str, int] = {}
+    #     for a_match in re.finditer(
+    #         r"<a[^>]*[?&]tid=(\d+)[^>]*>(.*?)</a>", syn_html, re.DOTALL
+    #     ):
+    #         inner_name = re.search(r"<i>([^<]+)</i>", a_match.group(2))
+    #         if inner_name:
+    #             id_map[inner_name.group(1).strip()] = int(a_match.group(1))
+    #     return id_map
 
     def _extract_synonym_pairs(self, syn_html: str) -> list[tuple[str, str]]:
         """
@@ -262,7 +258,7 @@ class SymbiotaAPI(SpeciesAPI):
             else:
                 results = data.get("results") or []
                 results = results[0] if len(results) > 0 else {}
-            print(results)
+
             if results:
                 print(
                     f"[{self.portal_name}] '{endpoint}' returned results for '{name}'."
@@ -329,12 +325,12 @@ class SymbiotaAPI(SpeciesAPI):
             raise RuntimeError(
                 f"{self.portal_name}: failed to fetch api/v2/taxonomy/{id}."
             )
-        accepted_id = self._extract_internal_accepted_id(taxonomy_data)
+        self.accepted_id = self._extract_internal_accepted_id(taxonomy_data)
 
         # Step 3: scrape synonym records from the accepted taxon's HTML page.
         html_text = self._fetch_HTML(
             url=f"{self.BASE_URL}/taxa/index.php",
-            params={"tid": accepted_id},
+            params={"tid": self.accepted_id},
             timeout=30,
         )
 
@@ -347,6 +343,76 @@ class SymbiotaAPI(SpeciesAPI):
 
         # Note: The raw HTML response for a search of the accepted ID page does not provide synonym IDs. In future, we could attempt to provide syonym IDs by making additional API calls for each synonym name to resolve their IDs. For now, I've removed the ID field.
         return [{"name": name, "author": author} for name, author in pairs]
+
+    def _fetch_synonym_search_term_data(
+        self, raw_data: dict, synonym_data: list[dict]
+    ) -> dict:
+        """
+        Return the accepted taxon's taxonomy record for the synonym search term.
+
+        ``_fetch_synonym_data`` already resolved the accepted taxon ID and stored
+        it as ``self.accepted_id``. When the queried name was itself the accepted
+        name, ``raw_data`` is correct. When it was a synonym, ``raw_data`` has the
+        synonym's ``sciname`` — so we fetch ``/api/v2/taxonomy/{accepted_id}`` to
+        get the right name and author.
+
+        Parameters
+        ----------
+        raw_data : dict
+            The dict returned by ``_fetch_query_data``.
+        synonym_data : list of dict
+            Raw synonym entries (unused here).
+
+        Returns
+        -------
+        dict
+            The accepted taxon's taxonomy record, or ``raw_data`` on failure.
+        """
+        # If the query was already the accepted name, we can skip the extra request and just return raw_data.
+        query_id = self._extract_internal_id(raw_data)
+        if str(self.accepted_id) == str(query_id):
+            return raw_data
+        else:
+            # Otherwise, query was a synonym — fetch the accepted taxon's record to get the correct name and author.
+            accepted_data = self._fetch_JSON(
+                f"{self.BASE_URL}/api/v2/taxonomy/{self.accepted_id}"
+            )
+            return accepted_data  # TODO: add error handling for failed request
+
+    def _compile_synonym_search_term(
+        self, synonym_search_term_data: dict
+    ) -> list[dict]:
+        """
+        Build a pipeline-standard record for the synonym search term from the
+        Symbiota query result.
+
+        Parameters
+        ----------
+        synonym_search_term_data : dict
+            The query result dict returned by ``_fetch_synonym_search_term_data``.
+
+        Returns
+        -------
+        list of dict
+            One-item list with the search term record, or ``[]`` if the name
+            cannot be determined or is infraspecific.
+        """
+        name = synonym_search_term_data.get(
+            "sciname", ""
+        ) or synonym_search_term_data.get("scientificName", "")
+        if (
+            not name or self._is_infraspecific(name)
+        ):  # TODO: should we be doing an infraspecific check here? Need to investigate further how to handle this.
+            return []
+        return [
+            self._format_row(
+                name=name,
+                author=synonym_search_term_data.get("author", ""),
+                api_link=f"{self.BASE_URL}/taxa/index.php?tid={self.accepted_id}"
+                if self.accepted_id
+                else "",  # URL is the same for all synonyms since Symbiota redirects synonym searches to the accepted taxon page.
+            )
+        ]
 
     def _compile_synonyms(self, synonym_data: list[dict]) -> list[dict]:
         """
@@ -372,9 +438,12 @@ class SymbiotaAPI(SpeciesAPI):
             if name.lower() not in seen:
                 seen.add(name.lower())
                 results.append(
-                    self._format_synonym(
+                    self._format_row(
                         name=name,
                         author=item.get("author", ""),
+                        api_link=f"{self.BASE_URL}/taxa/index.php?taxon={self.accepted_id}"
+                        if self.accepted_id
+                        else "",  # URL is the same for all synonyms since Symbiota redirects synonym searches to the accepted taxon page.
                     )
                 )
         return results

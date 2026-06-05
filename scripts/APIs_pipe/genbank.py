@@ -59,6 +59,32 @@ class GenBankAPI(SpeciesAPI):
             params={"db": "taxonomy", "id": ",".join(ids), "retmode": "xml"},
         )
 
+    def _fetch_synonym_search_term_data(
+        self, raw_data: dict, synonym_data: ET.Element
+    ) -> ET.Element:
+        """
+        Return ``synonym_data`` directly.
+
+        The efetch XML already in hand contains both the taxon's
+        ``ScientificName`` (the search term) and its ``OtherNames/Synonym``
+        elements (the synonyms). ``_compile_synonyms`` only extracts the
+        synonym elements, so the search term record must be compiled separately
+        from the same XML.
+
+        Parameters
+        ----------
+        raw_data : dict
+            The JSON search response returned by ``_fetch_query_data``.
+        synonym_data : xml.etree.ElementTree.Element
+            Parsed root element of the efetch XML response.
+
+        Returns
+        -------
+        xml.etree.ElementTree.Element
+            The same ``synonym_data`` element passed in.
+        """
+        return synonym_data
+
     def _compile_synonyms(self, synonym_data: ET.Element) -> list[dict]:
         """
         Extract pipeline-standard synonym records from a parsed NCBI taxon XML tree.
@@ -89,9 +115,43 @@ class GenBankAPI(SpeciesAPI):
                     continue
                 seen.add(syn_name)
                 candidates.append(
-                    self._format_synonym(
+                    self._format_row(
                         name=syn_name,
                         api_link=f"https://www.ncbi.nlm.nih.gov/taxonomy/{taxon_id}",
                     )
                 )
         return candidates
+
+    def _compile_synonym_search_term(
+        self, synonym_search_term_data: ET.Element
+    ) -> list[dict]:
+        """
+        Extract the accepted taxon name from the efetch XML.
+
+        Reads ``ScientificName`` from the first ``Taxon`` element in the
+        efetch response, which is the name that was used as the synonym search term.
+
+        Parameters
+        ----------
+        synonym_search_term_data : xml.etree.ElementTree.Element
+            Parsed root element of the efetch XML response (same as
+            ``synonym_data``).
+
+        Returns
+        -------
+        list of dict
+            One-item list with the search term record, or ``[]`` if no
+            ``ScientificName`` is found.
+        """
+        for taxon in synonym_search_term_data.findall(".//Taxon"):
+            sci_name = (taxon.findtext("ScientificName") or "").strip()
+            if not sci_name:
+                continue
+            taxon_id = taxon.findtext("TaxId", "")
+            return [
+                self._format_row(
+                    name=sci_name,
+                    api_link=f"https://www.ncbi.nlm.nih.gov/taxonomy/{taxon_id}",  # TODO: seems that all synonyms have the accepted names ID without separate pages. Need to investigate further and check against the API documentation to see if this is expected behaviour, but guessing it is because when I search a synonym on the website it only pulls up results for the page for the accepted name.
+                )
+            ]
+        return []
