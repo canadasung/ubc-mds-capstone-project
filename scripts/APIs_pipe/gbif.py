@@ -41,16 +41,43 @@ class GBIFAPI(SpeciesAPI):
             f"{self.BASE_URL}/species/match",
             params={"name": name, "strict": "true"},
         )
+        # Check for a "NONE" matchType, which indicates no match found.
         if data.get("matchType") == "NONE":
             return {}
+
         return data
+
+    def _extract_internal_id(self, raw_data: dict) -> str:
+        """
+        Extract the GBIF usage key from a raw API response dict.
+
+        GBIF uses ``usageKey`` in ``/species/match`` responses and ``key`` in
+        ``/species/{id}`` responses. This method handles both.
+
+        Parameters
+        ----------
+        raw_data : dict
+            A parsed GBIF API response containing either a ``usageKey`` or
+            ``key`` field.
+
+        Returns
+        -------
+        str
+            The GBIF usage key for the queried taxon.
+
+        Raises
+        ------
+        KeyError
+            If neither ``usageKey`` nor ``key`` is present in ``raw_data``.
+        """
+        return str(raw_data.get("usageKey") or raw_data["key"])
 
     def _extract_internal_accepted_id(self, raw_data: dict) -> str:
         """
         Extract the accepted taxon's GBIF usage key from match data.
 
         If the matched taxon is a synonym, GBIF provides an
-        ``acceptedUsageKey`` pointing to the currently accepted name.
+        ``acceptedUsageKey`` pointing to the currently accepted name. Else, we get the "usageKey" or "key"
 
         Parameters
         ----------
@@ -64,7 +91,8 @@ class GBIFAPI(SpeciesAPI):
         """
         if "acceptedUsageKey" in raw_data:
             return str(raw_data["acceptedUsageKey"])
-        return str(raw_data["usageKey"])
+        else:
+            return self._extract_internal_id(raw_data)
 
     def _fetch_synonym_data(self, raw_data: dict) -> list[dict]:
         """
@@ -81,12 +109,14 @@ class GBIFAPI(SpeciesAPI):
             The ``"results"`` array from the GBIF synonyms endpoint,
             or ``[]`` when the request fails or returns no results.
         """
-        usage_key = self._extract_internal_accepted_id(raw_data)
+        self.accepted_id = self._extract_internal_accepted_id(raw_data)
         data = self._fetch_JSON(
-            f"{self.BASE_URL}/species/{usage_key}/synonyms",
+            f"{self.BASE_URL}/species/{self.accepted_id}/synonyms",
             params={"limit": 500},
         )
-        return data.get("results", [])
+        return data.get(
+            "results", []
+        )  # TODO: add error handling for failed request rather than just returning an empty list
 
     def _extract_publication_year(self, string: str) -> str:
         """
@@ -125,6 +155,69 @@ class GBIFAPI(SpeciesAPI):
         """
         return self._PUBLISHED_IN_RE.sub("", string)
 
+    def _fetch_synonym_search_term_data(
+        self, raw_data: dict, synonym_data: list[dict]
+    ) -> dict:
+        """
+        Return the accepted taxon's full species record for the synonym search term.
+
+        When the ``/species/match`` hit is the accepted name itself, ``raw_data``
+        already has the correct metadata. When the hit is a synonym, we fetch ``/species/{acceptedUsageKey}`` to get the accepted taxon's full record (same field structure as a match response: ``canonicalName``, ``authorship``, ``publishedIn``).
+
+        Parameters
+        ----------
+        raw_data : dict
+            The dictionary returned by ``_fetch_query_data``.
+        synonym_data : list of dict
+            Raw synonym records (unused here).
+
+        Returns
+        -------
+        dict
+            The accepted taxon's species record.
+        """
+        if "acceptedUsageKey" not in raw_data:
+            # If the match was already the accepted name, we can skip the extra request and just return raw_data.
+            return raw_data
+        else:
+            # If the match was a synonym, fetch the accepted taxon's record to get the metadata.
+            accepted = self._fetch_JSON(f"{self.BASE_URL}/species/{self.accepted_id}")
+            return accepted  # TODO: add error handling for failed request
+
+    def _compile_synonym_search_term(
+        self, synonym_search_term_data: dict
+    ) -> list[dict]:
+        """
+        Build a pipeline-standard record for the synonym search term from the
+        GBIF match response.
+
+        Parameters
+        ----------
+        synonym_search_term_data : dict
+            The ``/species/match`` response dict.
+
+        Returns
+        -------
+        list of dict
+            One-item list with the search term record, or ``[]`` if
+            ``canonicalName`` is absent.
+        """
+        name = synonym_search_term_data["canonicalName"]
+        if not name:
+            return []
+
+        published_in = synonym_search_term_data.get("publishedIn", "")
+        accepted_key = self._extract_internal_accepted_id(synonym_search_term_data)
+        return [
+            self._format_row(
+                name=name,
+                author=synonym_search_term_data.get("authorship", ""),
+                publication_year=self._extract_publication_year(published_in),
+                publication_name=self._extract_publication_name(published_in),
+                api_link=f"https://www.gbif.org/species/{accepted_key}",
+            )
+        ]
+
     def _compile_synonyms(self, synonym_data: list[dict]) -> list[dict]:
         """
         Convert raw GBIF synonym records into pipeline-standard synonym dicts.
@@ -150,7 +243,7 @@ class GBIFAPI(SpeciesAPI):
                     seen.add(canonical_name)
                     published_in = item.get("publishedIn", "")
                     candidates.append(
-                        self._format_synonym(
+                        self._format_row(
                             name=canonical_name,
                             author=item.get("authorship", ""),
                             publication_year=self._extract_publication_year(
@@ -162,4 +255,5 @@ class GBIFAPI(SpeciesAPI):
                             api_link=f"https://www.gbif.org/species/{item.get('key')}",
                         )
                     )
+                    # TODO: bubble up as much as possible in terms of hardcoded strings/magic numbers
         return candidates

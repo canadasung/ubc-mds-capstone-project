@@ -11,9 +11,9 @@ def normalize_scientific_name(name: str) -> str:
         Normalized species name string in the format "Genus species".
 
     Examples:
-        >>> normalize_query_string("amanita muscaria")
+        >>> normalize_scientific_name("amanita muscaria")
         'Amanita muscaria'
-        >>> normalize_query_string(" AMANITA  MUSCARIA")
+        >>> normalize_scientific_name(" AMANITA  MUSCARIA")
         'Amanita muscaria'
     """
     # TODO: add remove punctuation??
