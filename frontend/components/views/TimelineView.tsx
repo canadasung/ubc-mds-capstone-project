@@ -10,7 +10,7 @@
 
 import { useMemo } from "react";
 import dynamic from "next/dynamic";
-import { Alert, Collapse, Loader, Table, Text, UnstyledButton } from "@mantine/core";
+import { Alert, Anchor, Collapse, Loader, Table, Text, UnstyledButton } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 import type { Data, Layout } from "plotly.js";
@@ -178,7 +178,15 @@ export function TimelineView() {
               <Table.Tbody>
                 {undatedEntries.map((e, i) => (
                   <Table.Tr key={`${e.name}-${i}`}>
-                    <Table.Td>{e.name}</Table.Td>
+                    <Table.Td>
+                      {e.url ? (
+                        <Anchor href={e.url} target="_blank" rel="noopener noreferrer">
+                          {e.name}
+                        </Anchor>
+                      ) : (
+                        e.name
+                      )}
+                    </Table.Td>
                     <Table.Td>{e.author}</Table.Td>
                     <Table.Td>{e.source}</Table.Td>
                     <Table.Td>{e.status}</Table.Td>
