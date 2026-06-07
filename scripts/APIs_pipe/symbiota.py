@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 import pandas as pd
 import requests
 
-from ..utils.normalize_strings import normalize_scientific_name
+from ..utils.normalize_query_string import normalize_query_string
 from .base import SpeciesAPI
 
 # Canonical column order for all synonym DataFrames produced by this module.
@@ -823,7 +823,7 @@ class SymbiotaAPI(SpeciesAPI):
         if not name or not name.strip():
             return pd.DataFrame(columns=COLUMNS)
 
-        species_name = normalize_scientific_name(name)
+        species_name = normalize_query_string(name)
 
         try:
             raw_data = self._fetch_query_data(species_name)

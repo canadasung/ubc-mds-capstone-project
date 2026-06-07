@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 
 import requests
 
-from scripts.utils.normalize_strings import normalize_scientific_name
+from scripts.utils.normalize_query_string import normalize_query_string
 
 
 class SpeciesAPI(ABC):
@@ -467,7 +467,7 @@ class SpeciesAPI(ABC):
         list of dict
             A list of synonym records (``dict``) or ``[]`` if, at any stage, no results are found.
         """
-        name = normalize_scientific_name(name)
+        name = normalize_query_string(name)
 
         raw_data = self._fetch_query_data(name)
         if self._is_empty(raw_data):

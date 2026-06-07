@@ -1,4 +1,4 @@
-def normalize_scientific_name(name: str) -> str:
+def normalize_query_string(name: str) -> str:
     """Normalize a scientific name string.
 
     Steps: strip leading/trailing whitespace, collapse internal whitespace
