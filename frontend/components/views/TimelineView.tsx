@@ -8,7 +8,7 @@
  * collapsible table.
  */
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Alert, Anchor, Collapse, Loader, Table, Text, UnstyledButton } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
@@ -45,15 +45,35 @@ export function TimelineView() {
   const query = useSearchStore((s) => s.submittedQuery);
   const [undatedOpen, undated] = useDisclosure(false);
 
-  const { dated, undatedEntries, figure } = useMemo(() => {
+  // Dated entries sorted oldest → newest, plus colors and the undated set.
+  const { sorted, undatedEntries, sourceColors } = useMemo(() => {
     const t = buildTimeline(records);
-    const sorted = [...t.dated].sort((a, b) => (a.year! - b.year!));
+    const s = [...t.dated].sort((a, b) => a.year! - b.year!);
+    return { sorted: s, undatedEntries: t.undated, sourceColors: t.sourceColors };
+  }, [records]);
+
+  // Which cards are expanded (indices into `sorted`). Collapsed cards show only
+  // the name; clicking a card toggles it. The newest entry (latest year, last
+  // in `sorted`) starts expanded. State resets whenever the data changes.
+  const newestIdx = sorted.length - 1;
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    setExpanded(newestIdx >= 0 ? new Set([newestIdx]) : new Set());
+  }, [sorted, newestIdx]);
+
+  const toggleCard = useCallback((i: number) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  }, []);
+
+  const figure = useMemo(() => {
+    if (sorted.length === 0) return null;
+
     const years = sorted.map((s) => s.year!);
-
-    if (sorted.length === 0) {
-      return { dated: sorted, undatedEntries: t.undated, figure: null };
-    }
-
     const yPos = sorted.map((_, i) => (i % 2 === 0 ? 0.5 : -0.5));
     const yearMin = Math.min(...years) - 30;
     const yearMax = Math.max(...years) + 30;
@@ -72,25 +92,33 @@ export function TimelineView() {
         x0: years[i],
         x1: years[i],
         y0: 0,
-        y1: yPos[i] > 0 ? 0.18 : -0.18,
+        // Run the connector all the way to the card center so it meets the box
+        // at any size; the card's white background hides the overlapped end.
+        y1: yPos[i],
         line: { color: "#bdc3c7", width: 1, dash: "dot" as const },
       })),
     ];
 
-    const annotations: Partial<Layout>["annotations"] = sorted.map((e, i) => ({
-      x: years[i],
-      y: yPos[i],
-      text: cardHtml(e, years[i]),
-      showarrow: false,
-      bgcolor: "white",
-      bordercolor: t.sourceColors[e.source] ?? "#3498db",
-      borderwidth: 2,
-      borderpad: 10,
-      align: "left",
-      font: { size: 11, color: "#333", family: "Courier New, monospace" },
-      xanchor: "center",
-      yanchor: "middle",
-    }));
+    const annotations: Partial<Layout>["annotations"] = sorted.map((e, i) => {
+      const isOpen = expanded.has(i);
+      return {
+        x: years[i],
+        y: yPos[i],
+        // Collapsed cards show only the name; expanded show the full details.
+        text: isOpen ? cardHtml(e, years[i]) : `<b>${e.name}</b>`,
+        showarrow: false,
+        bgcolor: "white",
+        bordercolor: sourceColors[e.source] ?? "#3498db",
+        borderwidth: 2,
+        borderpad: isOpen ? 10 : 6,
+        align: "left",
+        font: { size: 11, color: "#333", family: "Courier New, monospace" },
+        xanchor: "center",
+        yanchor: "middle",
+        // Required so Plotly emits plotly_clickannotation for this card.
+        captureevents: true,
+      };
+    });
 
     const data: Data[] = [
       {
@@ -100,7 +128,7 @@ export function TimelineView() {
         y: years.map(() => 0),
         marker: {
           size: 9,
-          color: sorted.map((e) => t.sourceColors[e.source] ?? "#3498db"),
+          color: sorted.map((e) => sourceColors[e.source] ?? "#3498db"),
         },
         text: sorted.map((e) => e.name),
         hoverinfo: "text",
@@ -125,8 +153,8 @@ export function TimelineView() {
       annotations,
     };
 
-    return { dated: sorted, undatedEntries: t.undated, figure: { data, layout } };
-  }, [records]);
+    return { data, layout };
+  }, [sorted, expanded, sourceColors]);
 
   if (records.length === 0) {
     return <Text c="dimmed">No results to plot.</Text>;
@@ -138,9 +166,12 @@ export function TimelineView() {
         <>
           <Text mb="sm">
             <b>
-              {dated.length} name{dated.length === 1 ? "" : "s"}
+              {sorted.length} name{sorted.length === 1 ? "" : "s"}
             </b>{" "}
-            with publication dates for <i>{query}</i>
+            with publication dates for <i>{query}</i>{" "}
+            <Text span c="dimmed" size="xs">
+              · click a card to expand or collapse it
+            </Text>
           </Text>
           <PlotlyChart
             data={figure.data}
@@ -148,6 +179,7 @@ export function TimelineView() {
             config={{ scrollZoom: true, displayModeBar: false }}
             style={{ width: "100%" }}
             useResizeHandler
+            onClickAnnotation={(e) => toggleCard(e.index)}
           />
         </>
       ) : (
