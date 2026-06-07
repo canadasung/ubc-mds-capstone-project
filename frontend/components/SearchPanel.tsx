@@ -124,31 +124,37 @@ export function SearchPanel() {
 
         <Collapse in={advancedOpen}>
           <Stack gap="sm" mt="sm">
-            <Checkbox
-              label="Choose databases based on kingdom"
-              description="Powered by GBIF. Auto-selects databases from the species' kingdom."
-              checked={useRouting}
-              onChange={(e) => setUseRouting(e.currentTarget.checked)}
-            />
-
+            {/* Select/Unselect all are always available; using either switches
+                to manual selection (turns kingdom routing off). */}
             <Group gap="xs" grow>
               <Button
                 size="compact-sm"
                 variant="default"
-                disabled={useRouting}
-                onClick={() => setAllSources(true)}
+                onClick={() => {
+                  setUseRouting(false);
+                  setAllSources(true);
+                }}
               >
                 Select all
               </Button>
               <Button
                 size="compact-sm"
                 variant="default"
-                disabled={useRouting}
-                onClick={() => setAllSources(false)}
+                onClick={() => {
+                  setUseRouting(false);
+                  setAllSources(false);
+                }}
               >
                 Unselect all
               </Button>
             </Group>
+
+            <Checkbox
+              label="Choose databases based on kingdom"
+              description="Powered by GBIF. Auto-selects databases from the species' kingdom."
+              checked={useRouting}
+              onChange={(e) => setUseRouting(e.currentTarget.checked)}
+            />
 
             <Tooltip
               label="Disable kingdom routing to choose databases manually"
