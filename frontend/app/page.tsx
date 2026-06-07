@@ -18,6 +18,7 @@ import {
 
 import { PanelToggle, SearchPanel } from "@/components/SearchPanel";
 import { ViewSwitcher } from "@/components/ViewSwitcher";
+import { ResultsSummary } from "@/components/ResultsSummary";
 import { ResultsArea } from "@/components/ResultsArea";
 import { useSearchStore } from "@/lib/store";
 
@@ -64,7 +65,10 @@ export default function Page() {
 
       <AppShell.Main>
         <Box>
-          <ViewSwitcher />
+          <Group justify="space-between" align="center" wrap="nowrap">
+            <ViewSwitcher />
+            <ResultsSummary />
+          </Group>
           <Divider my="md" />
           <ResultsArea />
         </Box>
