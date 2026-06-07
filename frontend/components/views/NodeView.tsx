@@ -27,6 +27,7 @@ import { buildNodeGraph, type GraphNode } from "@/lib/transforms";
 
 type NodeData = {
   label: string;
+  full?: string;
   url: string | null;
   kind: GraphNode["kind"];
 };
@@ -53,7 +54,11 @@ function GraphNodeBox({ data }: NodeProps) {
         boxShadow: "2px 2px 6px rgba(0,0,0,0.15)",
         ...KIND_STYLE[d.kind],
       }}
-      title={d.url ?? "(no direct link available)"}
+      title={
+        d.kind === "source"
+          ? (d.full ?? d.label)
+          : (d.url ?? "(no direct link available)")
+      }
     >
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
       {d.label}
@@ -74,7 +79,7 @@ export function NodeView() {
       id: n.id,
       type: "box",
       position: { x: n.x, y: n.y },
-      data: { label: n.label, url: n.url, kind: n.kind } satisfies NodeData,
+      data: { label: n.label, full: n.full, url: n.url, kind: n.kind } satisfies NodeData,
       draggable: false,
     }));
     const rfEdges: Edge[] = g.edges.map((e) => ({

@@ -11,12 +11,12 @@
  */
 
 import { useMemo } from "react";
-import { Alert, Loader, Table, Text } from "@mantine/core";
+import { Alert, Loader, Table, Text, Tooltip } from "@mantine/core";
 import { IconAlertTriangle, IconCircleCheck } from "@tabler/icons-react";
 
 import { useActiveSourceKeys, useTaxonomy } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
-import { keyForApiName } from "@/lib/sources";
+import { fullLabelForKey, keyForApiName, labelForKey } from "@/lib/sources";
 import type { TaxonomyRow } from "@/lib/types";
 
 function cellValue(row: TaxonomyRow, rank: string): string {
@@ -84,9 +84,17 @@ export function TaxonomyView() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {sources.map((row) => (
+            {sources.map((row) => {
+              const sourceKey = keyForApiName(row.source);
+              const shortLabel = labelForKey(sourceKey);
+              const fullLabel = fullLabelForKey(sourceKey);
+              return (
               <Table.Tr key={row.source}>
-                <Table.Td fw={600}>{row.source}</Table.Td>
+                <Table.Td fw={600}>
+                  <Tooltip label={fullLabel} disabled={fullLabel === shortLabel} withArrow>
+                    <span>{shortLabel}</span>
+                  </Tooltip>
+                </Table.Td>
                 {ranks.map((r) => {
                   const val = cellValue(row, r);
                   return (
@@ -99,7 +107,8 @@ export function TaxonomyView() {
                   );
                 })}
               </Table.Tr>
-            ))}
+              );
+            })}
           </Table.Tbody>
         </Table>
       </Table.ScrollContainer>

@@ -5,6 +5,7 @@
 import { Anchor, Table, Text } from "@mantine/core";
 
 import { useSearch } from "@/lib/hooks";
+import { columnLabel } from "@/lib/fields";
 
 export function DebugView() {
   const search = useSearch();
@@ -26,7 +27,7 @@ export function DebugView() {
           <Table.Thead>
             <Table.Tr>
               {columns.map((c) => (
-                <Table.Th key={c}>{c}</Table.Th>
+                <Table.Th key={c}>{columnLabel(c)}</Table.Th>
               ))}
             </Table.Tr>
           </Table.Thead>

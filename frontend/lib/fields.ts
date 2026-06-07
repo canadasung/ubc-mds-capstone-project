@@ -49,3 +49,31 @@ export function publicationYearOf(rec: SpeciesRecord): number | null {
   const n = Number.parseInt(v, 10);
   return Number.isFinite(n) ? n : null;
 }
+
+/**
+ * Human-readable column headers for the raw record fields (used by the Debug
+ * view). Snake_case backend columns map to title-case display names; unknown
+ * columns fall back to a generic snake_case → Title Case conversion.
+ */
+const COLUMN_LABELS: Record<string, string> = {
+  api_name: "Source",
+  kingdom: "Kingdom",
+  phylum: "Phylum",
+  class: "Class",
+  family: "Family",
+  subfamily: "Subfamily",
+  genus: "Genus",
+  species: "Species",
+  api_internal_id: "Internal ID",
+  author: "Author",
+  publication_name: "Publication",
+  publication_year: "Publication Year",
+  api_link: "Link",
+  status: "Status",
+  source_name: "Source Name",
+};
+
+export function columnLabel(col: string): string {
+  if (col in COLUMN_LABELS) return COLUMN_LABELS[col];
+  return col.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}

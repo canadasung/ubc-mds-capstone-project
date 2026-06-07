@@ -18,7 +18,7 @@ import {
   sourceOf,
   statusOf,
 } from "./fields";
-import { keyForApiName, labelForKey } from "./sources";
+import { fullForLabel, keyForApiName, labelForKey } from "./sources";
 import type { SpeciesRecord } from "./types";
 
 function normalize(s: string): string {
@@ -96,6 +96,8 @@ export interface GraphNode {
   id: string;
   kind: "query" | "source" | "name";
   label: string;
+  /** Official long name for source nodes, shown on hover. */
+  full?: string;
   url: string | null;
   x: number;
   y: number;
@@ -165,6 +167,7 @@ export function buildNodeGraph(
       id: srcId,
       kind: "source",
       label: `${src}\n${group.length} name${group.length === 1 ? "" : "s"} found`,
+      full: fullForLabel(src),
       url: dbUrl,
       x: 0,
       y,
