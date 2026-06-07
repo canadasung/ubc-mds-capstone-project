@@ -40,6 +40,14 @@ function cardHtml(e: TimelineEntry, year: number): string {
   );
 }
 
+/** Collapsed-card label: genus on the first line, species on the second, so
+ *  the box reads as roughly square rather than one wide line. */
+function nameStacked(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length <= 1) return `<b>${name}</b>`;
+  return `<b>${parts[0]}<br>${parts.slice(1).join(" ")}</b>`;
+}
+
 export function TimelineView() {
   const { records } = useFilteredRecords();
   const query = useSearchStore((s) => s.submittedQuery);
@@ -99,26 +107,63 @@ export function TimelineView() {
       })),
     ];
 
-    const annotations: Partial<Layout>["annotations"] = sorted.map((e, i) => {
+    type Ann = NonNullable<Partial<Layout>["annotations"]>[number];
+
+    // Card annotations, tagged with their sorted index so we can reorder them
+    // (expanded cards drawn last = top layer) without losing the click mapping.
+    const cards = sorted.map((e, i) => {
       const isOpen = expanded.has(i);
-      return {
+      const ann: Ann = {
         x: years[i],
         y: yPos[i],
-        // Collapsed cards show only the name; expanded show the full details.
-        text: isOpen ? cardHtml(e, years[i]) : `<b>${e.name}</b>`,
+        // Collapsed cards show only the name (genus / species stacked);
+        // expanded cards show the full details.
+        text: isOpen ? cardHtml(e, years[i]) : nameStacked(e.name),
         showarrow: false,
         bgcolor: "white",
-        bordercolor: sourceColors[e.source] ?? "#3498db",
+        bordercolor: "#1c7ed6",
         borderwidth: 2,
         borderpad: isOpen ? 10 : 6,
-        align: "left",
-        font: { size: 11, color: "#333", family: "Courier New, monospace" },
+        align: isOpen ? "left" : "center",
+        font: { size: 13, color: "#333", family: "Courier New, monospace" },
         xanchor: "center",
         yanchor: "middle",
         // Required so Plotly emits plotly_clickannotation for this card.
         captureevents: true,
       };
+      return { ann, idx: i, isOpen };
     });
+
+    // Year labels sitting on the center line (just above it, with a white
+    // backing so the line stays readable). Not clickable.
+    const yearLabels = sorted.map((_, i) => {
+      const ann: Ann = {
+        x: years[i],
+        y: 0,
+        yshift: 9,
+        text: `<b>${years[i]}</b>`,
+        showarrow: false,
+        bgcolor: "rgba(255,255,255,0.85)",
+        borderpad: 1,
+        align: "center",
+        font: { size: 13, color: "#333", family: "Courier New, monospace" },
+        xanchor: "center",
+        yanchor: "bottom",
+        captureevents: false,
+      };
+      return { ann, idx: -1 };
+    });
+
+    // Draw order = z-order: collapsed cards, then year labels, then expanded
+    // cards last so an open card sits above everything else.
+    const ordered = [
+      ...cards.filter((c) => !c.isOpen),
+      ...yearLabels,
+      ...cards.filter((c) => c.isOpen),
+    ];
+    const annotations: Partial<Layout>["annotations"] = ordered.map((o) => o.ann);
+    // annotation array position → sorted index (or -1 for non-card labels).
+    const annotationIndex = ordered.map((o) => o.idx);
 
     const data: Data[] = [
       {
@@ -143,6 +188,8 @@ export function TimelineView() {
         range: [yearMin, yearMax],
         showgrid: false,
         zeroline: false,
+        // Years are now drawn on the line itself, so drop the bottom ticks.
+        showticklabels: false,
       },
       yaxis: { visible: false, range: [-1.4, 1.4] },
       plot_bgcolor: "white",
@@ -153,7 +200,7 @@ export function TimelineView() {
       annotations,
     };
 
-    return { data, layout };
+    return { data, layout, annotationIndex };
   }, [sorted, expanded, sourceColors]);
 
   if (records.length === 0) {
@@ -179,7 +226,10 @@ export function TimelineView() {
             config={{ scrollZoom: true, displayModeBar: false }}
             style={{ width: "100%" }}
             useResizeHandler
-            onClickAnnotation={(e) => toggleCard(e.index)}
+            onClickAnnotation={(e) => {
+              const idx = figure.annotationIndex[e.index];
+              if (idx != null && idx >= 0) toggleCard(idx);
+            }}
           />
         </>
       ) : (
