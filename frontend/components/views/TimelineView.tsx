@@ -273,8 +273,9 @@ function VerticalTimeline({ sorted, sourceColors, expanded, onToggle }: Vertical
         }}
       />
 
-      {sorted.map((entry, i) => {
-        const isLeft = i % 2 === 0;
+      {[...sorted].reverse().map((entry, displayIdx) => {
+        const i = sorted.length - 1 - displayIdx;
+        const isLeft = displayIdx % 2 === 0;
         const dotColor = sourceColors[entry.source] ?? "#3498db";
         const isOpen = expanded.has(i);
 
