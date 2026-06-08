@@ -22,7 +22,7 @@ import pandas as pd
 import pytest
 import requests
 
-from scripts.APIs_pipe.symbiota import COLUMNS, SymbiotaAPI
+from scripts.apis_pipe.symbiota import COLUMNS, SymbiotaAPI
 
 # ── Shared mock data ───────────────────────────────────────────────────────────
 
@@ -237,7 +237,7 @@ class TestSearch:
     def setup_method(self):
         self.api = SymbiotaAPI("https://mycoportal.org/portal")
 
-    @patch("scripts.APIs_pipe.symbiota.requests.get")
+    @patch("scripts.apis_pipe.symbiota.requests.get")
     def test_returns_result_from_first_endpoint(self, mock_get):
         mock_get.return_value = _mock_resp(_MOCK_SEARCH_RESULTS)
         result = self.api.search("Amanita muscaria")
@@ -245,7 +245,7 @@ class TestSearch:
         first_url = mock_get.call_args_list[0][0][0]
         assert "taxonomy/search" in first_url
 
-    @patch("scripts.APIs_pipe.symbiota.requests.get")
+    @patch("scripts.apis_pipe.symbiota.requests.get")
     def test_falls_back_to_second_endpoint_when_first_fails(self, mock_get):
         # First call (taxonomy/search) → non-ok; second (taxonomy) → ok
         mock_get.side_effect = [
@@ -258,20 +258,20 @@ class TestSearch:
         assert any("taxonomy/search" in u for u in urls)
         assert any("taxonomy" in u and "search" not in u for u in urls)
 
-    @patch("scripts.APIs_pipe.symbiota.requests.get")
+    @patch("scripts.apis_pipe.symbiota.requests.get")
     def test_raises_when_both_endpoints_fail(self, mock_get):
         mock_get.side_effect = Exception("network error")
         with pytest.raises(RuntimeError):
             self.api.search("Amanita muscaria")
 
-    @patch("scripts.APIs_pipe.symbiota.requests.get")
+    @patch("scripts.apis_pipe.symbiota.requests.get")
     def test_wraps_list_response_in_results_key(self, mock_get):
         mock_get.return_value = _mock_resp([{"tid": 1, "sciname": "Amanita muscaria"}])
         result = self.api.search("Amanita muscaria")
         assert "results" in result
         assert isinstance(result["results"], list)
 
-    @patch("scripts.APIs_pipe.symbiota.requests.get")
+    @patch("scripts.apis_pipe.symbiota.requests.get")
     def test_passes_exact_query_params(self, mock_get):
         mock_get.return_value = _mock_resp(_MOCK_SEARCH_RESULTS)
         self.api.search("Amanita muscaria")
@@ -297,12 +297,12 @@ class TestGetTid:
     @patch.object(SymbiotaAPI, "search")
     def test_raises_when_search_has_no_match(self, mock_search):
         mock_search.return_value = {"results": []}
-        with patch("scripts.APIs_pipe.symbiota.requests.get", side_effect=Exception):
+        with patch("scripts.apis_pipe.symbiota.requests.get", side_effect=Exception):
             with pytest.raises(LookupError):
                 self.api._get_tid("Aaaa bbbb")
 
     @patch.object(SymbiotaAPI, "search")
-    @patch("scripts.APIs_pipe.symbiota.requests.get")
+    @patch("scripts.apis_pipe.symbiota.requests.get")
     def test_falls_back_to_autocomplete_when_search_returns_no_match(
         self, mock_get, mock_search
     ):
@@ -315,12 +315,12 @@ class TestGetTid:
     @patch.object(SymbiotaAPI, "search")
     def test_raises_when_both_lookups_fail(self, mock_search):
         mock_search.return_value = {"results": []}
-        with patch("scripts.APIs_pipe.symbiota.requests.get", side_effect=Exception):
+        with patch("scripts.apis_pipe.symbiota.requests.get", side_effect=Exception):
             with pytest.raises(LookupError):
                 self.api._get_tid("Amanita muscaria")
 
     @patch.object(SymbiotaAPI, "search")
-    @patch("scripts.APIs_pipe.symbiota.requests.get")
+    @patch("scripts.apis_pipe.symbiota.requests.get")
     def test_does_not_match_partial_name(self, mock_get, mock_search):
         # "Amanita" alone must not match "Amanita muscaria"; fallback also mocked
         # so no real HTTP call is made after the regex correctly rejects the result.
