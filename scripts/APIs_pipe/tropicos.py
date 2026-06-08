@@ -140,17 +140,95 @@ class TropicosAPI(SpeciesAPI):
             The raw JSON synonym list from the /Name/{id}/Synonyms endpoint,
             or ``[]`` if no synonyms are found.
         """
-        accepted_id = self._extract_internal_accepted_id(raw_data)
+        self.accepted_id = self._extract_internal_accepted_id(raw_data)
         results = self._fetch_JSON(
-            f"{self.BASE_URL}/Name/{accepted_id}/Synonyms",
+            f"{self.BASE_URL}/Name/{self.accepted_id}/Synonyms",
             params={
                 "apikey": self.key,
                 "format": "json",
             },
         )
+        # API returns a dict (e.g. error/no-results message) instead of a list when there are no synonyms
         if not isinstance(results, list):
             return []
         return results
+
+    def _fetch_synonym_search_term_data(
+        self, raw_data: list, synonym_data: list
+    ) -> list:
+        """
+        Return the accepted name's data as the search term.
+
+        When the queried name is already the accepted name, the first search
+        result is returned directly. When the queried name is a synonym,
+        ``self.accepted_id`` (cached by ``_fetch_synonym_data``) differs from the
+        queried NameId, so we fetch the accepted name record from
+        ``/Name/{self.accepted_id}`` and return it as a one-item list so that
+        ``_compile_synonym_search_term`` always receives the accepted name, not
+        the synonym that was searched.
+
+        Parameters
+        ----------
+        raw_data : list
+            The list returned by ``_fetch_query_data``.
+        synonym_data : list
+            Raw synonym records (unused here).
+
+        Returns
+        -------
+        list
+            A list whose first element is the accepted name's data.
+        """
+        name_id = self._extract_internal_id(raw_data)
+        if self.accepted_id != name_id:
+            result = self._fetch_JSON(
+                f"{self.BASE_URL}/Name/{self.accepted_id}",
+                params={"apikey": self.key, "format": "json"},
+            )
+            if isinstance(result, dict) and result:
+                return [result]
+            else:
+                return []  # TODO: double check this error handling
+        else:
+            return raw_data
+
+    def _compile_synonym_search_term(
+        self, synonym_search_term_data: list
+    ) -> list[dict]:
+        """
+        Build a pipeline-standard record for the synonym search term from the
+        Tropicos search response.
+
+        Uses the first search hit, which corresponds to the queried name (or
+        the accepted name when the query resolves directly to one).
+
+        Parameters
+        ----------
+        synonym_search_term_data : list
+            The search results list returned by ``_fetch_synonym_search_term_data``.
+
+        Returns
+        -------
+        list of dict
+            One-item list with the search term record, or ``[]`` if the
+            name cannot be determined.
+        """
+        if not synonym_search_term_data:
+            return []
+        item = synonym_search_term_data[0]
+        name = item["ScientificName"]
+        if not name or self._is_infraspecific(name):
+            return []
+        name_id = item.get("NameId")
+        return [
+            self._format_row(
+                name=name,
+                author=item.get("Author", ""),
+                api_link=(
+                    f"https://www.tropicos.org/name/{name_id}" if name_id else ""
+                ),
+            )
+        ]
 
     def _compile_synonyms(self, synonym_data: list) -> list[dict]:
         """
@@ -172,12 +250,14 @@ class TropicosAPI(SpeciesAPI):
         for item in synonym_data:
             syn_info = item.get("SynonymName", {})
             syn_name = syn_info.get("ScientificName")
-            if not syn_name or syn_name in seen:
+            if not syn_name or syn_name in seen or self._is_infraspecific(syn_name):
                 continue
             seen.add(syn_name)
-            syn_id = syn_info.get("NameId")
+            syn_id = syn_info.get(
+                "NameId"
+            )  # TODO: not sure if this is the correct synonym ID, since it appears that all results are getting the accepted name's NameId. Need to investigate further and check against the API documentation.
             candidates.append(
-                self._format_synonym(
+                self._format_row(
                     name=syn_name,
                     author=syn_info.get("Author", ""),
                     api_link=(

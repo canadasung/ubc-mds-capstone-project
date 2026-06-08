@@ -63,6 +63,67 @@ class MushroomObserverAPI(SpeciesAPI):
             synonyms.extend(result.get("synonyms", []))
         return synonyms
 
+    def _fetch_synonym_search_term_data(
+        self, raw_data: dict, synonym_data: list
+    ) -> dict:
+        """
+        Return ``raw_data`` as the search term data.
+
+        Mushroom Observer embeds synonyms inside each result record; the synonym
+        search term (the queried name) is one of the top-level result records
+        in the same response.
+
+        Parameters
+        ----------
+        raw_data : dict
+            The full JSON response returned by ``_fetch_query_data``.
+        synonym_data : list
+            Flat list of raw synonym dicts (unused here).
+
+        Returns
+        -------
+        dict
+            The full JSON response dict.
+        """
+        return raw_data.get("results", [])  # TODO: add error handling
+
+    def _compile_synonym_search_term(
+        self, synonym_search_term_data: dict
+    ) -> list[dict]:
+        """
+        Build a pipeline-standard record for the synonym search term from the
+        Mushroom Observer response.
+
+        Returns the first result that is not a misspelling and not infraspecific.
+
+        Parameters
+        ----------
+        synonym_search_term_data : dict
+            The full JSON response returned by ``_fetch_query_data``.
+
+        Returns
+        -------
+        list of dict
+            One-item list with the search term record, or ``[]`` if no
+            suitable result is found.
+        """
+        # TODO: bug here, this is duplicating the entry when the search term is a synonym itself. when the search term is an accepted name this is working as expected. Likely an issue with the formatting of how mushroom observer returns that the code is not matching. Seems like the returned data is not symmetrical whether you search an "accepted" name or a "synonym", even though mushroom observer itself does not classify anything to accepted or synonym
+        for result in synonym_search_term_data:
+            name = result["name"]
+            if not name or result.get("misspelled", False):
+                continue
+            if (
+                " sp." in name or self._is_infraspecific(name)
+            ):  # do we need to search for sp. separately from the infraspecific check? shouldn't it be included?
+                continue
+            return [
+                self._format_row(
+                    name=name,
+                    author=result.get("author", ""),
+                )
+            ]
+        return []
+
     def _compile_synonyms(self, synonym_data: list) -> list[dict]:
         """
         Filter and convert raw Mushroom Observer synonym records into pipeline-standard dicts.
@@ -95,10 +156,9 @@ class MushroomObserverAPI(SpeciesAPI):
                 continue
             seen.add(full_name)
             candidates.append(
-                self._format_synonym(
+                self._format_row(
                     name=full_name,
                     author=synonym.get("author", ""),
-                    api_link=f"https://mushroomobserver.org/name/show_name/{synonym.get('id', '')}",
                 )
             )
         return candidates

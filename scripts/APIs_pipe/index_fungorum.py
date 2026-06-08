@@ -56,7 +56,7 @@ class IndexFungorumAPI(SpeciesAPI):
             The first record element whose name field matches *name*, or
             ``None`` if no match is found.
         """
-        root = self._fetch_text(
+        root = self._fetch_XML(
             f"{self.BASE_URL}/NameSearch",
             params={
                 "SearchText": name,
@@ -112,11 +112,33 @@ class IndexFungorumAPI(SpeciesAPI):
         current_key = self._extract_internal_accepted_id(raw_data)
         if not current_key:
             return None
-        return self._fetch_text(
+        return self._fetch_XML(
             f"{self.BASE_URL}/NamesByCurrentKey",
             params={"CurrentKey": current_key},
             timeout=60,
         )
+
+    def _fetch_synonym_search_term_data(
+        self, raw_data: ET.Element, synonym_data: ET.Element
+    ) -> list:
+        """
+        Return empty — ``NamesByCurrentKey`` already includes the accepted name
+        alongside all synonyms, so ``_compile_synonyms`` captures it without a
+        separate fetch.
+
+        Parameters
+        ----------
+        raw_data : xml.etree.ElementTree.Element
+            The record element returned by ``_fetch_query_data``.
+        synonym_data : xml.etree.ElementTree.Element
+            Parsed root element from the ``NamesByCurrentKey`` response.
+
+        Returns
+        -------
+        list
+            Always ``[]``.
+        """
+        return []
 
     def _compile_synonyms(self, synonym_data: ET.Element) -> list[dict]:
         """
@@ -149,7 +171,7 @@ class IndexFungorumAPI(SpeciesAPI):
             author = (record.findtext(self._TAGS["authors"]) or "").strip()
             record_id = (record.findtext(self._TAGS["record_id"]) or "").strip()
             candidates.append(
-                self._format_synonym(
+                self._format_row(
                     name=syn_name,
                     author=author or "U",
                     api_link=(
@@ -160,3 +182,22 @@ class IndexFungorumAPI(SpeciesAPI):
                 )
             )
         return candidates
+
+    def _compile_synonym_search_term(
+        self, synonym_search_term_data: list
+    ) -> list[dict]:
+        """
+        Return empty — the search term (accepted name) is already included in
+        the output of ``_compile_synonyms`` via the ``NamesByCurrentKey`` response.
+
+        Parameters
+        ----------
+        synonym_search_term_data : list
+            Always ``[]`` as returned by ``_fetch_synonym_search_term_data``.
+
+        Returns
+        -------
+        list of dict
+            Always ``[]``.
+        """
+        return []
