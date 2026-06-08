@@ -23,6 +23,14 @@ export function nameOf(rec: SpeciesRecord): string {
   return `${str(rec.genus)} ${str(rec.species)}`.trim();
 }
 
+export function genusOf(rec: SpeciesRecord): string {
+  return str(rec.genus);
+}
+
+export function speciesOf(rec: SpeciesRecord): string {
+  return str(rec.species);
+}
+
 /** Outbound link to the source's page for this record (CSV: `api_link`). */
 export function linkOf(rec: SpeciesRecord): string | null {
   const v = str(rec.api_link);

@@ -9,7 +9,7 @@
 import { create } from "zustand";
 import { SOURCE_KEYS } from "./sources";
 
-export type ViewKey = "Table" | "Timeline" | "Node" | "Taxonomic" | "Debug";
+export type ViewKey = "Table" | "Timeline" | "Relations" | "Taxonomic" | "Debug";
 
 interface SearchState {
   // ── Search form ───────────────────────────────────────────────

@@ -11,11 +11,13 @@
 
 import {
   authorOf,
+  genusOf,
   linkOf,
   nameOf,
   publicationNameOf,
   publicationYearOf,
   sourceOf,
+  speciesOf,
   statusOf,
 } from "./fields";
 import { fullForLabel, keyForApiName, labelForKey } from "./sources";
@@ -94,7 +96,7 @@ export function buildPresenceTable(
 
 export interface GraphNode {
   id: string;
-  kind: "query" | "source" | "name";
+  kind: "source" | "genus" | "name";
   label: string;
   /** Official long name for source nodes, shown on hover. */
   full?: string;
@@ -114,79 +116,93 @@ export interface NodeGraph {
   edges: GraphEdge[];
 }
 
-const ROW_HEIGHT = 150;
-const SYN_X_OFFSET = 280;
-const SYN_X_SPACING = 200;
 
-/** source label → search-page URL template (ported from view_node.py). */
-const SOURCE_URL_TEMPLATES: Record<string, string | undefined> = {
-  GBIF: "https://www.gbif.org/search?q={q}",
-  GenBank: "https://www.ncbi.nlm.nih.gov/search/all/?term={q}",
-  MyCoPortal: "https://mycoportal.org/portal/taxa/index.php?taxon={q}",
-  "Bryophyte Portal": "https://bryophyteportal.org/portal/taxa/index.php?taxon={q}",
-  "Macroalgae Portal": "https://macroalgae.org/portal/taxa/index.php?taxon={q}",
-};
+// ── Relations view ────────────────────────────────────────────────────────
 
-export function buildNodeGraph(
-  records: SpeciesRecord[],
-  query: string,
-): NodeGraph {
-  // group by source label, preserving first-seen order
-  const grouped = new Map<string, SpeciesRecord[]>();
+const REL_ROW_HEIGHT = 44;
+const REL_GROUP_GAP = 56;
+const REL_SOURCE_X = 0;
+const REL_GENUS_X = 280;
+const REL_NAME_X = 560;
+
+/**
+ * Builds a three-level tree for the Relations view:
+ *   [Source]  →  [Genus]  →  [species binomial]
+ *
+ * Species are deduplicated within each (source, genus) pair. Each level is
+ * vertically centred on the leaves it owns.
+ */
+export function buildRelationsGraph(records: SpeciesRecord[]): NodeGraph {
+  const bySource = new Map<string, SpeciesRecord[]>();
   for (const rec of records) {
     const src = sourceLabel(rec);
-    if (!grouped.has(src)) grouped.set(src, []);
-    grouped.get(src)!.push(rec);
+    if (!bySource.has(src)) bySource.set(src, []);
+    bySource.get(src)!.push(rec);
   }
 
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
-  const total = grouped.size;
-  const queryY = (ROW_HEIGHT * (total + 1)) / 2;
+  let currentY = 0;
 
-  nodes.push({
-    id: "center",
-    kind: "query",
-    label: query || "?",
-    url: null,
-    x: -SYN_X_OFFSET,
-    y: queryY,
-  });
-
-  let rowIdx = 0;
-  for (const [src, group] of grouped) {
-    rowIdx += 1;
-    const y = ROW_HEIGHT * rowIdx;
-    const template = SOURCE_URL_TEMPLATES[src];
-    const dbUrl = template
-      ? template.replace("{q}", encodeURIComponent(query))
-      : null;
-
+  for (const [src, srcRecords] of bySource) {
     const srcId = `src:${src}`;
+    const sourceStartY = currentY;
+    let totalSpecies = 0;
+
+    // Group by genus within this source, preserving first-seen order
+    const byGenus = new Map<string, SpeciesRecord[]>();
+    for (const rec of srcRecords) {
+      const g = genusOf(rec) || "Unknown";
+      if (!byGenus.has(g)) byGenus.set(g, []);
+      byGenus.get(g)!.push(rec);
+    }
+
+    for (const [genus, genusRecs] of byGenus) {
+      const genusId = `${srcId}|g:${genus}`;
+      const genusStartY = currentY;
+
+      // Deduplicate species within this (source, genus) pair
+      const seen = new Set<string>();
+      const species: Array<{ epithet: string; full: string; url: string | null }> = [];
+      for (const rec of genusRecs) {
+        const full = nameOf(rec);
+        if (!seen.has(full)) {
+          seen.add(full);
+          species.push({ epithet: speciesOf(rec) || full, full, url: linkOf(rec) });
+        }
+      }
+
+      species.forEach((s, j) => {
+        const nodeId = `${genusId}|${j}`;
+        nodes.push({ id: nodeId, kind: "name", label: s.epithet, full: s.full, url: s.url, x: REL_NAME_X, y: currentY + j * REL_ROW_HEIGHT });
+        edges.push({ id: `e:${genusId}-${j}`, source: genusId, target: nodeId });
+      });
+
+      nodes.push({
+        id: genusId,
+        kind: "genus",
+        label: genus,
+        url: null,
+        x: REL_GENUS_X,
+        y: genusStartY + ((species.length - 1) / 2) * REL_ROW_HEIGHT,
+      });
+      edges.push({ id: `e:${srcId}-${genusId}`, source: srcId, target: genusId });
+
+      currentY += species.length * REL_ROW_HEIGHT;
+      totalSpecies += species.length;
+    }
+
     nodes.push({
       id: srcId,
       kind: "source",
-      label: `${src}\n${group.length} name${group.length === 1 ? "" : "s"} found`,
+      label: `${src}\n(${totalSpecies})`,
       full: fullForLabel(src),
-      url: dbUrl,
-      x: 0,
-      y,
+      url: null,
+      x: REL_SOURCE_X,
+      y: sourceStartY + ((totalSpecies - 1) / 2) * REL_ROW_HEIGHT,
     });
-    edges.push({ id: `e:center-${srcId}`, source: "center", target: srcId });
 
-    group.forEach((rec, j) => {
-      const name = nameOf(rec);
-      const nodeId = `${srcId}|${name}|${j}`;
-      nodes.push({
-        id: nodeId,
-        kind: "name",
-        label: name,
-        url: linkOf(rec),
-        x: SYN_X_OFFSET + SYN_X_SPACING * j,
-        y,
-      });
-      edges.push({ id: `e:${srcId}-${j}`, source: srcId, target: nodeId });
-    });
+    currentY += REL_GROUP_GAP;
   }
 
   return { nodes, edges };

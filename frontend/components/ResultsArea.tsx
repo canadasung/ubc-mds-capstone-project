@@ -11,7 +11,7 @@ import { ApiError } from "@/lib/types";
 
 import { TableView } from "@/components/views/TableView";
 import { TimelineView } from "@/components/views/TimelineView";
-import { NodeView } from "@/components/views/NodeView";
+import { RelationsView } from "@/components/views/RelationsView";
 import { TaxonomyView } from "@/components/views/TaxonomyView";
 import { DebugView } from "@/components/views/DebugView";
 
@@ -62,8 +62,8 @@ export function ResultsArea() {
       return <TableView />;
     case "Timeline":
       return <TimelineView />;
-    case "Node":
-      return <NodeView />;
+    case "Relations":
+      return <RelationsView />;
     case "Taxonomic":
       return <TaxonomyView />;
     case "Debug":

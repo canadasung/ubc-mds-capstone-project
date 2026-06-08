@@ -11,8 +11,8 @@ export function ViewSwitcher() {
   const debug = useSearchStore((s) => s.debug);
 
   const options: ViewKey[] = debug
-    ? ["Table", "Timeline", "Node", "Taxonomic", "Debug"]
-    : ["Table", "Timeline", "Node", "Taxonomic"];
+    ? ["Table", "Timeline", "Relations", "Taxonomic", "Debug"]
+    : ["Table", "Timeline", "Relations", "Taxonomic"];
 
   return (
     <SegmentedControl
