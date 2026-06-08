@@ -4,7 +4,10 @@ Catalogue of Life API client.
 SpeciesAPI implementation for the Catalogue of Life (COL), served via the ChecklistBank API. COL is a global taxonomic checklist that provides accepted names and synonymies.
 """
 
+from scripts.utils.normalize_query_string import normalize_query_string
+
 from .base import SpeciesAPI
+from .config import COL
 
 
 class COLAPI(SpeciesAPI):
@@ -173,18 +176,23 @@ class COLAPI(SpeciesAPI):
         # nameusage/search results wrap under "usage"; direct /taxon/{id} records do not
         usage = synonym_search_term_data.get("usage") or synonym_search_term_data
         name_obj = usage.get("name", {})
-        sci_name = name_obj.get("scientificName", "")
+        sci_name = normalize_query_string(name_obj.get("scientificName", ""))
         if not sci_name:
             return []
         taxon_id = synonym_search_term_data.get("id", "")
+        genus, species = self._extract_genus_species(sci_name)
         return [
             self._format_row(
-                name=sci_name,
+                api_name=COL,
+                genus=genus,
+                species=species,
+                api_internal_id=str(taxon_id),
                 author=name_obj.get("authorship", ""),
+                source_name=name_obj.get("link", ""),
                 api_link=(
                     f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"
                     if taxon_id
-                    else ""
+                    else None
                 ),
             )
         ]
@@ -207,20 +215,24 @@ class COLAPI(SpeciesAPI):
         seen = set()
         for s in synonym_data:
             name_obj = s.get("name", {})
-            syn_name = name_obj.get("scientificName", "")
+            syn_name = normalize_query_string(name_obj.get("scientificName", ""))
             if not syn_name or syn_name in seen:
                 continue
             seen.add(syn_name)
             taxon_id = s.get("id", "")
+            genus, species = self._extract_genus_species(syn_name)
             candidates.append(
                 self._format_row(
-                    name=syn_name,
+                    api_name=COL,
+                    genus=genus,
+                    species=species,
+                    api_internal_id=str(taxon_id),
                     author=name_obj.get("authorship", ""),
-                    # note for future: COl can fill original source using 'name_obj.get("link", "")'
+                    source_name=name_obj.get("link", ""),
                     api_link=(
                         f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"  # TODO: while we do have unique taxon_id for each synonym, they all route to the same page for "accepted" name. Likely desired behavior, but double check against API documentation to confirm that this is expected.
                         if taxon_id
-                        else ""
+                        else None
                     ),
                 )
             )

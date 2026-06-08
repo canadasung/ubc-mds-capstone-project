@@ -5,7 +5,10 @@ Mushroom Observer (https://mushroomobserver.org) is a community-driven database
 of fungal observations.
 """
 
+from scripts.utils.normalize_query_string import normalize_query_string
+
 from .base import SpeciesAPI
+from .config import MUSHROOM_OBSERVER
 
 
 class MushroomObserverAPI(SpeciesAPI):
@@ -109,16 +112,22 @@ class MushroomObserverAPI(SpeciesAPI):
         """
         # TODO: bug here, this is duplicating the entry when the search term is a synonym itself. when the search term is an accepted name this is working as expected. Likely an issue with the formatting of how mushroom observer returns that the code is not matching. Seems like the returned data is not symmetrical whether you search an "accepted" name or a "synonym", even though mushroom observer itself does not classify anything to accepted or synonym
         for result in synonym_search_term_data:
-            name = result["name"]
-            if not name or result.get("misspelled", False):
+            name = normalize_query_string(result["name"])
+            if not name:
                 continue
             if (
-                " sp." in name or self._is_infraspecific(name)
-            ):  # do we need to search for sp. separately from the infraspecific check? shouldn't it be included?
+                " sp." in name
+                or self._is_infraspecific(name)
+                or result.get("misspelled", False)
+            ):
                 continue
+            genus, species = self._extract_genus_species(name)
             return [
                 self._format_row(
-                    name=name,
+                    api_name=MUSHROOM_OBSERVER,
+                    genus=genus,
+                    species=species,
+                    api_internal_id=str(result.get("id", "")),
                     author=result.get("author", ""),
                 )
             ]
@@ -146,18 +155,24 @@ class MushroomObserverAPI(SpeciesAPI):
         seen = set()
         for synonym in synonym_data:
             full_name = synonym.get("name", "")
+            full_name = normalize_query_string(full_name)
             if not full_name or full_name in seen:
                 continue
-            if " sp." in full_name:
-                continue
-            if synonym.get("misspelled", False):
-                continue
-            if self._is_infraspecific(full_name):
+            # removing rank incomplete names (rank marker above species level, e.g. "Amanita sp.", which indicates a collection-level annotation), misspelled, and infraspecific (rank markers below species level, e.g. "var.", "subsp.", etc) names
+            if (
+                " sp." in full_name
+                or synonym.get("misspelled", False)
+                or self._is_infraspecific(full_name)
+            ):
                 continue
             seen.add(full_name)
+            genus, species = self._extract_genus_species(full_name)
             candidates.append(
                 self._format_row(
-                    name=full_name,
+                    api_name=MUSHROOM_OBSERVER,
+                    genus=genus,
+                    species=species,
+                    api_internal_id=str(synonym.get("id", "")),
                     author=synonym.get("author", ""),
                 )
             )

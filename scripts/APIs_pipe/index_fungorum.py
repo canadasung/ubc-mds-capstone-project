@@ -13,7 +13,10 @@ Note that this service is notoriously slow and can time out on occasion, so the 
 
 import xml.etree.ElementTree as ET
 
+from scripts.utils.normalize_query_string import normalize_query_string
+
 from .base import SpeciesAPI
+from .config import INDEX_FUNGORUM
 
 
 class IndexFungorumAPI(SpeciesAPI):
@@ -68,10 +71,26 @@ class IndexFungorumAPI(SpeciesAPI):
         if root is None:
             return None
         for record in root.findall("IndexFungorum"):
-            rec_name = (record.findtext(self._TAGS["name"]) or "").strip()
-            if rec_name.lower() == name.lower():
+            rec_name = normalize_query_string((record.findtext(self._TAGS["name"]) or "").strip())
+            if rec_name == name:
                 return record
         return None
+
+    def _extract_internal_id(self, raw_data: ET.Element) -> str:
+        """
+        Extract the record number from an ``IndexFungorum`` XML record element.
+
+        Parameters
+        ----------
+        raw_data : xml.etree.ElementTree.Element
+            A single ``IndexFungorum`` record element.
+
+        Returns
+        -------
+        str
+            The ``RECORD_NUMBER`` value, or ``""`` if absent.
+        """
+        return (raw_data.findtext(self._TAGS["record_id"]) or "").strip()
 
     def _extract_internal_accepted_id(self, raw_data: ET.Element) -> str:
         """
@@ -161,23 +180,28 @@ class IndexFungorumAPI(SpeciesAPI):
         candidates = []
         seen = set()
         for record in synonym_data.findall("IndexFungorum"):
-            syn_name = (record.findtext(self._TAGS["name"]) or "").strip()
+            syn_name = normalize_query_string((record.findtext(self._TAGS["name"]) or "").strip())
+            if not syn_name or syn_name in seen:
+                continue
+            # remove names with rank = "sp.", which indicates collection-level annotation (e.g. "Amanita sp."), not a synonym
             rank = (record.findtext(self._TAGS["rank"]) or "").strip()
-            if not syn_name or rank != "sp.":
+            if rank != "sp.":
                 continue
-            if syn_name.lower() in seen:
-                continue
-            seen.add(syn_name.lower())
+            seen.add(syn_name)
+            genus, species = self._extract_genus_species(syn_name)
+            record_id = self._extract_internal_id(record)
             author = (record.findtext(self._TAGS["authors"]) or "").strip()
-            record_id = (record.findtext(self._TAGS["record_id"]) or "").strip()
             candidates.append(
                 self._format_row(
-                    name=syn_name,
-                    author=author or "U",
+                    api_name=INDEX_FUNGORUM,
+                    genus=genus,
+                    species=species,
+                    api_internal_id=record_id,
+                    author=author,
                     api_link=(
                         f"https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID={record_id}"
                         if record_id
-                        else "U"
+                        else None
                     ),
                 )
             )

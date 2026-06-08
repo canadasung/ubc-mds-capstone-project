@@ -8,9 +8,11 @@ import os
 
 from dotenv import load_dotenv
 
+from scripts.utils.normalize_query_string import normalize_query_string
 from tests.apis_pipe.test_env_configured import _PLACEHOLDER_TROPICOS
 
 from .base import SpeciesAPI
+from .config import TROPICOS
 
 load_dotenv()
 
@@ -68,12 +70,12 @@ class TropicosAPI(SpeciesAPI):
 
     def _extract_internal_id(self, raw_data: list) -> str:
         """
-        Extract the Tropicos NameId from the first search result.
+        Extract the Tropicos NameId from the first record in a raw results list.
 
         Parameters
         ----------
         raw_data : list
-            The list returned by ``_fetch_query_data``.
+            A list of name records from the Tropicos API.
 
         Returns
         -------
@@ -83,12 +85,12 @@ class TropicosAPI(SpeciesAPI):
         Raises
         ------
         LookupError
-            When no NameId can be found in the first result.
+            If ``NameId`` is absent from the first record.
         """
         name_id = raw_data[0].get("NameId")
         if name_id is None:
             raise LookupError(
-                f"{type(self).__name__} error: could not extract NameId from search result."
+                f"{type(self).__name__} error: could not extract NameId from record."
             )
         return str(name_id)
 
@@ -216,16 +218,20 @@ class TropicosAPI(SpeciesAPI):
         if not synonym_search_term_data:
             return []
         item = synonym_search_term_data[0]
-        name = item["ScientificName"]
+        name = normalize_query_string(item["ScientificName"])
         if not name or self._is_infraspecific(name):
             return []
-        name_id = item.get("NameId")
+        name_id = self._extract_internal_id(synonym_search_term_data)
+        genus, species = self._extract_genus_species(name)
         return [
             self._format_row(
-                name=name,
+                api_name=TROPICOS,
+                genus=genus,
+                species=species,
+                api_internal_id=name_id,
                 author=item.get("Author", ""),
                 api_link=(
-                    f"https://www.tropicos.org/name/{name_id}" if name_id else ""
+                    f"https://www.tropicos.org/name/{name_id}" if name_id else None
                 ),
             )
         ]
@@ -249,19 +255,27 @@ class TropicosAPI(SpeciesAPI):
         seen = set()
         for item in synonym_data:
             syn_info = item.get("SynonymName", {})
-            syn_name = syn_info.get("ScientificName")
+            if syn_info._is_empty():
+                continue
+            syn_name = normalize_query_string(syn_info.get("ScientificName", ""))
             if not syn_name or syn_name in seen or self._is_infraspecific(syn_name):
                 continue
             seen.add(syn_name)
-            syn_id = syn_info.get(
-                "NameId"
-            )  # TODO: not sure if this is the correct synonym ID, since it appears that all results are getting the accepted name's NameId. Need to investigate further and check against the API documentation.
+            syn_id = self._extract_internal_id(
+                [syn_info]
+            )  # wrapped in artifical list to conform with raw data formats
+            # TODO: look into the raw data formats; why is it a list and we also get the first item? do we need anything else from the other items, or can we just normalize to the first item at fetch time?
+            # TODO: not sure if this is the correct synonym ID, since it appears that all results are getting the accepted name's NameId. Need to investigate further and check against the API documentation.
+            genus, species = self._extract_genus_species(syn_name)
             candidates.append(
                 self._format_row(
-                    name=syn_name,
+                    api_name=TROPICOS,
+                    genus=genus,
+                    species=species,
+                    api_internal_id=syn_id,
                     author=syn_info.get("Author", ""),
                     api_link=(
-                        f"https://www.tropicos.org/name/{syn_id}" if syn_id else ""
+                        f"https://www.tropicos.org/name/{syn_id}" if syn_id else None
                     ),
                 )
             )

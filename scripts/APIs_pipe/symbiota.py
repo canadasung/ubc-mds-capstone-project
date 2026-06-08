@@ -14,7 +14,10 @@ import re
 # import xml.etree.ElementTree as ET  # only needed if taxonomy extraction is re-enabled
 from urllib.parse import urlparse
 
+from scripts.utils.normalize_query_string import normalize_query_string
+
 from .base import SpeciesAPI
+from .config import SYMBIOTA_PORTALS
 
 # Canonical column order for extended Symbiota synonym DataFrames.
 # Commented out: currently using the standard _format_synonym schema from SpeciesAPI.
@@ -62,23 +65,30 @@ class SymbiotaAPI(SpeciesAPI):
 
     BASE_URL = ""
 
-    def __init__(self, base_url: str, portal_name: str = ""):
+    def __init__(self, base_url: str, portal_name: str):
         """
         Parameters
         ----------
         base_url : str
             Root URL of the target portal,
             e.g. ``"https://mycoportal.org/portal"``.
-        portal_name : str, optional
-            Label for log messages. When omitted, the first subdomain component
-            is derived from *base_url* (``"mycoportal"`` from ``"mycoportal.org"``).
+        portal_name : str
+            Canonical portal name used as ``api_name`` in output rows. Must be
+            one of the values in ``config.SYMBIOTA_PORTALS``
+            (e.g. ``config.MYCOPORTAL``).
+
+        Raises
+        ------
+        ValueError
+            If *portal_name* is not a recognised Symbiota portal name.
         """
+        if portal_name not in SYMBIOTA_PORTALS:
+            raise ValueError(
+                f"Unknown Symbiota portal name {portal_name!r}. "
+                f"Must be one of: {sorted(SYMBIOTA_PORTALS)}"
+            )
         self.BASE_URL = base_url.rstrip("/")
-        if portal_name:
-            self.portal_name = portal_name
-        else:
-            host = urlparse(base_url).netloc  # e.g. "mycoportal.org"
-            self.portal_name = host.split(".")[0]  # e.g. "mycoportal"
+        self.portal_name = portal_name
 
     # ---------------------------------------------------------
     # Schema helpers (commented out: standard _format_synonym used instead)
@@ -397,20 +407,23 @@ class SymbiotaAPI(SpeciesAPI):
             One-item list with the search term record, or ``[]`` if the name
             cannot be determined or is infraspecific.
         """
-        name = synonym_search_term_data.get(
-            "sciname", ""
-        ) or synonym_search_term_data.get("scientificName", "")
-        if (
-            not name or self._is_infraspecific(name)
-        ):  # TODO: should we be doing an infraspecific check here? Need to investigate further how to handle this.
+        name = normalize_query_string(
+            synonym_search_term_data.get("sciname", "")
+            or synonym_search_term_data.get("scientificName", "")
+        )
+        if not name or self._is_infraspecific(name):
             return []
+        genus, species = self._extract_genus_species(name)
         return [
             self._format_row(
-                name=name,
+                api_name=self.portal_name,
+                genus=genus,
+                species=species,
+                api_internal_id=str(self.accepted_id),
                 author=synonym_search_term_data.get("author", ""),
                 api_link=f"{self.BASE_URL}/taxa/index.php?tid={self.accepted_id}"
                 if self.accepted_id
-                else "",  # URL is the same for all synonyms since Symbiota redirects synonym searches to the accepted taxon page.
+                else None,  # URL is the same for all synonyms since Symbiota redirects synonym searches to the accepted taxon page.
             )
         ]
 
@@ -434,16 +447,24 @@ class SymbiotaAPI(SpeciesAPI):
         seen = set()
         results = []
         for item in synonym_data:
-            name = item["name"]
-            if name.lower() not in seen:
-                seen.add(name.lower())
+            name = normalize_query_string(item["name"])
+            if not name or self._is_infraspecific(name):
+                continue
+            if name not in seen:
+                seen.add(name)
+                genus, species = self._extract_genus_species(name)
                 results.append(
                     self._format_row(
-                        name=name,
+                        api_name=self.portal_name,
+                        genus=genus,
+                        species=species,
+                        api_internal_id=str(
+                            self.accepted_id
+                        ),  # symbiota portals only have accepted ID
                         author=item.get("author", ""),
                         api_link=f"{self.BASE_URL}/taxa/index.php?taxon={self.accepted_id}"
                         if self.accepted_id
-                        else "",  # URL is the same for all synonyms since Symbiota redirects synonym searches to the accepted taxon page.
+                        else None,  # URL is the same for all synonyms since Symbiota redirects synonym searches to the accepted taxon page.
                     )
                 )
         return results
