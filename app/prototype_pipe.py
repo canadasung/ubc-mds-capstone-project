@@ -13,7 +13,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-from scripts.utils.call_APIs_pipe import call_apis
+from scripts.utils.call_apis_pipe import call_apis
 from scripts.utils.fuzzy_search import fuzzy_search
 
 st.set_page_config(page_title="Species Name Synonym Search", layout="wide")

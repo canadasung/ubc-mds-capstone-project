@@ -1,14 +1,14 @@
 """
 Tropicos API client.
 
-SpeciesAPI implementation for Tropicos, a botanical database maintained by the Missouri Botanical Garden. Unlike open APIs, Tropicos requires a registered API key for all requests.
+SpeciesAPI implementation for Tropicos, a botanical database maintained by the Missouri Botanical Garden. Unlike open apis, Tropicos requires a registered API key for all requests.
 """
 
 import os
 
 from dotenv import load_dotenv
 
-from tests.APIs_pipe.test_env_configured import _PLACEHOLDER_TROPICOS
+from tests.apis_pipe.test_env_configured import _PLACEHOLDER_TROPICOS
 
 from .base import SpeciesAPI
 

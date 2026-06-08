@@ -1,0 +1,20 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Bold the queried-name row in the Table view (mirrors view_table.py). */
+.queryRow td {
+  font-weight: 700;
+}
+
+/* Red highlight for ranks where sources disagree (mirrors view_taxonomy.py). */
+.disagreeCell {
+  background-color: #ff4b4b;
+  color: #ffffff;
+}

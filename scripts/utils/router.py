@@ -2,7 +2,7 @@
 Looks up a species name in GBIF to find its kingdom, then returns the list
 of databases to search for that kingdom.
 
-    from scripts.APIs_pipe.gbif import GBIFAPI
+    from scripts.apis_pipe..gbif import GBIFAPI
     from scripts.utils.router import TaxonRouter
 
     router = TaxonRouter(gbif_client=GBIFAPI())
@@ -10,7 +10,7 @@ of databases to search for that kingdom.
     # ['gbif', 'col', 'genbank', 'index_fungorum', 'mushroomobs', ...]
 """
 
-from scripts.APIs_pipe.base import SpeciesAPI
+from scripts.apis_pipe.base import SpeciesAPI
 
 ANIMALIA_APIS: list[str] = [
     "gbif",
