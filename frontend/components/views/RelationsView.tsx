@@ -21,10 +21,11 @@ import {
   Position,
   ReactFlow,
   type Edge,
+  type EdgeProps,
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import { Text } from "@mantine/core";
+import { Group, Stack, Switch, Text } from "@mantine/core";
 
 import { useFilteredRecords } from "@/lib/hooks";
 import { buildRelationsGraph, type GraphNode } from "@/lib/transforms";
@@ -93,19 +94,54 @@ function RelNode({ data }: NodeProps) {
   );
 }
 
+// X coordinate where all genus→name edges make their vertical turn.
+// Genus nodes sit at x=280 with minWidth=140, so their right handle is ~420.
+// 490 puts the elbow between that right edge and the base name column at 560.
+const GENUS_ELBOW_X = 490;
+
+function GenusToNameEdge({ sourceX, sourceY, targetX, targetY }: EdgeProps) {
+  const ex = Math.max(sourceX + 8, GENUS_ELBOW_X);
+  const d = `M${sourceX},${sourceY} H${ex} V${targetY} H${targetX}`;
+  return <path d={d} stroke="#adb5bd" strokeWidth={1} fill="none" className="react-flow__edge-path" />;
+}
+
 const nodeTypes = { rel: RelNode };
+const edgeTypes = { gnedge: GenusToNameEdge };
+
+// Width reserved per unique species-name column when alignment is active.
+const NAME_COLUMN_WIDTH = 200;
 
 export function RelationsView() {
   const { records } = useFilteredRecords();
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
+  const [alignByName, setAlignByName] = useState(false);
 
   const baseGraph = useMemo(() => buildRelationsGraph(records), [records]);
 
   const { nodes, edges } = useMemo(() => {
+    // When alignment is on: assign each unique name label its own X column,
+    // ordered by descending frequency (most-shared name on the left).
+    let labelToX: Map<string, number> | null = null;
+    if (alignByName) {
+      const nameNodes = baseGraph.nodes.filter((n) => n.kind === "name");
+      const freq = new Map<string, number>();
+      for (const n of nameNodes) freq.set(n.label, (freq.get(n.label) ?? 0) + 1);
+      const sortedLabels = [...freq.keys()].sort(
+        (a, b) => (freq.get(b) ?? 0) - (freq.get(a) ?? 0)
+      );
+      const baseX = nameNodes[0]?.x ?? 560;
+      labelToX = new Map(
+        sortedLabels.map((label, i) => [label, baseX + i * NAME_COLUMN_WIDTH])
+      );
+    }
+
     const rfNodes: Node[] = baseGraph.nodes.map((n) => ({
       id: n.id,
       type: "rel",
-      position: { x: n.x, y: n.y },
+      position: {
+        x: labelToX && n.kind === "name" ? (labelToX.get(n.label) ?? n.x) : n.x,
+        y: n.y,
+      },
       data: {
         label: n.label,
         full: n.full,
@@ -114,15 +150,17 @@ export function RelationsView() {
       } satisfies RelNodeData,
       draggable: false,
     }));
+    const nameNodeIds = new Set(baseGraph.nodes.filter((n) => n.kind === "name").map((n) => n.id));
+
     const rfEdges: Edge[] = baseGraph.edges.map((e) => ({
       id: e.id,
       source: e.source,
       target: e.target,
-      type: "smoothstep",
+      type: nameNodeIds.has(e.target) ? "gnedge" : "smoothstep",
       style: { stroke: "#adb5bd" },
     }));
     return { nodes: rfNodes, edges: rfEdges };
-  }, [baseGraph]);
+  }, [baseGraph, alignByName]);
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     const url = (node.data as RelNodeData).url;
@@ -142,11 +180,21 @@ export function RelationsView() {
 
   return (
     <HoverContext.Provider value={hoveredLabel}>
+    <Stack gap="xs">
+      <Group>
+        <Switch
+          label="Align species by name"
+          size="sm"
+          checked={alignByName}
+          onChange={(e) => setAlignByName(e.currentTarget.checked)}
+        />
+      </Group>
     <div style={{ width: "100%", height: 680, border: "1px solid #e9ecef", borderRadius: 8 }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodeClick={onNodeClick}
         onNodeMouseEnter={onNodeMouseEnter}
         onNodeMouseLeave={onNodeMouseLeave}
@@ -160,6 +208,7 @@ export function RelationsView() {
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>
+    </Stack>
     </HoverContext.Provider>
   );
 }
