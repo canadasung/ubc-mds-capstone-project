@@ -188,7 +188,7 @@ class COLAPI(SpeciesAPI):
                 species=species,
                 api_internal_id=str(taxon_id),
                 author=name_obj.get("authorship", ""),
-                source_name=name_obj.get("link", ""),
+                # source_name=name_obj.get("link", ""),
                 api_link=(
                     f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"
                     if taxon_id
@@ -228,7 +228,7 @@ class COLAPI(SpeciesAPI):
                     species=species,
                     api_internal_id=str(taxon_id),
                     author=name_obj.get("authorship", ""),
-                    source_name=name_obj.get("link", ""),
+                    # source_name=name_obj.get("link", ""),
                     api_link=(
                         f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"  # TODO: while we do have unique taxon_id for each synonym, they all route to the same page for "accepted" name. Likely desired behavior, but double check against API documentation to confirm that this is expected.
                         if taxon_id
