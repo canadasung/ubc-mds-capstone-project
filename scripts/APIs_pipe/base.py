@@ -15,7 +15,7 @@ import pandas as pd
 import requests
 
 from scripts.utils.normalize_query_string import normalize_query_string
-from scripts.utils.schema import UNAVAILABLE, empty_synonym_table, make_synonym_row
+from scripts.utils.schema import empty_synonym_table, make_synonym_row
 
 
 class _Unset:
@@ -385,19 +385,6 @@ class SpeciesAPI(ABC):
             "source_name": source_name,
             "api_link": api_link,
         }
-        for col, v in optional.items():
-            if v is None:
-                raise TypeError(
-                    f"Got None for '{col}' in _format_row. "
-                    f"Pass '' if the field was searched but not found, "
-                    f"or omit the argument if the API does not provide this field."
-                )
-            if isinstance(v, str) and v == UNAVAILABLE:
-                raise ValueError(
-                    f"Got {UNAVAILABLE!r} for '{col}' in _format_row. "
-                    f"Do not pass {UNAVAILABLE!r} directly — "
-                    f"omit the argument to let make_synonym_row apply the default."
-                )
         provided = {k: v for k, v in optional.items() if not isinstance(v, _Unset)}
         return make_synonym_row(
             api_name=api_name,

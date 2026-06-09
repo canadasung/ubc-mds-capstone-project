@@ -233,6 +233,20 @@ def make_synonym_row(**kwargs) -> dict:
         If a required column is missing or set to ``UNAVAILABLE``, or if any
         column value fails its validator.
     """
+    # Validate that a blank string, "", was used for any passed value that did not have an entry, not None or "U"
+    for col, v in kwargs.items():
+        if v is None:
+            raise TypeError(
+                f"Got None for '{col}' in make_synonym_row. "
+                f"Pass '' if the field was searched but not found, "
+                f"or omit the argument if the API does not provide this field."
+            )
+        if isinstance(v, str) and v == UNAVAILABLE:
+            raise ValueError(
+                f"Got {UNAVAILABLE!r} for '{col}' in make_synonym_row. "
+                f"Do not pass {UNAVAILABLE!r} directly — "
+                f"omit the argument to let make_synonym_row apply the default."
+            )
     row = {col: kwargs.get(col, UNAVAILABLE) for col in SYNONYM_COLUMNS}
     missing = [col for col in _REQUIRED_COLUMNS if row[col] == UNAVAILABLE]
     if missing:
