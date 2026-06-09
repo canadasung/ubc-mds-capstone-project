@@ -16,6 +16,9 @@ eggs/
 .eggs/
 lib/
 lib64/
+# The Python `lib/` rule above also matches frontend/lib/ (Next.js source).
+# Re-include it so the frontend library code is tracked.
+!frontend/lib/
 parts/
 sdist/
 var/
