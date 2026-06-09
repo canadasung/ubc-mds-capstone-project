@@ -22,8 +22,6 @@ Subspecific names (SpeciesName containing a space) and misspellings
 import re
 from urllib.parse import unquote_plus
 
-import requests
-
 from .base import SpeciesAPI
 from .config import FISHBASE_PORTAL
 
@@ -70,26 +68,21 @@ class FishBaseAPI(SpeciesAPI):
         """
         parts = name.split()
         if len(parts) < 2:
+            # TODO: add error
             return {}
         genus, species = parts[0], parts[1]
-        try:
-            resp = requests.get(
-                f"{self.BASE_URL}/summary/{genus}-{species}",
-                headers=self.HEADERS,
-                timeout=10,
-            )
-        except requests.RequestException as e:
-            print(f"FishBaseAPI fetch error [{self.BASE_URL}/summary/]: {e}")
-            return {}
-        if not resp.ok or not resp.text:
+        html = self._fetch_HTML(f"{self.BASE_URL}/summary/{genus}-{species}")
+        if not html:
+            # TODO: add error
             return {}
 
-        spec_match = self._SPEC_CODE_RE.search(resp.text)
+        spec_match = self._SPEC_CODE_RE.search(html)
         if not spec_match:
+            # TODO: add error
             return {}
         spec_code = spec_match.group(1)
 
-        og_match = self._OG_URL_RE.search(resp.text)
+        og_match = self._OG_URL_RE.search(html)
         if og_match:
             accepted_genus = og_match.group(1)
             accepted_species = og_match.group(2)
@@ -139,20 +132,12 @@ class FishBaseAPI(SpeciesAPI):
         spec_code = self._extract_internal_id(raw_data)
         if not spec_code:
             return []
-        try:
-            resp = requests.get(
-                f"{self.BASE_URL}/nomenclature/{spec_code}",
-                headers=self.HEADERS,
-                timeout=10,
-            )
-        except requests.RequestException as e:
-            print(f"FishBaseAPI fetch error [{self.BASE_URL}/nomenclature/]: {e}")
-            return []
-        if not resp.ok or not resp.text:
+        html = self._fetch_HTML(f"{self.BASE_URL}/nomenclature/{spec_code}")
+        if not html:
             return []
 
         synonyms = []
-        for m in self._SYN_LINK_RE.finditer(resp.text):
+        for m in self._SYN_LINK_RE.finditer(html):
             params = {}
             for part in m.group(1).split("&"):
                 if "=" in part:
@@ -160,6 +145,41 @@ class FishBaseAPI(SpeciesAPI):
                     params[key] = unquote_plus(val)
             synonyms.append(params)
         return synonyms
+
+    def _fetch_synonym_search_term_data(
+        self, _raw_data: dict, _synonym_data: list
+    ) -> dict:
+        """
+        Not used for FishBase — the accepted name is included in ``synonym_data``
+        and compiled directly by ``_compile_synonyms``.
+
+        Parameters
+        ----------
+        _raw_data : dict
+            Unused.
+        _synonym_data : list of dict
+            Unused.
+
+        Returns
+        -------
+        dict
+            Always ``{}``.
+        """
+        return {}
+
+    def _compile_synonym_search_term(
+        self, _synonym_search_term_data: dict
+    ) -> list[dict]:
+        """
+        Not used for FishBase — the accepted name is compiled by
+        ``_compile_synonyms`` alongside the other records.
+
+        Returns
+        -------
+        list of dict
+            Always ``[]``.
+        """
+        return []
 
     def _extract_publication_year(self, string: str) -> str:
         """
@@ -202,9 +222,9 @@ class FishBaseAPI(SpeciesAPI):
         """
         Convert raw synonym parameter dicts into pipeline-standard synonym records.
 
-        Excludes misspellings (``Misspelling=1``) and subspecific names
-        (``SpeciesName`` contains a space). Deduplicates by canonical
-        binomial name.
+        Includes the accepted name alongside synonyms. Excludes misspellings
+        (``Misspelling=1``) and subspecific names (``SpeciesName`` contains a
+        space). Deduplicates by canonical binomial name.
 
         Parameters
         ----------
@@ -214,7 +234,7 @@ class FishBaseAPI(SpeciesAPI):
         Returns
         -------
         list of dict
-            Pipeline-standard synonym records produced by ``_format_synonym``.
+            Pipeline-standard synonym records produced by ``_format_row``.
         """
         candidates = []
         seen: set[str] = set()
@@ -235,15 +255,16 @@ class FishBaseAPI(SpeciesAPI):
             author_raw = params.get("Author", "")
             spec_code = params.get("SpecCode", "")
             candidates.append(
-                self._format_synonym(
-                    name=name,
-                    author=self._extract_author(author_raw) or "U",
+                self._format_row(
+                    api_name=FISHBASE_PORTAL.display_name,
+                    genus=genus,
+                    species=species,
+                    api_internal_id=spec_code,
+                    author=self._extract_author(author_raw),
                     publication_year=self._extract_publication_year(author_raw),
-                    api_link=(
-                        f"{self.BASE_URL}/nomenclature/{spec_code}"
-                        if spec_code
-                        else "U"
-                    ),
+                    api_link=f"{self.BASE_URL}/nomenclature/{spec_code}"
+                    if spec_code
+                    else "",  # TODO: note that the individual synonyms do have their own detail pages in fishbase, but with a different more complicated URL. This URL goes to a table showing all the synonyms for the accepted name
                 )
             )
         return candidates
