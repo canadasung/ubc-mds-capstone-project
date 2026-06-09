@@ -28,7 +28,7 @@ class IndexFungorumAPI(SpeciesAPI):
     parsed ``ET.Element``.
     """
 
-    BASE_URL = "https://www.indexfungorum.org/ixfwebservice/fungus.asmx"
+    BASE_URL = INDEX_FUNGORUM_PORTAL.base_url
 
     # Index Fungorum encodes spaces as _x0020_ in its XML element names.
     _TAGS = {
