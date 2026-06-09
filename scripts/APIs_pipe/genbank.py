@@ -6,7 +6,10 @@ SpeciesAPI implementation for GenBank, a genetic sequence database maintained by
 
 import xml.etree.ElementTree as ET
 
+from scripts.utils.normalize_query_string import normalize_query_string
+
 from .base import SpeciesAPI
+from .config import GENBANK_PORTAL
 
 
 class GenBankAPI(SpeciesAPI):
@@ -20,6 +23,11 @@ class GenBankAPI(SpeciesAPI):
         """
         Query the NCBI Taxonomy database to find a record for a species name.
 
+        Tries an exact ``[Scientific Name]`` search first (fast path, finds
+        accepted names directly). If that returns no IDs, falls back to
+        ``[All Names]``, which also matches synonyms stored as ``OtherNames``
+        within an accepted name's record.
+
         Parameters
         ----------
         name : str
@@ -31,13 +39,31 @@ class GenBankAPI(SpeciesAPI):
             The JSON response from NCBI esearch, or ``{}`` if the request fails
             or returns no IDs.
         """
-        data = self._fetch_JSON(
-            f"{self.BASE_URL}/esearch.fcgi",
-            params={"db": "taxonomy", "term": f"{name}[Scientific Name]", "retmode": "json"},
-        )
-        if not data.get("esearchresult", {}).get("idlist"):
-            return {}
-        return data
+        # TODO: investigate Scientific Name vs. All Names further and do more testing!
+        for term in (f"{name}[Scientific Name]", f"{name}[All Names]"):
+            data = self._fetch_JSON(
+                f"{self.BASE_URL}/esearch.fcgi",
+                params={"db": "taxonomy", "term": term, "retmode": "json"},
+            )
+            if data.get("esearchresult", {}).get("idlist"):
+                return data
+        return {}
+
+    def _extract_internal_id(self, raw_data: ET.Element) -> str:
+        """
+        Extract the NCBI taxonomy ID from a ``Taxon`` XML element.
+
+        Parameters
+        ----------
+        raw_data : xml.etree.ElementTree.Element
+            A single ``Taxon`` element from an efetch XML response.
+
+        Returns
+        -------
+        str
+            The ``TaxId`` text content, or ``""`` if absent.
+        """
+        return (raw_data.findtext("TaxId") or "").strip()
 
     def _fetch_synonym_data(self, raw_data: dict) -> ET.Element | None:
         """
@@ -105,18 +131,22 @@ class GenBankAPI(SpeciesAPI):
         candidates = []
         seen = set()
         for taxon in synonym_data.findall(".//Taxon"):
-            taxon_id = taxon.findtext("TaxId", "")
+            taxon_id = self._extract_internal_id(taxon)
             other_names = taxon.find("OtherNames")
             if other_names is None:
                 continue
             for syn_el in other_names.findall("Synonym"):
-                syn_name = (syn_el.text or "").strip()
+                syn_name = normalize_query_string((syn_el.text or "").strip())
                 if not syn_name or syn_name in seen:
                     continue
                 seen.add(syn_name)
+                genus, species = self._extract_genus_species(syn_name)
                 candidates.append(
                     self._format_row(
-                        name=syn_name,
+                        api_name=GENBANK_PORTAL.display_name,
+                        genus=genus,
+                        species=species,
+                        api_internal_id=taxon_id,
                         api_link=f"https://www.ncbi.nlm.nih.gov/taxonomy/{taxon_id}",
                     )
                 )
@@ -144,13 +174,19 @@ class GenBankAPI(SpeciesAPI):
             ``ScientificName`` is found.
         """
         for taxon in synonym_search_term_data.findall(".//Taxon"):
-            sci_name = (taxon.findtext("ScientificName") or "").strip()
+            sci_name = normalize_query_string(
+                (taxon.findtext("ScientificName") or "").strip()
+            )
             if not sci_name:
                 continue
-            taxon_id = taxon.findtext("TaxId", "")
+            genus, species = self._extract_genus_species(sci_name)
+            taxon_id = self._extract_internal_id(taxon)
             return [
                 self._format_row(
-                    name=sci_name,
+                    api_name=GENBANK_PORTAL.display_name,
+                    genus=genus,
+                    species=species,
+                    api_internal_id=taxon_id,
                     api_link=f"https://www.ncbi.nlm.nih.gov/taxonomy/{taxon_id}",  # TODO: seems that all synonyms have the accepted names ID without separate pages. Need to investigate further and check against the API documentation to see if this is expected behaviour, but guessing it is because when I search a synonym on the website it only pulls up results for the page for the accepted name.
                 )
             ]

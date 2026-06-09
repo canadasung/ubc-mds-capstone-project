@@ -13,6 +13,8 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
+from scripts.APIs_pipe.config import TROPICOS_API_KEY_PLACEHOLDER
+
 # Load .env from the project root before any assertions
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _ENV_FILE = _PROJECT_ROOT / ".env"
@@ -21,7 +23,7 @@ load_dotenv(_ENV_FILE)
 
 # Placeholder values copied from .env.example — these must be replaced
 _PLACEHOLDER_EMAIL = "your_email@example.com"
-_PLACEHOLDER_TROPICOS = "000-0000-0000-0000"
+_PLACEHOLDER_TROPICOS = TROPICOS_API_KEY_PLACEHOLDER
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 

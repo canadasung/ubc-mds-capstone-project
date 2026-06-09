@@ -6,7 +6,10 @@ SpeciesAPI implementation for GBIF. GBIF is an international open-data infrastru
 
 import re
 
+from scripts.utils.normalize_query_string import normalize_query_string
+
 from .base import SpeciesAPI
+from .config import GBIF_PORTAL
 
 
 class GBIFAPI(SpeciesAPI):
@@ -202,19 +205,23 @@ class GBIFAPI(SpeciesAPI):
             One-item list with the search term record, or ``[]`` if
             ``canonicalName`` is absent.
         """
-        name = synonym_search_term_data["canonicalName"]
+        name = normalize_query_string(synonym_search_term_data["canonicalName"])
         if not name:
             return []
 
         published_in = synonym_search_term_data.get("publishedIn", "")
-        accepted_key = self._extract_internal_accepted_id(synonym_search_term_data)
+        key = self._extract_internal_id(synonym_search_term_data)
+        genus, species = self._extract_genus_species(name)
         return [
             self._format_row(
-                name=name,
+                api_name=GBIF_PORTAL.display_name,
+                genus=genus,
+                species=species,
+                api_internal_id=key,
                 author=synonym_search_term_data.get("authorship", ""),
                 publication_year=self._extract_publication_year(published_in),
                 publication_name=self._extract_publication_name(published_in),
-                api_link=f"https://www.gbif.org/species/{accepted_key}",
+                api_link=f"https://www.gbif.org/species/{key}",
             )
         ]
 
@@ -237,14 +244,19 @@ class GBIFAPI(SpeciesAPI):
         candidates = []
         seen = set()
         for item in synonym_data:
-            canonical_name = item.get("canonicalName")
+            canonical_name = normalize_query_string(item.get("canonicalName") or "")
             if item.get("rank") == "SPECIES" and canonical_name:
                 if canonical_name not in seen:
                     seen.add(canonical_name)
                     published_in = item.get("publishedIn", "")
+                    item_id = self._extract_internal_id(item)
+                    genus, species = self._extract_genus_species(canonical_name)
                     candidates.append(
                         self._format_row(
-                            name=canonical_name,
+                            api_name=GBIF_PORTAL.display_name,
+                            genus=genus,
+                            species=species,
+                            api_internal_id=item_id,
                             author=item.get("authorship", ""),
                             publication_year=self._extract_publication_year(
                                 published_in
@@ -252,7 +264,7 @@ class GBIFAPI(SpeciesAPI):
                             publication_name=self._extract_publication_name(
                                 published_in
                             ),
-                            api_link=f"https://www.gbif.org/species/{item.get('key')}",
+                            api_link=f"https://www.gbif.org/species/{item_id}",
                         )
                     )
                     # TODO: bubble up as much as possible in terms of hardcoded strings/magic numbers
