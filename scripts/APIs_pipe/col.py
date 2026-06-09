@@ -15,7 +15,7 @@ class COLAPI(SpeciesAPI):
     Implementation of SpeciesAPI for the Catalogue of Life (COL).
     """
 
-    BASE_URL = "https://api.checklistbank.org"
+    BASE_URL = COL_PORTAL.base_url
     # COL26.5 — update this key when a newer COL release is published on ChecklistBank
     DATASET_KEY = 315192
 

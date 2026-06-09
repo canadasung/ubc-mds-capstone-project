@@ -16,7 +16,7 @@ class MushroomObserverAPI(SpeciesAPI):
     Implementation of SpeciesAPI for Mushroom Observer.
     """
 
-    BASE_URL = "https://mushroomobserver.org/api2"
+    BASE_URL = MUSHROOM_OBSERVER_PORTAL.base_url
 
     def _fetch_query_data(self, name: str) -> dict:
         """

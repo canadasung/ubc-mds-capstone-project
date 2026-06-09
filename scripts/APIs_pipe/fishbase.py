@@ -25,6 +25,7 @@ from urllib.parse import unquote_plus
 import requests
 
 from .base import SpeciesAPI
+from .config import FISHBASE_PORTAL
 
 
 class FishBaseAPI(SpeciesAPI):
@@ -32,7 +33,7 @@ class FishBaseAPI(SpeciesAPI):
     Implementation of SpeciesAPI for FishBase.
     """
 
-    BASE_URL = "https://www.fishbase.se"
+    BASE_URL = FISHBASE_PORTAL.base_url
 
     # Extracts SpecCode from language-selector links: SpeciesSummary.php?id=69&lang=...
     _SPEC_CODE_RE = re.compile(r"SpeciesSummary\.php\?id=(\d+)", re.IGNORECASE)

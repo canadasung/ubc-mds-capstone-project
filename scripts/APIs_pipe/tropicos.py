@@ -21,7 +21,7 @@ class TropicosAPI(SpeciesAPI):
     Implementation of SpeciesAPI for Tropicos.
     """
 
-    BASE_URL = "http://services.tropicos.org"
+    BASE_URL = TROPICOS_PORTAL.base_url
 
     def __init__(self):
         """

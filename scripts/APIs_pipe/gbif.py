@@ -17,7 +17,7 @@ class GBIFAPI(SpeciesAPI):
     Implementation of SpeciesAPI for GBIF.
     """
 
-    BASE_URL = "https://api.gbif.org/v1"
+    BASE_URL = GBIF_PORTAL.base_url
 
     # Regular expression to extract a leading year from a GBIF "publishedIn" string.
     _PUBLISHED_IN_RE: re.Pattern = re.compile(r"^\((\d{4})\)\.\s*")

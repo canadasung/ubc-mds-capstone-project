@@ -17,7 +17,7 @@ class GenBankAPI(SpeciesAPI):
     Implementation of SpeciesAPI for GenBank (NCBI Entrez).
     """
 
-    BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+    BASE_URL = GENBANK_PORTAL.base_url
 
     def _fetch_query_data(self, name: str) -> dict:
         """
