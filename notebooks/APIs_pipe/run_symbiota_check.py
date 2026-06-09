@@ -2,12 +2,12 @@
 Quick manual check for SymbiotaAPI functions.
 
 Run from the project root:
-    python notebooks/APIs_pipe/run_symbiota_check.py
+    python notebooks/apis_pipe/run_symbiota_check.py
 
 Edit PORTAL, SPECIES_NAME, and SYNONYM_NAME below to probe different portals.
 """
 
-from scripts.APIs_pipe.symbiota import SymbiotaAPI
+from scripts.apis_pipe.symbiota import SymbiotaAPI
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 PORTAL       = "https://bryophyteportal.org/portal"   # swap to "https://lichenportal.org/portal" etc.

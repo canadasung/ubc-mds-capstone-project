@@ -11,9 +11,23 @@ import re
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 
+import pandas as pd
 import requests
 
-from scripts.utils.normalize_strings import normalize_scientific_name
+from scripts.utils.normalize_query_string import normalize_query_string
+from scripts.utils.schema import UNAVAILABLE, empty_synonym_table, make_synonym_row
+
+
+class _Unset:
+    """Sentinel for _format_row optional params that were not provided by the caller."""
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        return "<NOT_PROVIDED>"
+
+
+_UNSET = _Unset()
 
 
 class SpeciesAPI(ABC):
@@ -39,13 +53,42 @@ class SpeciesAPI(ABC):
     # Query methods (to be used by children to implement the required methods, can be optionally overridden but should work for most children as-is)
     # ------------------------------------------------------------------
 
+    def _fetch(
+        self, url: str, params: dict = {}, timeout: int = 10
+    ) -> requests.Response | None:
+        """
+        Make a GET request to the specified URL with error handling.
+
+        Parameters
+        ----------
+        url : str
+            The full URL to send the GET request to.
+        params : dict, optional
+            Query parameters to include in the request. Default is an empty dict.
+        timeout : int, optional
+            Request timeout in seconds. Default is 10.
+
+        Returns
+        -------
+        requests.Response or None
+            The response object if the request is successful; None if an error occurs.
+        """
+        try:
+            response = requests.get(
+                url, params=params, headers=self.HEADERS, timeout=timeout
+            )
+            response.raise_for_status()
+            return response
+        except requests.RequestException as e:
+            print(f"{type(self).__name__} fetch error [{url}]: {e}")
+            return None
+
     def _fetch_JSON(self, url: str, params: dict = {}, timeout: int = 10) -> dict:
         """
         Make a GET request to a REST JSON endpoint and return the parsed response.
 
         Used by children that query standard REST APIs returning JSON. On network
-        or HTTP error, prints a message and returns an empty dict so callers can
-        handle it cleanly.
+        or HTTP error, prints a message and returns an empty dict.
 
         Parameters
         ----------
@@ -62,24 +105,15 @@ class SpeciesAPI(ABC):
             Parsed JSON response, or ``{}`` on any error.
         """
 
-        try:
-            resp = requests.get(
-                url, params=params, headers=self.HEADERS, timeout=timeout
-            )
-            resp.raise_for_status()
-            return resp.json()
-        except requests.RequestException as e:
-            print(f"{type(self).__name__} fetch error [{url}]: {e}")
-            return {}
+        response = self._fetch(url, params=params, timeout=timeout)
+        return response.json() if response is not None else {}
 
-    def _fetch_text(
-        self, url: str, params: dict = {}, timeout: int = 10
-    ) -> ET.Element | None:
+    def _fetch_XML(self, url: str, params: dict = {}, timeout: int = 10) -> ET.Element:
         """
         Make a GET request and return the parsed XML root element.
 
-        Used by children that consume XML or HTML responses. On error, prints a
-        message and returns ``None`` so callers can check for it.
+        Used by children that consume XML responses. On network, HTTP, or
+        parse error, prints a message and returns an empty ``ET.Element``.
 
         Parameters
         ----------
@@ -92,43 +126,75 @@ class SpeciesAPI(ABC):
 
         Returns
         -------
-        xml.etree.ElementTree.Element or None
-            Parsed root element of the XML response, or ``None`` on any error.
+        xml.etree.ElementTree.Element
+            Parsed root element of the XML response, or an empty element
+            on any error.
         """
-        try:
-            resp = requests.get(
-                url, params=params, headers=self.HEADERS, timeout=timeout
-            )
-            resp.raise_for_status()
+        response = self._fetch(url, params=params, timeout=timeout)
+        if response is not None:
+            try:
+                return ET.fromstring(response.text)
+            except ET.ParseError:
+                print(f"{type(self).__name__} error parsing XML.")
+        return ET.Element(
+            "empty"
+        )  # tag name chosen to avoid confusion with valid root tags in responses, will be treated as empty by _is_empty()
 
-            return self._parse_xml(resp.text)
-        except requests.RequestException as e:
-            print(f"{type(self).__name__} fetch error [{url}]: {e}")
-            return None
-
-    def _parse_xml(self, xml_text: str) -> ET.Element | None:
+    def _fetch_HTML(self, url: str, params: dict = {}, timeout: int = 10) -> str:
         """
-        Safely parse an XML string and return the root element.
+        Make a GET request and return the raw HTML response text.
+
+        Used by children that scrape HTML pages. On network or HTTP error,
+        prints a message and returns an empty string.
 
         Parameters
         ----------
-        xml_text : str
-            Raw XML response text.
+        url : str
+            Full URL of the endpoint.
+        params : dict, optional
+            URL query parameters.
+        timeout : int, optional
+            Request timeout in seconds. Default is 10.
 
         Returns
         -------
-        xml.etree.ElementTree.Element or None
-            The parsed root element, or ``None`` if parsing fails.
+        str
+            Raw HTML text of the response, or ``""`` on any error.
         """
-        try:
-            return ET.fromstring(xml_text)
-        except ET.ParseError:
-            print(f"{type(self).__name__} error parsing XML.")
-            return None
+        response = self._fetch(url, params=params, timeout=timeout)
+        return response.text if response is not None else ""
 
     # ------------------------------------------------------------------
     # Helper methods (to be used by children in their implementations of the required methods,can be optionally overridden but should work for most children as-is)
     # ------------------------------------------------------------------
+
+    def _is_empty(self, input):
+        """
+        Return True if the input is blank, empty, or None.
+
+        Parameters
+        ----------
+        input : list, str, dict, xml.etree.ElementTree.Element, or None
+            The value to test for emptiness.
+
+        Returns
+        -------
+        bool
+            True if *input* is ``None``, ``""``, ``[]``, ``{}``, or an
+            ``ET.Element`` with no children; False otherwise.
+        """
+        if input == {}:
+            return True
+        elif input == []:
+            return True
+        elif input == "":
+            return True
+        elif input is None:
+            return True
+        elif isinstance(input, ET.Element) and len(input) == 0:
+            return True
+        else:
+            return False
 
     def _is_infraspecific(self, string: str) -> bool:
         """
@@ -149,6 +215,7 @@ class SpeciesAPI(ABC):
         """
         _INFRASPECIFIC_RE: re.Pattern = re.compile(
             r"\b(var\.|subsp\.|ssp\.|f\.|fo\.|subf\.|cv\.|sect\.|subsect\.|ser\.|subgen\.|subg\.)",
+            # TODO: put this in a config, rather than having it inside this file so a user could add if needed
             re.IGNORECASE,
         )
         return bool(_INFRASPECIFIC_RE.search(string))
@@ -222,106 +289,129 @@ class SpeciesAPI(ABC):
         """
         return "Not yet implemented"
 
-    def _is_empty(self, input):
+    def _extract_genus_species(self, name: str) -> tuple[str, str]:
         """
-        Return True if the input is blank, empty, or None.
-
-        Parameters
-        ----------
-        input : list, str, dict, xml.etree.ElementTree.Element, or None
-            The value to test for emptiness.
-
-        Returns
-        -------
-        bool
-            True if *input* is ``None``, ``""``, ``[]``, ``{}``, or an
-            ``ET.Element`` with no children; False otherwise.
-        """
-        if input == {}:
-            return True
-        elif input == []:
-            return True
-        elif input == "":
-            return True
-        elif input is None:
-            return True
-        elif isinstance(input, ET.Element) and len(input) == 0:
-            return True
-        else:
-            return False
-
-    def _format_synonym(
-        self,
-        name: str,
-        author: str = "U",
-        publication_year: str = "U",
-        publication_name: str = "U",
-        api_link: str = "U",
-    ) -> dict:
-        """
-        Construct a pipeline-standard synonym record.
+        Parse a scientific name string into its genus and species components.
 
         Parameters
         ----------
         name : str
-            The scientific name.
+            A scientific name string whose first two whitespace-delimited
+            tokens are the genus and species epithet (e.g.
+            ``"Amanita muscaria"`` or ``"Amanita muscaria var. flavivolvata"``).
+
+        Returns
+        -------
+        tuple[str, str]
+            ``(genus, species)`` extracted from the first two tokens of *name*.
+
+        Raises
+        ------
+        ValueError
+            If *name* contains fewer than two whitespace-delimited tokens.
+        """
+        parts = name.split()
+        if len(parts) < 2:
+            raise ValueError(
+                f"Expected at least two tokens in scientific name, got {name!r}"
+            )
+        return parts[0], parts[1]
+
+    def _format_row(
+        self,
+        api_name: str,
+        genus: str,
+        species: str,
+        api_internal_id: str,
+        kingdom: str = _UNSET,  # type: ignore[assignment]
+        phylum: str = _UNSET,  # type: ignore[assignment]
+        class_: str = _UNSET,  # type: ignore[assignment]
+        family: str = _UNSET,  # type: ignore[assignment]
+        subfamily: str = _UNSET,  # type: ignore[assignment]
+        author: str = _UNSET,  # type: ignore[assignment]
+        publication_name: str = _UNSET,  # type: ignore[assignment]
+        publication_year: str = _UNSET,  # type: ignore[assignment]
+        status: str = _UNSET,  # type: ignore[assignment]
+        source_name: str = _UNSET,  # type: ignore[assignment]
+        api_link: str = _UNSET,  # type: ignore[assignment]
+    ) -> dict:
+        """
+        Construct a validated pipeline-standard row record.
+
+        Parameters
+        ----------
+        api_name : str
+            The name of the API source (e.g. ``"GBIF"``). Must be one of the
+            recognised values in ``schema._API_NAMES``.
+        genus : str
+            Taxonomic genus (single word, no whitespace).
+        species : str
+            Taxonomic species epithet (single word, no whitespace).
+        api_internal_id : str
+            Unique identifier for this record in the source database.
+        kingdom, phylum, class_, family, subfamily : str, optional
+            Taxonomic rank values. Each must be a single word. Use ``class_``
+            for the class rank (``"class"`` is a Python keyword).
         author : str, optional
             Authorship string (e.g. ``"(L.) Lam."``).
-        publication_year : str, optional
-            Publication year as a string (e.g. ``"1783"``).
         publication_name : str, optional
             Full publication citation string.
+        publication_year : str, optional
+            Four-digit publication year (e.g. ``"1783"``).
+        status : str, optional
+            Taxonomic status — ``"Accepted"``, ``"Synonym"``, or omit to
+            leave as ``UNAVAILABLE``.
+        source_name : str, optional
+            Name of the original data source cited by the API.
         api_link : str, optional
             Direct URL to the taxon record in the source database.
 
         Returns
         -------
         dict
-            A record with keys ``name``, ``author``, ``publication_year``,
-            ``publication_name``, and ``api_link``.
+            A fully validated schema row with all columns from
+            ``SYNONYM_COLUMNS``.
         """
-        return {
-            "name": name,
+        optional = {
+            "kingdom": kingdom,
+            "phylum": phylum,
+            "class": class_,
+            "family": family,
+            "subfamily": subfamily,
             "author": author,
-            "publication_year": publication_year,
             "publication_name": publication_name,
+            "publication_year": publication_year,
+            "status": status,
+            "source_name": source_name,
             "api_link": api_link,
         }
-
-    # def _deduplicate_synonyms(
-    #     self,
-    #     candidates: list[dict],
-    #     seed: set[str] | None = None,
-    # ) -> list[dict]:
-    #     """
-    #     Return *candidates* with duplicates removed, keyed by ``name``.
-
-    #     Comparison is case-insensitive. The optional *seed* set pre-populates
-    #     the seen names (e.g. ``{query_name.lower()}`` so the query itself is
-    #     never repeated in the output).
-
-    #     Args:
-    #         candidates (list[dict]): Synonym records, each with a
-    #             ``"name"`` key.
-    #         seed (set[str] | None): Lower-cased names to treat as already seen.
-    #             Defaults to an empty set.
-
-    #     Returns:
-    #         list[dict]: Deduplicated list preserving input order.
-    #     """
-    #     seen = set(seed) if seed else set()
-    #     result = []
-    #     for item in candidates:
-    #         name = item.get("name", "").lower()
-    #         if name and name not in seen:
-    #             seen.add(name)
-    #             result.append(item)
-    #     return result
+        for col, v in optional.items():
+            if v is None:
+                raise TypeError(
+                    f"Got None for '{col}' in _format_row. "
+                    f"Pass '' if the field was searched but not found, "
+                    f"or omit the argument if the API does not provide this field."
+                )
+            if isinstance(v, str) and v == UNAVAILABLE:
+                raise ValueError(
+                    f"Got {UNAVAILABLE!r} for '{col}' in _format_row. "
+                    f"Do not pass {UNAVAILABLE!r} directly — "
+                    f"omit the argument to let make_synonym_row apply the default."
+                )
+        provided = {k: v for k, v in optional.items() if not isinstance(v, _Unset)}
+        return make_synonym_row(
+            api_name=api_name,
+            genus=genus,
+            species=species,
+            api_internal_id=api_internal_id,
+            **provided,
+        )
 
     # ------------------------------------------------------------------
     # ID methods (not required, but one or the other is likely needed for most children)
     # ------------------------------------------------------------------
 
+    # add type hinting for raw_data
     def _extract_internal_id(self, raw_data) -> str:
         """
         Resolve raw API response data to the source's internal database identifier.
@@ -348,7 +438,7 @@ class SpeciesAPI(ABC):
             f"{type(self).__name__} does not implement _extract_internal_id()."
         )
 
-    def _extract_internal_accepted_id(self, raw_data):
+    def _extract_internal_accepted_id(self, raw_data) -> str:
         """
         Extract the internal identifier of the accepted taxon from API response data.
 
@@ -373,6 +463,7 @@ class SpeciesAPI(ABC):
         NotImplementedError
             When the child class has not provided an implementation.
         """
+        # update print statement
         raise NotImplementedError(
             f"{type(self).__name__} does not implement _get_accepted_id()."
         )
@@ -403,7 +494,7 @@ class SpeciesAPI(ABC):
         pass
 
     @abstractmethod
-    def _fetch_synonym_data(self, raw_data: dict | ET.Element):
+    def _fetch_synonym_data(self, raw_data: dict | ET.Element | str):
         """
         Retrieve synonym data from the source, re-querying if necessary.
 
@@ -425,7 +516,35 @@ class SpeciesAPI(ABC):
         pass
 
     @abstractmethod
-    def _compile_synonyms(self, synonym_data) -> list[dict]:
+    def _fetch_synonym_search_term_data(
+        self,
+        raw_data: dict | ET.Element | str,
+        synonym_data: list | dict | ET.Element | str,
+    ):
+        """
+        Retrieve search term data from the source, re-querying if necessary.
+
+        The search term is the taxon name/ID that was used in the synonym search. For APIs that search synonyms based off of the initial query (and likely do not have synonym/accepted flagging in their data), this will be the original query's data. For APIs that must resolve to the accepted name to access synonyms, this will be the accepted name's data. Essentially, this is whichever data the the synonym search did not capture.
+
+        If neither raw_data nor synonym_data include the search term records directly, this method issues a second request to obtain its metadata.
+
+        Parameters
+        ----------
+        raw_data : dict or xml.etree.ElementTree.Element
+            The parsed response returned by ``_fetch_query_data``.
+
+        Returns
+        -------
+        any
+            Raw search term data in the source's native format (type varies by
+            subclass — commonly a ``list`` or ``dict`` or ``xml.etree.ElementTree.Element``).
+        """
+        pass
+
+    @abstractmethod
+    def _compile_synonyms(
+        self, synonym_data: list | dict | ET.Element | str
+    ) -> list[dict]:
         """
         Convert raw synonym data into pipeline-standard synonym records.
 
@@ -434,6 +553,10 @@ class SpeciesAPI(ABC):
         synonym_data : any
             API-specific raw synonym data as returned by ``_fetch_synonym_data``
             (type varies by subclass).
+        current_key : str, optional
+            The accepted taxon's internal key. Used by subclasses that receive
+            both accepted and synonym records in the same data structure (e.g.
+            Index Fungorum) to exclude the accepted record from synonym output.
 
         Returns
         -------
@@ -443,17 +566,42 @@ class SpeciesAPI(ABC):
         """
         pass
 
+    @abstractmethod
+    def _compile_synonym_search_term(
+        self, synonym_search_term_data: list | dict | ET.Element | str
+    ) -> list[dict]:
+        """
+        Convert raw synonym search term data into a pipeline-standard record for the search term.
+
+        Parameters
+        ----------
+        search_term_data : any
+            The raw synonymsearch term data returned by ``_fetch_synonym_search_term_data``
+            (type varies by subclass).
+        current_key : str, optional
+            The accepted taxon's internal key. Used by subclasses that receive
+            both accepted and synonym records in the same data structure (e.g.
+            Index Fungorum) to exclude the synonym records from accepted output.
+
+        Returns
+        -------
+        list of dict
+            A one-item list containing the synonymsearch term record, or ``[]`` if
+            the synonym search term name cannot be determined from ``synonym_search_term_data``.
+        """
+        pass
+
     # ------------------------------------------------------------------
     # Public methods (used by external callers, can be overrriden by children if needed but should work for most children as-is)
     # ------------------------------------------------------------------
 
-    def get_synonyms(self, name: str) -> list[dict]:
+    def get_synonyms(self, name: str) -> pd.DataFrame:
         """
         Retrieve taxonomic synonyms and publication metadata for a species name.
 
         Orchestrates the full pipeline: normalize the input, fetch raw query
         data, fetch synonym data, and compile results into the standard format.
-        Returns an empty list at the first stage that yields no data.
+        Returns an empty DataFrame at the first stage that yields no data.
 
         This is the only public method and the main entry point for callers.
 
@@ -464,24 +612,40 @@ class SpeciesAPI(ABC):
 
         Returns
         -------
-        list of dict
-            A list of synonym records (``dict``) or ``[]`` if, at any stage, no results are found.
+        pd.DataFrame
+            A DataFrame of synonym records in schema format, or an empty
+            schema-format DataFrame if, at any stage, no results are found.
         """
-        name = normalize_scientific_name(name)
+        name = normalize_query_string(name)
 
         raw_data = self._fetch_query_data(name)
         if self._is_empty(raw_data):
-            return []
-        assert raw_data is not None
+            return empty_synonym_table()
+        assert raw_data is not None  # make this an exception with error message
 
         synonym_data = self._fetch_synonym_data(raw_data)
-        if self._is_empty(synonym_data):
-            return []
-        assert synonym_data is not None
+        assert (
+            synonym_data is not None
+        )  # ensure that synonym_data is not None for the next step. Note that synonym data should never be None unless there is a bug in the child class's _fetch_synonym_data implementation, since even an empty result should be represented as an empty list/dict/ET.Element rather than None.
 
-        synonyms = self._compile_synonyms(synonym_data)
-        if self._is_empty(synonyms):
-            return []
-        assert synonyms is not None
+        # `synonym_search_term_data` is the data for the search term of `_fetch_synonym_data`, either the accepted ID or the original query ID, depending on the API. For APIs that must resolve to the accepted name to access synonyms, this will be the accepted ID, but for those that do not need to resolve, this will be the original query ID. While some APIs may include the search term's data in the synonym search response, others may not, so this step ensures that we have the search term's data regardless of the API's structure.
+        synonym_search_term_data = self._fetch_synonym_search_term_data(
+            raw_data, synonym_data
+        )
+        assert (
+            synonym_search_term_data is not None
+        )  # ensure that synonym_search_term_data is not None for the next step. Note that synonym_search_term_data should never be None unless there is a bug in the child class's _fetch_synonym_search_term_data implementation, since even an empty result should be represented as an empty list/dict/ET.Element rather than None.
 
-        return synonyms
+        search_term = []
+        synonyms = []
+
+        # Compile search term and synonym records only if their respective raw data is not empty.
+        if not self._is_empty(synonym_data):
+            synonyms = self._compile_synonyms(synonym_data)
+        if not self._is_empty(synonym_search_term_data):
+            search_term = self._compile_synonym_search_term(synonym_search_term_data)
+
+        rows = search_term + synonyms
+        if not rows:
+            return empty_synonym_table()
+        return pd.DataFrame(rows)

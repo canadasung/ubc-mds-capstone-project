@@ -20,7 +20,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from scripts.utils.normalize_query_string import normalize_query_string  # noqa: E402
 from scripts.utils.router import ANIMALIA_APIS, PLANTAE_APIS, FUNGI_APIS, TaxonRouter  # noqa: E402
-from scripts.APIs_pipe.gbif import GBIFAPI  # noqa: E402
+from scripts.apis_pipe.gbif import GBIFAPI  # noqa: E402
 from prototype_master_views import view_table, view_timeline, view_node, view_taxonomy, view_debug
 
 # ── CLI flags ─────────────────────────────────────────────────────────────────

@@ -37,7 +37,7 @@ ubc-mds-project/
 │   ├── APIs/
 │   │   ├── BryophytePortal.ipynb
 │   │   └── ...
-│   ├── APIs_pipe/                # notebooks and logs for the pipeline-based API layer
+│   ├── apis_pipe/                # notebooks and logs for the pipeline-based API layer
 │   │   ├── demo_query.py
 │   │   ├── log_gbif_explained.md
 │   │   └── log_symbiota_explained.md
