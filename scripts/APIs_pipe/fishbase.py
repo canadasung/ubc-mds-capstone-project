@@ -243,13 +243,10 @@ class FishBaseAPI(SpeciesAPI):
             species = params.get("SpeciesName", "").strip()
             if not genus or not species:
                 continue
-            # Exclude subspecific names (e.g. "morhua morhua", "morhua callarias")
-            if " " in species:
-                continue
             if params.get("Misspelling", "0") == "1":
                 continue
             name = f"{genus} {species}"
-            if name in seen:
+            if self._is_infraspecific(name) or name in seen:
                 continue
             seen.add(name)
             author_raw = params.get("Author", "")

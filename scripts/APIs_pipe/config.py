@@ -31,6 +31,9 @@ MUSHROOM_OBSERVER_PORTAL = APIPortal(
     "Mushroom Observer", "https://mushroomobserver.org/api2"
 )
 FISHBASE_PORTAL = APIPortal("FishBase", "https://www.fishbase.se")
+ITIS_PORTAL = APIPortal(
+    "ITIS", "https://www.itis.gov/ITISWebService/jsonservice"
+)
 
 
 # Symbiota portal instances
@@ -64,5 +67,6 @@ ALL_PORTALS: list[APIPortal] = [
     GENBANK_PORTAL,
     MUSHROOM_OBSERVER_PORTAL,
     FISHBASE_PORTAL,
+    ITIS_PORTAL,
     *SYMBIOTA_PORTALS,
 ]
