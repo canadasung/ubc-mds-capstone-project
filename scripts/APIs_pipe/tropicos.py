@@ -9,10 +9,9 @@ import os
 from dotenv import load_dotenv
 
 from scripts.utils.normalize_query_string import normalize_query_string
-from tests.apis_pipe.test_env_configured import _PLACEHOLDER_TROPICOS
 
 from .base import SpeciesAPI
-from .config import TROPICOS
+from .config import TROPICOS_API_KEY_PLACEHOLDER, TROPICOS_PORTAL
 
 load_dotenv()
 
@@ -34,7 +33,7 @@ class TropicosAPI(SpeciesAPI):
             If the TROPICOS_API_KEY environment variable is missing or is still the placeholder value.
         """
         self.key = os.getenv("TROPICOS_API_KEY")
-        if not self.key or self.key == _PLACEHOLDER_TROPICOS:
+        if not self.key or self.key == TROPICOS_API_KEY_PLACEHOLDER:
             raise ValueError(
                 "Tropicos API key not provided. Set TROPICOS_API_KEY in the `.env` file."
             )
@@ -215,7 +214,7 @@ class TropicosAPI(SpeciesAPI):
             One-item list with the search term record, or ``[]`` if the
             name cannot be determined.
         """
-        if not synonym_search_term_data:
+        if self._is_empty(synonym_search_term_data):
             return []
         item = synonym_search_term_data[0]
         name = normalize_query_string(item["ScientificName"])
@@ -225,13 +224,13 @@ class TropicosAPI(SpeciesAPI):
         genus, species = self._extract_genus_species(name)
         return [
             self._format_row(
-                api_name=TROPICOS,
+                api_name=TROPICOS_PORTAL.display_name,
                 genus=genus,
                 species=species,
                 api_internal_id=name_id,
                 author=item.get("Author", ""),
                 api_link=(
-                    f"https://www.tropicos.org/name/{name_id}" if name_id else None
+                    f"https://www.tropicos.org/name/{name_id}" if name_id else ""
                 ),
             )
         ]
@@ -255,7 +254,7 @@ class TropicosAPI(SpeciesAPI):
         seen = set()
         for item in synonym_data:
             syn_info = item.get("SynonymName", {})
-            if syn_info._is_empty():
+            if self._is_empty(syn_info):
                 continue
             syn_name = normalize_query_string(syn_info.get("ScientificName", ""))
             if not syn_name or syn_name in seen or self._is_infraspecific(syn_name):
@@ -269,13 +268,13 @@ class TropicosAPI(SpeciesAPI):
             genus, species = self._extract_genus_species(syn_name)
             candidates.append(
                 self._format_row(
-                    api_name=TROPICOS,
+                    api_name=TROPICOS_PORTAL.display_name,
                     genus=genus,
                     species=species,
                     api_internal_id=syn_id,
                     author=syn_info.get("Author", ""),
                     api_link=(
-                        f"https://www.tropicos.org/name/{syn_id}" if syn_id else None
+                        f"https://www.tropicos.org/name/{syn_id}" if syn_id else ""
                     ),
                 )
             )

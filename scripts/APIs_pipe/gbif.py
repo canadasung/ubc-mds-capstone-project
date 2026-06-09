@@ -9,7 +9,7 @@ import re
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import GBIF
+from .config import GBIF_PORTAL
 
 
 class GBIFAPI(SpeciesAPI):
@@ -214,13 +214,13 @@ class GBIFAPI(SpeciesAPI):
         genus, species = self._extract_genus_species(name)
         return [
             self._format_row(
-                api_name=GBIF,
+                api_name=GBIF_PORTAL.display_name,
                 genus=genus,
                 species=species,
                 api_internal_id=key,
                 author=synonym_search_term_data.get("authorship", ""),
-                publication_year=self._extract_publication_year(published_in) or None,
-                publication_name=self._extract_publication_name(published_in) or None,
+                publication_year=self._extract_publication_year(published_in),
+                publication_name=self._extract_publication_name(published_in),
                 api_link=f"https://www.gbif.org/species/{key}",
             )
         ]
@@ -253,19 +253,17 @@ class GBIFAPI(SpeciesAPI):
                     genus, species = self._extract_genus_species(canonical_name)
                     candidates.append(
                         self._format_row(
-                            api_name=GBIF,
+                            api_name=GBIF_PORTAL.display_name,
                             genus=genus,
                             species=species,
                             api_internal_id=item_id,
                             author=item.get("authorship", ""),
                             publication_year=self._extract_publication_year(
                                 published_in
-                            )
-                            or None,
+                            ),
                             publication_name=self._extract_publication_name(
                                 published_in
-                            )
-                            or None,
+                            ),
                             api_link=f"https://www.gbif.org/species/{item_id}",
                         )
                     )

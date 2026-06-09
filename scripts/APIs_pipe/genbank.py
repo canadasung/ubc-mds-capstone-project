@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import GENBANK
+from .config import GENBANK_PORTAL
 
 
 class GenBankAPI(SpeciesAPI):
@@ -23,6 +23,11 @@ class GenBankAPI(SpeciesAPI):
         """
         Query the NCBI Taxonomy database to find a record for a species name.
 
+        Tries an exact ``[Scientific Name]`` search first (fast path, finds
+        accepted names directly). If that returns no IDs, falls back to
+        ``[All Names]``, which also matches synonyms stored as ``OtherNames``
+        within an accepted name's record.
+
         Parameters
         ----------
         name : str
@@ -34,17 +39,15 @@ class GenBankAPI(SpeciesAPI):
             The JSON response from NCBI esearch, or ``{}`` if the request fails
             or returns no IDs.
         """
-        data = self._fetch_JSON(
-            f"{self.BASE_URL}/esearch.fcgi",
-            params={
-                "db": "taxonomy",
-                "term": f"{name}[Scientific Name]",
-                "retmode": "json",
-            },
-        )
-        if not data.get("esearchresult", {}).get("idlist"):
-            return {}
-        return data
+        # TODO: investigate Scientific Name vs. All Names further and do more testing!
+        for term in (f"{name}[Scientific Name]", f"{name}[All Names]"):
+            data = self._fetch_JSON(
+                f"{self.BASE_URL}/esearch.fcgi",
+                params={"db": "taxonomy", "term": term, "retmode": "json"},
+            )
+            if data.get("esearchresult", {}).get("idlist"):
+                return data
+        return {}
 
     def _extract_internal_id(self, raw_data: ET.Element) -> str:
         """
@@ -140,7 +143,7 @@ class GenBankAPI(SpeciesAPI):
                 genus, species = self._extract_genus_species(syn_name)
                 candidates.append(
                     self._format_row(
-                        api_name=GENBANK,
+                        api_name=GENBANK_PORTAL.display_name,
                         genus=genus,
                         species=species,
                         api_internal_id=taxon_id,
@@ -171,14 +174,16 @@ class GenBankAPI(SpeciesAPI):
             ``ScientificName`` is found.
         """
         for taxon in synonym_search_term_data.findall(".//Taxon"):
-            sci_name = normalize_query_string((taxon.findtext("ScientificName") or "").strip())
+            sci_name = normalize_query_string(
+                (taxon.findtext("ScientificName") or "").strip()
+            )
             if not sci_name:
                 continue
             genus, species = self._extract_genus_species(sci_name)
             taxon_id = self._extract_internal_id(taxon)
             return [
                 self._format_row(
-                    api_name=GENBANK,
+                    api_name=GENBANK_PORTAL.display_name,
                     genus=genus,
                     species=species,
                     api_internal_id=taxon_id,

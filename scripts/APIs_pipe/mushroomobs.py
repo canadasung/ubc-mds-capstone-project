@@ -8,7 +8,7 @@ of fungal observations.
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import MUSHROOM_OBSERVER
+from .config import MUSHROOM_OBSERVER_PORTAL
 
 
 class MushroomObserverAPI(SpeciesAPI):
@@ -124,7 +124,7 @@ class MushroomObserverAPI(SpeciesAPI):
             genus, species = self._extract_genus_species(name)
             return [
                 self._format_row(
-                    api_name=MUSHROOM_OBSERVER,
+                    api_name=MUSHROOM_OBSERVER_PORTAL.display_name,
                     genus=genus,
                     species=species,
                     api_internal_id=str(result.get("id", "")),
@@ -169,7 +169,7 @@ class MushroomObserverAPI(SpeciesAPI):
             genus, species = self._extract_genus_species(full_name)
             candidates.append(
                 self._format_row(
-                    api_name=MUSHROOM_OBSERVER,
+                    api_name=MUSHROOM_OBSERVER_PORTAL.display_name,
                     genus=genus,
                     species=species,
                     api_internal_id=str(synonym.get("id", "")),

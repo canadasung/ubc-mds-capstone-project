@@ -7,7 +7,7 @@ SpeciesAPI implementation for the Catalogue of Life (COL), served via the Checkl
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import COL
+from .config import COL_PORTAL
 
 
 class COLAPI(SpeciesAPI):
@@ -183,7 +183,7 @@ class COLAPI(SpeciesAPI):
         genus, species = self._extract_genus_species(sci_name)
         return [
             self._format_row(
-                api_name=COL,
+                api_name=COL_PORTAL.display_name,
                 genus=genus,
                 species=species,
                 api_internal_id=str(taxon_id),
@@ -192,7 +192,7 @@ class COLAPI(SpeciesAPI):
                 api_link=(
                     f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"
                     if taxon_id
-                    else None
+                    else ""
                 ),
             )
         ]
@@ -223,7 +223,7 @@ class COLAPI(SpeciesAPI):
             genus, species = self._extract_genus_species(syn_name)
             candidates.append(
                 self._format_row(
-                    api_name=COL,
+                    api_name=COL_PORTAL.display_name,
                     genus=genus,
                     species=species,
                     api_internal_id=str(taxon_id),
@@ -232,7 +232,7 @@ class COLAPI(SpeciesAPI):
                     api_link=(
                         f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"  # TODO: while we do have unique taxon_id for each synonym, they all route to the same page for "accepted" name. Likely desired behavior, but double check against API documentation to confirm that this is expected.
                         if taxon_id
-                        else None
+                        else ""
                     ),
                 )
             )

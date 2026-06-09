@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import SYMBIOTA_PORTALS
+from .config import SYMBIOTA_PORTAL_BY_NAME
 
 # Canonical column order for extended Symbiota synonym DataFrames.
 # Commented out: currently using the standard _format_synonym schema from SpeciesAPI.
@@ -65,30 +65,28 @@ class SymbiotaAPI(SpeciesAPI):
 
     BASE_URL = ""
 
-    def __init__(self, base_url: str, portal_name: str):
+    def __init__(self, portal_name: str):
         """
         Parameters
         ----------
-        base_url : str
-            Root URL of the target portal,
-            e.g. ``"https://mycoportal.org/portal"``.
         portal_name : str
-            Canonical portal name used as ``api_name`` in output rows. Must be
-            one of the values in ``config.SYMBIOTA_PORTALS``
-            (e.g. ``config.MYCOPORTAL``).
+            Short internal identifier for the target portal
+            (e.g. ``"mycoportal"``). Must be a key in
+            ``config.SYMBIOTA_PORTAL_BY_NAME``.
 
         Raises
         ------
         ValueError
-            If *portal_name* is not a recognised Symbiota portal name.
+            If *portal_name* is not a recognised Symbiota portal key.
         """
-        if portal_name not in SYMBIOTA_PORTALS:
+        portal = SYMBIOTA_PORTAL_BY_NAME.get(portal_name)
+        if portal is None:
             raise ValueError(
-                f"Unknown Symbiota portal name {portal_name!r}. "
-                f"Must be one of: {sorted(SYMBIOTA_PORTALS)}"
+                f"Unknown Symbiota portal key {portal_name!r}. "
+                f"Must be one of: {sorted(SYMBIOTA_PORTAL_BY_NAME)}"
             )
-        self.BASE_URL = base_url.rstrip("/")
-        self.portal_name = portal_name
+        self.BASE_URL = portal.base_url.rstrip("/")
+        self.portal_name = portal.display_name
 
     # ---------------------------------------------------------
     # Schema helpers (commented out: standard _format_synonym used instead)
@@ -423,7 +421,7 @@ class SymbiotaAPI(SpeciesAPI):
                 author=synonym_search_term_data.get("author", ""),
                 api_link=f"{self.BASE_URL}/taxa/index.php?tid={self.accepted_id}"
                 if self.accepted_id
-                else None,  # URL is the same for all synonyms since Symbiota redirects synonym searches to the accepted taxon page.
+                else "",  # URL is the same for all synonyms since Symbiota redirects synonym searches to the accepted taxon page.
             )
         ]
 
@@ -464,7 +462,7 @@ class SymbiotaAPI(SpeciesAPI):
                         author=item.get("author", ""),
                         api_link=f"{self.BASE_URL}/taxa/index.php?taxon={self.accepted_id}"
                         if self.accepted_id
-                        else None,  # URL is the same for all synonyms since Symbiota redirects synonym searches to the accepted taxon page.
+                        else "",  # URL is the same for all synonyms since Symbiota redirects synonym searches to the accepted taxon page.
                     )
                 )
         return results

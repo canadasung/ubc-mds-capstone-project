@@ -15,7 +15,19 @@ import pandas as pd
 import requests
 
 from scripts.utils.normalize_query_string import normalize_query_string
-from scripts.utils.schema import empty_synonym_table, make_synonym_row
+from scripts.utils.schema import UNAVAILABLE, empty_synonym_table, make_synonym_row
+
+
+class _Unset:
+    """Sentinel for _format_row optional params that were not provided by the caller."""
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        return "<NOT_PROVIDED>"
+
+
+_UNSET = _Unset()
 
 
 class SpeciesAPI(ABC):
@@ -311,17 +323,17 @@ class SpeciesAPI(ABC):
         genus: str,
         species: str,
         api_internal_id: str,
-        kingdom: str | None = None,
-        phylum: str | None = None,
-        class_: str | None = None,
-        family: str | None = None,
-        subfamily: str | None = None,
-        author: str | None = None,
-        publication_name: str | None = None,
-        publication_year: str | None = None,
-        status: str | None = None,
-        source_name: str | None = None,
-        api_link: str | None = None,
+        kingdom: str = _UNSET,  # type: ignore[assignment]
+        phylum: str = _UNSET,  # type: ignore[assignment]
+        class_: str = _UNSET,  # type: ignore[assignment]
+        family: str = _UNSET,  # type: ignore[assignment]
+        subfamily: str = _UNSET,  # type: ignore[assignment]
+        author: str = _UNSET,  # type: ignore[assignment]
+        publication_name: str = _UNSET,  # type: ignore[assignment]
+        publication_year: str = _UNSET,  # type: ignore[assignment]
+        status: str = _UNSET,  # type: ignore[assignment]
+        source_name: str = _UNSET,  # type: ignore[assignment]
+        api_link: str = _UNSET,  # type: ignore[assignment]
     ) -> dict:
         """
         Construct a validated pipeline-standard row record.
@@ -373,7 +385,20 @@ class SpeciesAPI(ABC):
             "source_name": source_name,
             "api_link": api_link,
         }
-        provided = {k: v for k, v in optional.items() if v is not None}
+        for col, v in optional.items():
+            if v is None:
+                raise TypeError(
+                    f"Got None for '{col}' in _format_row. "
+                    f"Pass '' if the field was searched but not found, "
+                    f"or omit the argument if the API does not provide this field."
+                )
+            if isinstance(v, str) and v == UNAVAILABLE:
+                raise ValueError(
+                    f"Got {UNAVAILABLE!r} for '{col}' in _format_row. "
+                    f"Do not pass {UNAVAILABLE!r} directly — "
+                    f"omit the argument to let make_synonym_row apply the default."
+                )
+        provided = {k: v for k, v in optional.items() if not isinstance(v, _Unset)}
         return make_synonym_row(
             api_name=api_name,
             genus=genus,

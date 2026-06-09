@@ -16,7 +16,7 @@ import xml.etree.ElementTree as ET
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import INDEX_FUNGORUM
+from .config import INDEX_FUNGORUM_PORTAL
 
 
 class IndexFungorumAPI(SpeciesAPI):
@@ -71,7 +71,9 @@ class IndexFungorumAPI(SpeciesAPI):
         if root is None:
             return None
         for record in root.findall("IndexFungorum"):
-            rec_name = normalize_query_string((record.findtext(self._TAGS["name"]) or "").strip())
+            rec_name = normalize_query_string(
+                (record.findtext(self._TAGS["name"]) or "").strip()
+            )
             if rec_name == name:
                 return record
         return None
@@ -180,7 +182,9 @@ class IndexFungorumAPI(SpeciesAPI):
         candidates = []
         seen = set()
         for record in synonym_data.findall("IndexFungorum"):
-            syn_name = normalize_query_string((record.findtext(self._TAGS["name"]) or "").strip())
+            syn_name = normalize_query_string(
+                (record.findtext(self._TAGS["name"]) or "").strip()
+            )
             if not syn_name or syn_name in seen:
                 continue
             # remove names with rank = "sp.", which indicates collection-level annotation (e.g. "Amanita sp."), not a synonym
@@ -193,7 +197,7 @@ class IndexFungorumAPI(SpeciesAPI):
             author = (record.findtext(self._TAGS["authors"]) or "").strip()
             candidates.append(
                 self._format_row(
-                    api_name=INDEX_FUNGORUM,
+                    api_name=INDEX_FUNGORUM_PORTAL.display_name,
                     genus=genus,
                     species=species,
                     api_internal_id=record_id,
@@ -201,7 +205,7 @@ class IndexFungorumAPI(SpeciesAPI):
                     api_link=(
                         f"https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID={record_id}"
                         if record_id
-                        else None
+                        else ""
                     ),
                 )
             )
