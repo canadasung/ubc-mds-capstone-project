@@ -12,9 +12,3 @@ body {
 .queryRow td {
   font-weight: 700;
 }
-
-/* Red highlight for ranks where sources disagree (mirrors view_taxonomy.py). */
-.disagreeCell {
-  background-color: #ff4b4b;
-  color: #ffffff;
-}
