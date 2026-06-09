@@ -43,6 +43,11 @@ class SpeciesAPI(ABC):
 
     HEADERS: dict = {"User-Agent": "Mozilla/5.0"}
     BASE_URL: str
+    _INFRASPECIFIC_RE: re.Pattern = re.compile(
+        r"\b(var\.|subsp\.|ssp\.|f\.|fo\.|subf\.|cv\.|sect\.|subsect\.|ser\.|subgen\.|subg\.)",
+        # TODO: put this in a config, rather than having it inside this file so a user could add if needed
+        re.IGNORECASE,
+    )
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -198,10 +203,15 @@ class SpeciesAPI(ABC):
 
     def _is_infraspecific(self, string: str) -> bool:
         """
-        Return True if *string* contains an infraspecific rank abbreviation.
+        Return True if *string* is an infraspecific scientific name.
 
-        Uses a compiled regular expression to detect rank markers such as
-        ``var.``, ``subsp.``, ``f.``, etc.
+        Two checks are applied:
+
+        1. Rank-marker check — detects explicit infraspecific abbreviations
+           such as ``var.``, ``subsp.``, ``f.``, etc. via ``_INFRASPECIFIC_RE``.
+        2. Bare-trinomial check — any name with three or more whitespace-
+           delimited tokens (e.g. ``"Gadus morhua morhua"``) is treated as
+           infraspecific even without a rank marker.
 
         Parameters
         ----------
@@ -211,14 +221,9 @@ class SpeciesAPI(ABC):
         Returns
         -------
         bool
-            True when an infraspecific rank marker is found, False otherwise.
+            True when either check matches, False otherwise.
         """
-        _INFRASPECIFIC_RE: re.Pattern = re.compile(
-            r"\b(var\.|subsp\.|ssp\.|f\.|fo\.|subf\.|cv\.|sect\.|subsect\.|ser\.|subgen\.|subg\.)",
-            # TODO: put this in a config, rather than having it inside this file so a user could add if needed
-            re.IGNORECASE,
-        )
-        return bool(_INFRASPECIFIC_RE.search(string))
+        return bool(self._INFRASPECIFIC_RE.search(string)) or len(string.split()) >= 3
 
     def _extract_publication_year(self, string: str) -> str:
         """
