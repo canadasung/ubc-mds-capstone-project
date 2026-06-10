@@ -465,7 +465,7 @@ class SpeciesAPI(ABC):
     # ------------------------------------------------------------------
 
     @abstractmethod
-    def _fetch_query_data(self, name: str):
+    def _fetch_query_data(self, name: str) -> dict | list | str | ET.Element:
         """
         Query the source for the given species name and return the raw response.
 
@@ -486,7 +486,9 @@ class SpeciesAPI(ABC):
         pass
 
     @abstractmethod
-    def _fetch_synonym_data(self, raw_data: dict | ET.Element | str):
+    def _fetch_synonym_data(
+        self, raw_data: dict | list | ET.Element | str
+    ) -> dict | list | str | ET.Element:
         """
         Retrieve synonym data from the source, re-querying if necessary.
 
@@ -510,9 +512,9 @@ class SpeciesAPI(ABC):
     @abstractmethod
     def _fetch_synonym_search_term_data(
         self,
-        raw_data: dict | ET.Element | str,
-        synonym_data: list | dict | ET.Element | str,
-    ):
+        raw_data: dict | list | str | ET.Element,
+        synonym_data: dict | list | str | ET.Element,
+    ) -> dict | list | str | ET.Element:
         """
         Retrieve search term data from the source, re-querying if necessary.
 
@@ -535,7 +537,7 @@ class SpeciesAPI(ABC):
 
     @abstractmethod
     def _compile_synonyms(
-        self, synonym_data: list | dict | ET.Element | str
+        self, synonym_data: dict | list | str | ET.Element
     ) -> list[dict]:
         """
         Convert raw synonym data into pipeline-standard synonym records.
@@ -560,7 +562,7 @@ class SpeciesAPI(ABC):
 
     @abstractmethod
     def _compile_synonym_search_term(
-        self, synonym_search_term_data: list | dict | ET.Element | str
+        self, synonym_search_term_data: dict | list | str | ET.Element
     ) -> list[dict]:
         """
         Convert raw synonym search term data into a pipeline-standard record for the search term.
@@ -613,20 +615,13 @@ class SpeciesAPI(ABC):
         raw_data = self._fetch_query_data(name)
         if self._is_empty(raw_data):
             return empty_synonym_table()
-        assert raw_data is not None  # make this an exception with error message
 
         synonym_data = self._fetch_synonym_data(raw_data)
-        assert (
-            synonym_data is not None
-        )  # ensure that synonym_data is not None for the next step. Note that synonym data should never be None unless there is a bug in the child class's _fetch_synonym_data implementation, since even an empty result should be represented as an empty list/dict/ET.Element rather than None.
 
         # `synonym_search_term_data` is the data for the search term of `_fetch_synonym_data`, either the accepted ID or the original query ID, depending on the API. For APIs that must resolve to the accepted name to access synonyms, this will be the accepted ID, but for those that do not need to resolve, this will be the original query ID. While some APIs may include the search term's data in the synonym search response, others may not, so this step ensures that we have the search term's data regardless of the API's structure.
         synonym_search_term_data = self._fetch_synonym_search_term_data(
             raw_data, synonym_data
         )
-        assert (
-            synonym_search_term_data is not None
-        )  # ensure that synonym_search_term_data is not None for the next step. Note that synonym_search_term_data should never be None unless there is a bug in the child class's _fetch_synonym_search_term_data implementation, since even an empty result should be represented as an empty list/dict/ET.Element rather than None.
 
         search_term = []
         synonyms = []
