@@ -4,7 +4,10 @@ Catalogue of Life API client.
 SpeciesAPI implementation for the Catalogue of Life (COL), served via the ChecklistBank API. COL is a global taxonomic checklist that provides accepted names and synonymies.
 """
 
+from scripts.utils.normalize_query_string import normalize_query_string
+
 from .base import SpeciesAPI
+from .config import COL_PORTAL
 
 
 class COLAPI(SpeciesAPI):
@@ -12,7 +15,7 @@ class COLAPI(SpeciesAPI):
     Implementation of SpeciesAPI for the Catalogue of Life (COL).
     """
 
-    BASE_URL = "https://api.checklistbank.org"
+    BASE_URL = COL_PORTAL.base_url
     # COL26.5 — update this key when a newer COL release is published on ChecklistBank
     DATASET_KEY = 315192
 
@@ -33,7 +36,7 @@ class COLAPI(SpeciesAPI):
         """
         return self._fetch_JSON(
             f"{self.BASE_URL}/dataset/{self.DATASET_KEY}/nameusage/search",
-            params={"q": name},
+            params={"q": name, "type": "EXACT"},
         )
 
     def _extract_internal_accepted_id(self, results: list) -> str:
@@ -62,14 +65,14 @@ class COLAPI(SpeciesAPI):
         """
         # TODO: check into behavior if there are multiple accepted names and decide how we want to handle that
         accepted = next(
-            (r for r in results if r.get("usage", {}).get("status") == "accepted"),
+            (r for r in results if r["usage"]["status"] == "accepted"),
             None,
         )
         if accepted is not None:
-            return accepted.get("id")
+            return accepted["id"]
 
         first = results[0]
-        usage_id = first.get("usage", {}).get("parentId")
+        usage_id = first["usage"]["parentId"]
         if usage_id is not None:
             return usage_id
         else:
@@ -94,7 +97,7 @@ class COLAPI(SpeciesAPI):
         list
             Combined list of homotypic and heterotypic synonym records.
         """
-        results = raw_data.get("result", [])
+        results = raw_data["result"]
         usage_id = self._extract_internal_accepted_id(results)
 
         syns = self._fetch_JSON(
@@ -102,6 +105,97 @@ class COLAPI(SpeciesAPI):
         )
 
         return syns.get("homotypic", []) + syns.get("heterotypic", [])
+
+    def _fetch_synonym_search_term_data(
+        self, raw_data: dict, synonym_data: list
+    ) -> dict:
+        """
+        Return the accepted taxon record for the synonym search term.
+
+        Two paths:
+
+        1. Fast path — the accepted record is already in ``raw_data["result"]``
+           (query matched the accepted name directly).
+        2. Slow path — query matched a synonym; no accepted record is in the
+           search results. Resolves the accepted ID via ``parentId`` using
+           ``_extract_internal_accepted_id``, then fetches the taxon record
+           from the ChecklistBank ``/taxon/{id}`` endpoint.
+
+        Parameters
+        ----------
+        raw_data : dict
+            The full JSON search response returned by ``_fetch_query_data``.
+        synonym_data : list
+            Raw synonym records (unused here).
+
+        Returns
+        -------
+        dict
+            The accepted name-usage record, or ``{}`` if it cannot be resolved.
+        """
+        results = raw_data["result"]
+
+        # Fast path: accepted record already present in search results
+        accepted = next(
+            (r for r in results if r["usage"]["status"] == "accepted"),
+            None,
+        )
+        if accepted is not None:
+            return accepted
+
+        # Slow path: query was a synonym — fetch accepted taxon by ID
+        try:
+            accepted_id = self._extract_internal_accepted_id(results)
+            taxon = self._fetch_JSON(
+                f"{self.BASE_URL}/dataset/{self.DATASET_KEY}/taxon/{accepted_id}",
+            )
+            return taxon if taxon else {}  # TODO: add error handling for empty taxon
+        except LookupError:
+            # TODO: add error handling for this case
+            return {}
+
+    def _compile_synonym_search_term(
+        self, synonym_search_term_data: dict
+    ) -> list[dict]:
+        """
+        Build a pipeline-standard record for the synonym search term from the
+        COL accepted name-usage record.
+
+        Parameters
+        ----------
+        synonym_search_term_data : dict
+            The accepted name-usage record returned by
+            ``_fetch_synonym_search_term_data``.
+
+        Returns
+        -------
+        list of dict
+            One-item list with the search term record, or ``[]`` if the
+            scientific name is absent.
+        """
+        # nameusage/search results wrap under "usage"; direct /taxon/{id} records do not
+        usage = synonym_search_term_data.get("usage") or synonym_search_term_data
+        name_obj = usage.get("name", {})
+        sci_name = normalize_query_string(name_obj.get("scientificName", ""))
+        if not sci_name:
+            return []
+        taxon_id = synonym_search_term_data.get("id", "")
+        genus, species = self._extract_genus_species(sci_name)
+        return [
+            self._format_row(
+                api_name=COL_PORTAL.display_name,
+                genus=genus,
+                species=species,
+                api_internal_id=str(taxon_id),
+                author=name_obj.get("authorship", ""),
+                # source_name=name_obj.get("link", ""),
+                api_link=(
+                    f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"
+                    if taxon_id
+                    else ""
+                ),
+            )
+        ]
 
     def _compile_synonyms(self, synonym_data: list) -> list[dict]:
         """
@@ -121,18 +215,22 @@ class COLAPI(SpeciesAPI):
         seen = set()
         for s in synonym_data:
             name_obj = s.get("name", {})
-            syn_name = name_obj.get("scientificName", "")
+            syn_name = normalize_query_string(name_obj.get("scientificName", ""))
             if not syn_name or syn_name in seen:
                 continue
             seen.add(syn_name)
             taxon_id = s.get("id", "")
+            genus, species = self._extract_genus_species(syn_name)
             candidates.append(
-                self._format_synonym(
-                    name=syn_name,
+                self._format_row(
+                    api_name=COL_PORTAL.display_name,
+                    genus=genus,
+                    species=species,
+                    api_internal_id=str(taxon_id),
                     author=name_obj.get("authorship", ""),
-                    # note for future: COl can fill original source using 'name_obj.get("link", "")'
+                    # source_name=name_obj.get("link", ""),
                     api_link=(
-                        f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"
+                        f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"  # TODO: while we do have unique taxon_id for each synonym, they all route to the same page for "accepted" name. Likely desired behavior, but double check against API documentation to confirm that this is expected.
                         if taxon_id
                         else ""
                     ),
