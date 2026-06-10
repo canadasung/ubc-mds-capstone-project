@@ -613,7 +613,6 @@ class SpeciesAPI(ABC):
         name = normalize_query_string(name)
 
         raw_data = self._fetch_query_data(name)
-        print(raw_data)
         if self._is_empty(raw_data):
             return empty_synonym_table()
 
