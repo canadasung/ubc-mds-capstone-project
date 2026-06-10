@@ -8,11 +8,12 @@
  * and bolded; remaining rows are sorted by how many sources recognize them.
  */
 
-import { Anchor, Table, Text } from "@mantine/core";
+import { Anchor, Table, Text, Tooltip } from "@mantine/core";
 import { IconCheck } from "@tabler/icons-react";
 
 import { useFilteredRecords } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
+import { fullForLabel } from "@/lib/sources";
 import { buildPresenceTable } from "@/lib/transforms";
 
 export function TableView() {
@@ -31,11 +32,16 @@ export function TableView() {
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Name</Table.Th>
-            {sources.map((src) => (
-              <Table.Th key={src} style={{ textAlign: "center" }}>
-                {src}
-              </Table.Th>
-            ))}
+            {sources.map((src) => {
+              const full = fullForLabel(src);
+              return (
+                <Table.Th key={src} style={{ textAlign: "center" }}>
+                  <Tooltip label={full} disabled={full === src} withArrow>
+                    <span>{src}</span>
+                  </Tooltip>
+                </Table.Th>
+              );
+            })}
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>

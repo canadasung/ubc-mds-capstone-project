@@ -3,7 +3,7 @@
 /**
  * SearchPanel — ports the left search column of prototype_master.py:
  *   - search form (Enter submits, like st.form)
- *   - "Advanced options" collapse: kingdom-routing toggle + per-source checkboxes
+ *   - "Database selection" collapse: kingdom-routing toggle + per-source checkboxes
  *   - Select all / Unselect all (disabled while routing is on)
  *   - "Did you mean?" suggestions parsed from a 404 response
  */
@@ -104,7 +104,7 @@ export function SearchPanel() {
 
       <Divider />
 
-      {/* Advanced options */}
+      {/* Database selection */}
       <Box>
         <Button
           variant="subtle"
@@ -119,36 +119,42 @@ export function SearchPanel() {
           }
           onClick={advanced.toggle}
         >
-          Advanced options
+          Database selection
         </Button>
 
         <Collapse in={advancedOpen}>
           <Stack gap="sm" mt="sm">
-            <Checkbox
-              label="Choose databases based on kingdom"
-              description="Powered by GBIF. Auto-selects databases from the species' kingdom."
-              checked={useRouting}
-              onChange={(e) => setUseRouting(e.currentTarget.checked)}
-            />
-
+            {/* Select/Unselect all are always available; using either switches
+                to manual selection (turns kingdom routing off). */}
             <Group gap="xs" grow>
               <Button
                 size="compact-sm"
                 variant="default"
-                disabled={useRouting}
-                onClick={() => setAllSources(true)}
+                onClick={() => {
+                  setUseRouting(false);
+                  setAllSources(true);
+                }}
               >
                 Select all
               </Button>
               <Button
                 size="compact-sm"
                 variant="default"
-                disabled={useRouting}
-                onClick={() => setAllSources(false)}
+                onClick={() => {
+                  setUseRouting(false);
+                  setAllSources(false);
+                }}
               >
                 Unselect all
               </Button>
             </Group>
+
+            <Checkbox
+              label="Choose databases based on kingdom"
+              description="Powered by GBIF. Auto-selects databases from the species' kingdom."
+              checked={useRouting}
+              onChange={(e) => setUseRouting(e.currentTarget.checked)}
+            />
 
             <Tooltip
               label="Disable kingdom routing to choose databases manually"

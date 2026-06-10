@@ -8,9 +8,9 @@
  * collapsible table.
  */
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { Alert, Collapse, Loader, Table, Text, UnstyledButton } from "@mantine/core";
+import { Alert, Anchor, Collapse, Loader, Table, Text, UnstyledButton } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 import type { Data, Layout } from "plotly.js";
@@ -40,20 +40,48 @@ function cardHtml(e: TimelineEntry, year: number): string {
   );
 }
 
+/** Collapsed-card label: genus on the first line, species on the second, so
+ *  the box reads as roughly square rather than one wide line. */
+function nameStacked(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length <= 1) return `<b>${name}</b>`;
+  return `<b>${parts[0]}<br>${parts.slice(1).join(" ")}</b>`;
+}
+
 export function TimelineView() {
   const { records } = useFilteredRecords();
   const query = useSearchStore((s) => s.submittedQuery);
   const [undatedOpen, undated] = useDisclosure(false);
 
-  const { dated, undatedEntries, figure } = useMemo(() => {
+  // Dated entries sorted oldest → newest, plus colors and the undated set.
+  const { sorted, undatedEntries, sourceColors } = useMemo(() => {
     const t = buildTimeline(records);
-    const sorted = [...t.dated].sort((a, b) => (a.year! - b.year!));
+    const s = [...t.dated].sort((a, b) => a.year! - b.year!);
+    return { sorted: s, undatedEntries: t.undated, sourceColors: t.sourceColors };
+  }, [records]);
+
+  // Which cards are expanded (indices into `sorted`). Collapsed cards show only
+  // the name; clicking a card toggles it. The newest entry (latest year, last
+  // in `sorted`) starts expanded. State resets whenever the data changes.
+  const newestIdx = sorted.length - 1;
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    setExpanded(newestIdx >= 0 ? new Set([newestIdx]) : new Set());
+  }, [sorted, newestIdx]);
+
+  const toggleCard = useCallback((i: number) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  }, []);
+
+  const figure = useMemo(() => {
+    if (sorted.length === 0) return null;
+
     const years = sorted.map((s) => s.year!);
-
-    if (sorted.length === 0) {
-      return { dated: sorted, undatedEntries: t.undated, figure: null };
-    }
-
     const yPos = sorted.map((_, i) => (i % 2 === 0 ? 0.5 : -0.5));
     const yearMin = Math.min(...years) - 30;
     const yearMax = Math.max(...years) + 30;
@@ -72,25 +100,70 @@ export function TimelineView() {
         x0: years[i],
         x1: years[i],
         y0: 0,
-        y1: yPos[i] > 0 ? 0.18 : -0.18,
+        // Run the connector all the way to the card center so it meets the box
+        // at any size; the card's white background hides the overlapped end.
+        y1: yPos[i],
         line: { color: "#bdc3c7", width: 1, dash: "dot" as const },
       })),
     ];
 
-    const annotations: Partial<Layout>["annotations"] = sorted.map((e, i) => ({
-      x: years[i],
-      y: yPos[i],
-      text: cardHtml(e, years[i]),
-      showarrow: false,
-      bgcolor: "white",
-      bordercolor: t.sourceColors[e.source] ?? "#3498db",
-      borderwidth: 2,
-      borderpad: 10,
-      align: "left",
-      font: { size: 11, color: "#333", family: "Courier New, monospace" },
-      xanchor: "center",
-      yanchor: "middle",
-    }));
+    type Ann = NonNullable<Partial<Layout>["annotations"]>[number];
+
+    // Card annotations, tagged with their sorted index so we can reorder them
+    // (expanded cards drawn last = top layer) without losing the click mapping.
+    const cards = sorted.map((e, i) => {
+      const isOpen = expanded.has(i);
+      const ann: Ann = {
+        x: years[i],
+        y: yPos[i],
+        // Collapsed cards show only the name (genus / species stacked);
+        // expanded cards show the full details.
+        text: isOpen ? cardHtml(e, years[i]) : nameStacked(e.name),
+        showarrow: false,
+        bgcolor: "white",
+        bordercolor: "#1c7ed6",
+        borderwidth: 2,
+        borderpad: isOpen ? 10 : 6,
+        align: isOpen ? "left" : "center",
+        font: { size: 13, color: "#333", family: "Courier New, monospace" },
+        xanchor: "center",
+        yanchor: "middle",
+        // Required so Plotly emits plotly_clickannotation for this card.
+        captureevents: true,
+      };
+      return { ann, idx: i, isOpen };
+    });
+
+    // Year labels sitting on the center line (just above it, with a white
+    // backing so the line stays readable). Not clickable.
+    const yearLabels = sorted.map((_, i) => {
+      const ann: Ann = {
+        x: years[i],
+        y: 0,
+        yshift: 9,
+        text: `<b>${years[i]}</b>`,
+        showarrow: false,
+        bgcolor: "rgba(255,255,255,0.85)",
+        borderpad: 1,
+        align: "center",
+        font: { size: 13, color: "#333", family: "Courier New, monospace" },
+        xanchor: "center",
+        yanchor: "bottom",
+        captureevents: false,
+      };
+      return { ann, idx: -1 };
+    });
+
+    // Draw order = z-order: collapsed cards, then year labels, then expanded
+    // cards last so an open card sits above everything else.
+    const ordered = [
+      ...cards.filter((c) => !c.isOpen),
+      ...yearLabels,
+      ...cards.filter((c) => c.isOpen),
+    ];
+    const annotations: Partial<Layout>["annotations"] = ordered.map((o) => o.ann);
+    // annotation array position → sorted index (or -1 for non-card labels).
+    const annotationIndex = ordered.map((o) => o.idx);
 
     const data: Data[] = [
       {
@@ -100,7 +173,7 @@ export function TimelineView() {
         y: years.map(() => 0),
         marker: {
           size: 9,
-          color: sorted.map((e) => t.sourceColors[e.source] ?? "#3498db"),
+          color: sorted.map((e) => sourceColors[e.source] ?? "#3498db"),
         },
         text: sorted.map((e) => e.name),
         hoverinfo: "text",
@@ -115,6 +188,8 @@ export function TimelineView() {
         range: [yearMin, yearMax],
         showgrid: false,
         zeroline: false,
+        // Years are now drawn on the line itself, so drop the bottom ticks.
+        showticklabels: false,
       },
       yaxis: { visible: false, range: [-1.4, 1.4] },
       plot_bgcolor: "white",
@@ -125,8 +200,8 @@ export function TimelineView() {
       annotations,
     };
 
-    return { dated: sorted, undatedEntries: t.undated, figure: { data, layout } };
-  }, [records]);
+    return { data, layout, annotationIndex };
+  }, [sorted, expanded, sourceColors]);
 
   if (records.length === 0) {
     return <Text c="dimmed">No results to plot.</Text>;
@@ -138,9 +213,12 @@ export function TimelineView() {
         <>
           <Text mb="sm">
             <b>
-              {dated.length} name{dated.length === 1 ? "" : "s"}
+              {sorted.length} name{sorted.length === 1 ? "" : "s"}
             </b>{" "}
-            with publication dates for <i>{query}</i>
+            with publication dates for <i>{query}</i>{" "}
+            <Text span c="dimmed" size="xs">
+              · click a card to expand or collapse it
+            </Text>
           </Text>
           <PlotlyChart
             data={figure.data}
@@ -148,6 +226,10 @@ export function TimelineView() {
             config={{ scrollZoom: true, displayModeBar: false }}
             style={{ width: "100%" }}
             useResizeHandler
+            onClickAnnotation={(e) => {
+              const idx = figure.annotationIndex[e.index];
+              if (idx != null && idx >= 0) toggleCard(idx);
+            }}
           />
         </>
       ) : (
@@ -178,7 +260,15 @@ export function TimelineView() {
               <Table.Tbody>
                 {undatedEntries.map((e, i) => (
                   <Table.Tr key={`${e.name}-${i}`}>
-                    <Table.Td>{e.name}</Table.Td>
+                    <Table.Td>
+                      {e.url ? (
+                        <Anchor href={e.url} target="_blank" rel="noopener noreferrer">
+                          {e.name}
+                        </Anchor>
+                      ) : (
+                        e.name
+                      )}
+                    </Table.Td>
                     <Table.Td>{e.author}</Table.Td>
                     <Table.Td>{e.source}</Table.Td>
                     <Table.Td>{e.status}</Table.Td>
