@@ -71,3 +71,4 @@ export function ResultsArea() {
     default:
       return null;
   }
+}
