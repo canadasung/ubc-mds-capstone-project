@@ -12,7 +12,6 @@ import {
   Divider,
   Group,
   ScrollArea,
-  Switch,
   Title,
 } from "@mantine/core";
 
@@ -25,8 +24,6 @@ import { useSearchStore } from "@/lib/store";
 export default function Page() {
   const panelOpen = useSearchStore((s) => s.panelOpen);
   const togglePanel = useSearchStore((s) => s.togglePanel);
-  const debug = useSearchStore((s) => s.debug);
-  const setDebug = useSearchStore((s) => s.setDebug);
 
   return (
     <AppShell
@@ -39,24 +36,16 @@ export default function Page() {
       padding="md"
     >
       <AppShell.Header>
-        <Group h="100%" px="md" justify="space-between" wrap="nowrap">
-          <Group gap="sm" wrap="nowrap">
-            <PanelToggle open={panelOpen} onClick={togglePanel} />
-            <Title order={5} style={{ whiteSpace: "nowrap" }}>
-              Species Name Synonym Search
-            </Title>
-          </Group>
-          <Switch
-            label="Debug"
-            size="sm"
-            checked={debug}
-            onChange={(e) => setDebug(e.currentTarget.checked)}
-          />
+        <Group h="100%" px="md" gap="sm" wrap="nowrap">
+          <PanelToggle open={panelOpen} onClick={togglePanel} />
+          <Title order={5} style={{ whiteSpace: "nowrap" }}>
+            Species Name Synonym Search
+          </Title>
         </Group>
       </AppShell.Header>
 
       <AppShell.Navbar p="md">
-        {/* ScrollArea lets the search panel scroll when "Advanced options" is
+        {/* ScrollArea lets the search panel scroll when "Database selection" is
             expanded and its content is taller than the navbar. */}
         <ScrollArea h="100%" type="auto" scrollbarSize={8}>
           <SearchPanel />

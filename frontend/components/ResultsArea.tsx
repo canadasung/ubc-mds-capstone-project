@@ -10,10 +10,10 @@ import { useSearchStore } from "@/lib/store";
 import { ApiError } from "@/lib/types";
 
 import { TableView } from "@/components/views/TableView";
+import { DetailView } from "@/components/views/DetailView";
 import { TimelineView } from "@/components/views/TimelineView";
 import { RelationsView } from "@/components/views/RelationsView";
 import { TaxonomyView } from "@/components/views/TaxonomyView";
-import { DebugView } from "@/components/views/DebugView";
 
 export function ResultsArea() {
   const activeView = useSearchStore((s) => s.activeView);
@@ -58,17 +58,16 @@ export function ResultsArea() {
   }
 
   switch (activeView) {
-    case "Table":
+    case "Overview":
       return <TableView />;
+    case "Detail":
+      return <DetailView />;
+    case "Relations":
+      return <RelationsView />;  
     case "Timeline":
       return <TimelineView />;
-    case "Relations":
-      return <RelationsView />;
-    case "Taxonomic":
+    case "Taxonomy":           
       return <TaxonomyView />;
-    case "Debug":
-      return <DebugView />;
     default:
       return null;
   }
-}
