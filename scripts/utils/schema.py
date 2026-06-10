@@ -2,6 +2,11 @@ import re
 
 import pandas as pd
 
+from scripts.apis_pipe.config import ALL_PORTALS
+
+# value to use when data is unavailable (i.e. never present) from a given API source. This is not the same as an empty string, which indicates that the data was not found for that particular query (e.g. no author for a given taxonomic name).
+UNAVAILABLE = "U"
+
 SYNONYM_COLUMNS = [
     "api_name",  # name of API source that provided the data, e.g. GBIF (required)
     "kingdom",  # taxonomic kingdom (optional)
@@ -19,8 +24,6 @@ SYNONYM_COLUMNS = [
     "api_link",  # link to the search result on the API source's website (optional)
     "api_internal_id",  # unique identifier for the record of this taxonomic name in the API source's database (required)
 ]
-# value to use when data is unavailable (i.e. never present) from a given API source. This is not the same as an empty string, which indicates that the data was not found for that particular query (e.g. no author for a given taxonomic name).
-UNAVAILABLE = "U"
 
 # valid values for the "status" column, including UNAVAILABLE to indicate that the API source does not provide this information
 _STATUS_VALUES = {
@@ -56,26 +59,7 @@ _REQUIRED_COLUMNS = {
     "api_internal_id",
 }
 
-_API_NAMES = {
-    "GBIF",
-    "COL",  # Catalogue of Life
-    "Tropicos",
-    "Index Fungorum",
-    "GenBank",
-    "Mushroom Observer",  # (prev. "mushroomobs")
-    # Symbiota Portals
-    "MyCoPortal",  # Mycology Collections Portal
-    "Lichen Portal",  # Consortium of Lichen Herbaria
-    "Bryophyte Portal",  # Consortium of Bryophyte Herbaria
-    "CCH2",  # Consortium of California Herbaria
-    "SERNEC",  # Southeast Regional Network of Expertise and Collections
-    "NANSH",  # North American Network of Small Herbaria
-    "swbiodiversity",  # SEINet New Mexico-Arizona Chapter
-    "Algae Herbarium Portal",  # (prev. macroalgae)
-    "Pterido Portal",  # Pteridophyte Collections Consortium
-    "CNH",  # Consortium of Northeastern Herbaria (prev. "neherbaria")
-    "Mid-Atlantic Herbaria Consortium",  # (prev. "midatlantic")
-}
+_API_NAMES: set[str] = {p.display_name for p in ALL_PORTALS}
 
 
 def _make_string_validator(col: str):
@@ -157,9 +141,9 @@ def _validate_publication_year(v: str) -> None:
     ValueError
         If ``v`` is not a 4-digit string and is not equal to ``UNAVAILABLE``.
     """
-    if v != UNAVAILABLE and not re.fullmatch(r"\d{4}", v):
+    if v != UNAVAILABLE and v != "" and not re.fullmatch(r"\d{4}", v):
         raise ValueError(
-            f"'publication_year' must be a 4-digit year string or {UNAVAILABLE!r}, got {v!r}"
+            f"'publication_year' must be a 4-digit year string, an empty string, or {UNAVAILABLE!r}, got {v!r}"
         )
 
 
@@ -249,6 +233,20 @@ def make_synonym_row(**kwargs) -> dict:
         If a required column is missing or set to ``UNAVAILABLE``, or if any
         column value fails its validator.
     """
+    # Validate that a blank string, "", was used for any passed value that did not have an entry, not None or "U"
+    for col, v in kwargs.items():
+        if v is None:
+            raise TypeError(
+                f"Got None for '{col}' in make_synonym_row. "
+                f"Pass '' if the field was searched but not found, "
+                f"or omit the argument if the API does not provide this field."
+            )
+        if isinstance(v, str) and v == UNAVAILABLE:
+            raise ValueError(
+                f"Got {UNAVAILABLE!r} for '{col}' in make_synonym_row. "
+                f"Do not pass {UNAVAILABLE!r} directly — "
+                f"omit the argument to let make_synonym_row apply the default."
+            )
     row = {col: kwargs.get(col, UNAVAILABLE) for col in SYNONYM_COLUMNS}
     missing = [col for col in _REQUIRED_COLUMNS if row[col] == UNAVAILABLE]
     if missing:
