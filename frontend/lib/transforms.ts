@@ -259,3 +259,63 @@ export function buildTimeline(records: SpeciesRecord[]): TimelineData {
 
   return { dated, undated, sourceColors };
 }
+
+export interface YearGroup {
+  year: number;
+  /** Records published this year with status "Accepted". */
+  accepted: TimelineEntry[];
+  /** Records published this year that are not accepted (synonyms or unknown). */
+  synonyms: TimelineEntry[];
+  /** True when at least one record published this year is accepted. */
+  isAccepted: boolean;
+  /** Representative source label for the year, used for the axis dot color. */
+  source: string;
+  /** Total number of records published this year. */
+  count: number;
+}
+
+/**
+ * Collapse dated timeline entries into one group per publication year.
+ *
+ * Records sharing a year are merged into a single ``YearGroup`` whose
+ * ``accepted`` and ``synonyms`` lists partition them by status. A group counts
+ * as accepted when at least one of its records is accepted, so a year holding
+ * both accepted and synonym records is treated as accepted.
+ *
+ * Parameters
+ * ----------
+ * dated : TimelineEntry[]
+ *     Entries that have a publication year.
+ *
+ * Returns
+ * -------
+ * YearGroup[]
+ *     One group per distinct year, ordered oldest to newest.
+ */
+export function groupTimelineByYear(dated: TimelineEntry[]): YearGroup[] {
+  const byYear = new Map<number, TimelineEntry[]>();
+  for (const e of dated) {
+    if (e.year == null) continue;
+    const list = byYear.get(e.year);
+    if (list) list.push(e);
+    else byYear.set(e.year, [e]);
+  }
+
+  const groups: YearGroup[] = [];
+  for (const [year, items] of byYear) {
+    const accepted = items.filter((e) => e.status === "Accepted");
+    const synonyms = items.filter((e) => e.status !== "Accepted");
+    const representative = accepted[0] ?? synonyms[0];
+    groups.push({
+      year,
+      accepted,
+      synonyms,
+      isAccepted: accepted.length > 0,
+      source: representative.source,
+      count: items.length,
+    });
+  }
+
+  groups.sort((a, b) => a.year - b.year);
+  return groups;
+}
