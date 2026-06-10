@@ -34,10 +34,14 @@ class COLAPI(SpeciesAPI):
             The full JSON search response, including a ``"result"`` key
             containing a list of matching name-usage records.
         """
-        return self._fetch_JSON(
+        data = self._fetch_JSON(
             f"{self.BASE_URL}/dataset/{self.DATASET_KEY}/nameusage/search",
             params={"q": name, "type": "EXACT"},
         )
+        if data["empty"]:
+            return {}
+        else:
+            return data
 
     def _extract_internal_accepted_id(self, results: list) -> str:
         """

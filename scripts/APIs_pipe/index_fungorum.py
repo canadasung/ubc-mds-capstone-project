@@ -39,7 +39,7 @@ class IndexFungorumAPI(SpeciesAPI):
         "authors": "AUTHORS",
     }
 
-    def _fetch_query_data(self, name: str) -> ET.Element | None:
+    def _fetch_query_data(self, name: str) -> ET.Element:
         """
         Search Index Fungorum for *name* and return the first exact-matching record.
 
@@ -69,14 +69,14 @@ class IndexFungorumAPI(SpeciesAPI):
             timeout=60,
         )
         if root is None:
-            return None
+            return ET.Element("empty")
         for record in root.findall("IndexFungorum"):
             rec_name = normalize_query_string(
                 (record.findtext(self._TAGS["name"]) or "").strip()
             )
             if rec_name == name:
                 return record
-        return None
+        return ET.Element("empty")
 
     def _extract_internal_id(self, raw_data: ET.Element) -> str:
         """
@@ -111,7 +111,7 @@ class IndexFungorumAPI(SpeciesAPI):
         """
         return (raw_data.findtext(self._TAGS["current_key"]) or "").strip()
 
-    def _fetch_synonym_data(self, raw_data: ET.Element) -> ET.Element | None:
+    def _fetch_synonym_data(self, raw_data: ET.Element) -> ET.Element:
         """
         Fetch all names sharing the accepted taxon's CurrentKey.
 
@@ -132,7 +132,7 @@ class IndexFungorumAPI(SpeciesAPI):
         """
         current_key = self._extract_internal_accepted_id(raw_data)
         if not current_key:
-            return None
+            return ET.Element("empty")
         return self._fetch_XML(
             f"{self.BASE_URL}/NamesByCurrentKey",
             params={"CurrentKey": current_key},

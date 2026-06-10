@@ -62,10 +62,16 @@ class TropicosAPI(SpeciesAPI):
                 "format": "json",
             },
         )
-        # The API returns an empty dict for network/HTTP errors, so we check for a list (successful response type) before returning.
-        if not isinstance(results, list) or len(results) == 0:
+
+        # Check for list without error
+        if (
+            not isinstance(results, list)
+            or len(results) == 0
+            or results["Error"] == "No names were found"
+        ):
             return []
-        return results
+        else:
+            return results
 
     def _extract_internal_id(self, raw_data: list) -> str:
         """
@@ -120,6 +126,7 @@ class TropicosAPI(SpeciesAPI):
                 "format": "json",
             },
         )
+
         if isinstance(accepted, list) and len(accepted) > 0:
             accepted_id = accepted[0].get("AcceptedName", {}).get("NameId")
             if accepted_id is not None:
@@ -149,10 +156,14 @@ class TropicosAPI(SpeciesAPI):
                 "format": "json",
             },
         )
-        # API returns a dict (e.g. error/no-results message) instead of a list when there are no synonyms
-        if not isinstance(results, list):
+        if (
+            not isinstance(results, list)
+            or len(results) == 0
+            or results["Error"] == "No names were found"
+        ):
             return []
-        return results
+        else:
+            return results  # TODO: double check this error handling
 
     def _fetch_synonym_search_term_data(
         self, raw_data: list, synonym_data: list
@@ -186,10 +197,15 @@ class TropicosAPI(SpeciesAPI):
                 f"{self.BASE_URL}/Name/{self.accepted_id}",
                 params={"apikey": self.key, "format": "json"},
             )
-            if isinstance(result, dict) and result:
-                return [result]
+
+            if (
+                not isinstance(result, list)
+                or len(result) == 0
+                or result["Error"] == "No names were found"
+            ):
+                return []
             else:
-                return []  # TODO: double check this error handling
+                return [result]  # TODO: double check this error handling
         else:
             return raw_data
 
