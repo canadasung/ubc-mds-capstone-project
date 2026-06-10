@@ -9,7 +9,7 @@
 import { create } from "zustand";
 import { SOURCE_KEYS } from "./sources";
 
-export type ViewKey = "Table" | "Timeline" | "Node" | "Taxonomic" | "Debug";
+export type ViewKey = "Overview" | "Relations" | "Timeline" | "Taxonomy" | "Debug";
 
 interface SearchState {
   // ── Search form ───────────────────────────────────────────────
@@ -41,7 +41,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   selectedSources: [...SOURCE_KEYS], // all on by default (mirrors value=True)
 
   panelOpen: true,
-  activeView: "Table",
+  activeView: "Overview",
   debug: false,
 
   setQuery: (q) => set({ query: q }),
@@ -70,6 +70,6 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     set((s) => ({
       debug: v,
       // keep activeView valid when Debug is turned off
-      activeView: !v && s.activeView === "Debug" ? "Table" : s.activeView,
+      activeView: !v && s.activeView === "Debug" ? "Overview" : s.activeView,
     })),
 }));

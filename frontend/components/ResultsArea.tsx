@@ -58,13 +58,13 @@ export function ResultsArea() {
   }
 
   switch (activeView) {
-    case "Table":
+    case "Overview":
       return <TableView />;
+    case "Relations":
+      return <NodeView />;
     case "Timeline":
       return <TimelineView />;
-    case "Node":
-      return <NodeView />;
-    case "Taxonomic":
+    case "Taxonomy":
       return <TaxonomyView />;
     case "Debug":
       return <DebugView />;

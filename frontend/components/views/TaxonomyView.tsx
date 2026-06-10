@@ -5,7 +5,7 @@
  *
  * Consumes /api/taxonomy (the backend shapes the per-source comparison), then
  * applies the active source filter client-side so it stays in sync with the
- * Advanced-options checkboxes — exactly like the record-based views. Ranks where
+ * Database-selection checkboxes — exactly like the record-based views. Ranks where
  * the *visible* sources disagree are highlighted red, and ranks that become
  * entirely empty after filtering are dropped.
  */

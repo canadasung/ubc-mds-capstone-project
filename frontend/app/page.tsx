@@ -56,7 +56,7 @@ export default function Page() {
       </AppShell.Header>
 
       <AppShell.Navbar p="md">
-        {/* ScrollArea lets the search panel scroll when "Advanced options" is
+        {/* ScrollArea lets the search panel scroll when "Database selection" is
             expanded and its content is taller than the navbar. */}
         <ScrollArea h="100%" type="auto" scrollbarSize={8}>
           <SearchPanel />
