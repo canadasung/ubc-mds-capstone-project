@@ -9,7 +9,7 @@
 import { create } from "zustand";
 import { SOURCE_KEYS } from "./sources";
 
-export type ViewKey = "Overview" | "Relations" | "Timeline" | "Taxonomy" | "Debug";
+export type ViewKey = "Overview" | "Detail" | "Relations" | "Timeline" | "Taxonomy";
 
 interface SearchState {
   // ── Search form ───────────────────────────────────────────────
@@ -21,7 +21,6 @@ interface SearchState {
   // ── Layout ────────────────────────────────────────────────────
   panelOpen: boolean;
   activeView: ViewKey;
-  debug: boolean;
 
   // ── Actions ───────────────────────────────────────────────────
   setQuery: (q: string) => void;
@@ -31,7 +30,6 @@ interface SearchState {
   setAllSources: (on: boolean) => void;
   togglePanel: () => void;
   setActiveView: (v: ViewKey) => void;
-  setDebug: (v: boolean) => void;
 }
 
 export const useSearchStore = create<SearchState>((set, get) => ({
@@ -42,7 +40,6 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
   panelOpen: true,
   activeView: "Overview",
-  debug: false,
 
   setQuery: (q) => set({ query: q }),
 
@@ -65,11 +62,4 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
 
   setActiveView: (v) => set({ activeView: v }),
-
-  setDebug: (v) =>
-    set((s) => ({
-      debug: v,
-      // keep activeView valid when Debug is turned off
-      activeView: !v && s.activeView === "Debug" ? "Overview" : s.activeView,
-    })),
 }));
