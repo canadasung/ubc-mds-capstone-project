@@ -12,7 +12,7 @@ import { ApiError } from "@/lib/types";
 import { TableView } from "@/components/views/TableView";
 import { DetailView } from "@/components/views/DetailView";
 import { TimelineView } from "@/components/views/TimelineView";
-import { NodeView } from "@/components/views/NodeView";
+import { RelationsView } from "@/components/views/RelationsView";
 import { TaxonomyView } from "@/components/views/TaxonomyView";
 
 export function ResultsArea() {
@@ -63,12 +63,11 @@ export function ResultsArea() {
     case "Detail":
       return <DetailView />;
     case "Relations":
-      return <NodeView />;
+      return <RelationsView />;  
     case "Timeline":
       return <TimelineView />;
-    case "Taxonomy":
+    case "Taxonomy":           
       return <TaxonomyView />;
     default:
       return null;
   }
-}
