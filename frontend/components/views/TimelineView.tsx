@@ -60,35 +60,99 @@ const SLOT_COLLAPSED = 95;
  */
 const SLOT_EXPANDED = 190;
 /**
- * Maximum width in pixels of an expanded card box. Long publication strings
- * wrap to this width instead of widening the box past its slot.
+ * Target width in pixels of an expanded card box. Card text is wrapped to fit
+ * this width so it never widens past its slot or clips at the box edge.
  */
 const CARD_WIDTH_EXPANDED = 300;
+/** Approximate monospace character advance at the card font size, in pixels. */
+const CARD_CHAR_PX = 7.8;
+/**
+ * Maximum characters per wrapped line in an expanded horizontal card, derived
+ * from the target card width. Plotly does not auto-wrap annotation text, so
+ * card text is wrapped to this width with explicit line breaks.
+ */
+const CARD_WRAP_CHARS = Math.floor((CARD_WIDTH_EXPANDED - 24) / CARD_CHAR_PX);
 
 /**
- * Build the muted detail line for a single record (author, publication, source).
+ * Word-wrap plain text to a maximum line length.
  *
- * Author and publication are dropped when they are the "—" placeholder. The
- * source is rendered as a link when the record carries a URL.
+ * Words are kept whole where possible; a single word longer than the limit is
+ * hard-broken. Used to wrap card text manually because Plotly annotations clip
+ * rather than wrap.
+ *
+ * Parameters
+ * ----------
+ * text : string
+ *     The plain text to wrap.
+ * maxChars : number
+ *     Maximum number of characters per line.
+ *
+ * Returns
+ * -------
+ * string[]
+ *     The wrapped lines (at least one, possibly empty).
+ */
+function wrapLines(text: string, maxChars: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+  for (let word of words) {
+    while (word.length > maxChars) {
+      if (current) {
+        lines.push(current);
+        current = "";
+      }
+      lines.push(word.slice(0, maxChars));
+      word = word.slice(maxChars);
+    }
+    if (!current) current = word;
+    else if (current.length + 1 + word.length <= maxChars) current += " " + word;
+    else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : [""];
+}
+
+/**
+ * Build the wrapped HTML for a single record, plus its line count.
+ *
+ * The record renders as a bold name line, an optional author and publication
+ * line, and a source line (a link when the record carries a URL). Each part is
+ * wrapped to *maxChars*. The line count is returned so the horizontal view can
+ * reserve enough vertical room for the card.
  *
  * Parameters
  * ----------
  * e : TimelineEntry
- *     The record whose detail line is rendered.
+ *     The record to render.
+ * maxChars : number
+ *     Maximum number of characters per wrapped line.
  *
  * Returns
  * -------
- * string
- *     HTML string suitable for a Plotly annotation text property.
+ * { html: string; lines: number }
+ *     The record's HTML and the number of text lines it occupies.
  */
-function recordLineHtml(e: TimelineEntry): string {
+function recordHtml(e: TimelineEntry, maxChars: number): { html: string; lines: number } {
+  const nameLines = wrapLines(e.name, maxChars);
+  const metaText = [e.author, e.publicationName]
+    .filter((part) => part && part !== "—")
+    .join(" · ");
+  const metaLines = metaText ? wrapLines(metaText, maxChars) : [];
   const src = e.url
     ? `<a href="${e.url}" target="_blank">${e.source}</a>`
     : e.source;
-  const detail = [e.author, e.publicationName, src]
-    .filter((part) => part && part !== "—")
-    .join(" · ");
-  return `<b>${e.name}</b><br><span style="color:#888">${detail}</span>`;
+  const parts = [
+    `<b>${nameLines.join("<br>")}</b>`,
+    ...(metaLines.length
+      ? [`<span style="color:#888">${metaLines.join("<br>")}</span>`]
+      : []),
+    `<span style="color:#888">${src}</span>`,
+  ];
+  return { html: parts.join("<br>"), lines: nameLines.length + metaLines.length + 1 };
 }
 
 /**
@@ -102,15 +166,22 @@ function recordLineHtml(e: TimelineEntry): string {
  *     Heading color, matching the card border palette.
  * items : TimelineEntry[]
  *     Records belonging to the section.
+ * maxChars : number
+ *     Maximum number of characters per wrapped line.
  *
  * Returns
  * -------
  * string
  *     HTML for the section, or "" when there are no records.
  */
-function sectionHtml(title: string, color: string, items: TimelineEntry[]): string {
+function sectionHtml(
+  title: string,
+  color: string,
+  items: TimelineEntry[],
+  maxChars: number,
+): string {
   if (items.length === 0) return "";
-  const rows = items.map(recordLineHtml).join("<br>");
+  const rows = items.map((e) => recordHtml(e, maxChars).html).join("<br>");
   return `<span style="color:${color}"><b>${title}</b></span><br>${rows}`;
 }
 
@@ -121,16 +192,18 @@ function sectionHtml(title: string, color: string, items: TimelineEntry[]): stri
  * ----------
  * group : YearGroup
  *     The year group whose records are rendered.
+ * maxChars : number
+ *     Maximum number of characters per wrapped line.
  *
  * Returns
  * -------
  * string
  *     HTML string suitable for a Plotly annotation text property.
  */
-function groupCardHtml(group: YearGroup): string {
+function groupCardHtml(group: YearGroup, maxChars: number): string {
   return [
-    sectionHtml("Accepted", COLOR_ACCEPTED, group.accepted),
-    sectionHtml("Synonyms", COLOR_SYNONYM, group.synonyms),
+    sectionHtml("Accepted", COLOR_ACCEPTED, group.accepted, maxChars),
+    sectionHtml("Synonyms", COLOR_SYNONYM, group.synonyms, maxChars),
   ]
     .filter(Boolean)
     .join("<br><br>");
@@ -181,6 +254,38 @@ function groupCollapsedHtml(group: YearGroup): string {
       ? `<br><span style="color:#888">+${group.count - 1} more</span>`
       : "";
   return `${nameStacked(representative.name)}${more}`;
+}
+
+/**
+ * Estimate the rendered pixel height of an expanded year card.
+ *
+ * Counts one heading line per non-empty section plus roughly two and a half
+ * lines per record (a name and a possibly wrapped detail line). The estimate
+ * lets the horizontal view reserve enough vertical room that expanded cards on
+ * opposite lanes do not overlap.
+ *
+ * Parameters
+ * ----------
+ * group : YearGroup
+ *     The year group whose expanded card height is estimated.
+ * maxChars : number
+ *     Maximum number of characters per wrapped line, matching the rendered card.
+ *
+ * Returns
+ * -------
+ * number
+ *     Estimated card height in pixels.
+ */
+function estimateExpandedCardPx(group: YearGroup, maxChars: number): number {
+  const LINE_PX = 18;
+  let lines = 0;
+  for (const section of [group.accepted, group.synonyms]) {
+    if (section.length === 0) continue;
+    lines += 1; // section heading
+    for (const e of section) lines += recordHtml(e, maxChars).lines;
+  }
+  if (group.accepted.length && group.synonyms.length) lines += 1; // gap between sections
+  return lines * LINE_PX + 24;
 }
 
 /**
@@ -428,6 +533,20 @@ function VerticalTimeline({ groups, sourceColors, expanded, onToggle }: Vertical
               position: "relative",
             }}
           >
+            {/* Dashed connector from the central axis to this card */}
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: isLeft ? undefined : "50%",
+                right: isLeft ? "50%" : undefined,
+                width: CENTER_WIDTH,
+                borderTop: "1px dashed #bdc3c7",
+                zIndex: 0,
+              }}
+            />
+
             {/* Left card slot */}
             <div
               style={{
@@ -450,6 +569,7 @@ function VerticalTimeline({ groups, sourceColors, expanded, onToggle }: Vertical
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
+                position: "relative",
                 zIndex: 1,
               }}
             >
@@ -469,6 +589,8 @@ function VerticalTimeline({ groups, sourceColors, expanded, onToggle }: Vertical
                   fontFamily: "Courier New, monospace",
                   fontWeight: "bold",
                   lineHeight: 1,
+                  backgroundColor: "rgba(255,255,255,0.85)",
+                  padding: "1px 2px",
                 }}
               >
                 {group.year}
@@ -569,6 +691,17 @@ export function TimelineView() {
     const slot = anyExpanded ? SLOT_EXPANDED : SLOT_COLLAPSED;
     const minWidth = slot * groups.length + 60;
 
+    // Grow the plot height so the two lanes sit far enough apart that the
+    // tallest expanded card cannot overlap a card on the opposite lane. Lanes
+    // are at y = ±0.5 within a 2.8-unit range, so the pixel gap between them is
+    // height / 2.8; keep that gap above the tallest expanded card, with margin.
+    const tallestCard = groups.reduce(
+      (max, g, i) =>
+        expanded.has(i) ? Math.max(max, estimateExpandedCardPx(g, CARD_WRAP_CHARS)) : max,
+      0,
+    );
+    const plotHeight = Math.min(1600, Math.max(480, Math.ceil(2.8 * tallestCard * 1.2)));
+
     const shapes: Partial<Layout>["shapes"] = [
       {
         type: "line",
@@ -598,7 +731,7 @@ export function TimelineView() {
       const ann: Ann = {
         x: xPos[i],
         y: yPos[i],
-        text: isOpen ? groupCardHtml(g) : groupCollapsedHtml(g),
+        text: isOpen ? groupCardHtml(g, CARD_WRAP_CHARS) : groupCollapsedHtml(g),
         showarrow: false,
         bgcolor: "white",
         bordercolor: borderColor,
@@ -609,8 +742,8 @@ export function TimelineView() {
         xanchor: "center",
         yanchor: "middle",
         captureevents: true,
-        // Cap an expanded box so long publication strings wrap instead of
-        // widening it past its slot and overlapping a neighbor.
+        // Card text is pre-wrapped to CARD_WRAP_CHARS, so a fixed box width
+        // keeps every expanded card the same size without clipping.
         ...(isOpen ? { width: CARD_WIDTH_EXPANDED } : {}),
       };
       return { ann, idx: i, isOpen };
@@ -665,7 +798,7 @@ export function TimelineView() {
     ];
 
     const layout: Partial<Layout> = {
-      height: 480,
+      height: plotHeight,
       margin: { l: 20, r: 20, t: 30, b: 20 },
       xaxis: {
         title: { text: "Year of Publication" },
