@@ -598,7 +598,14 @@ function VerticalTimeline({ groups, sourceColors, expanded, onToggle }: Vertical
             </div>
 
             {/* Right card slot */}
-            <div style={{ flex: 1, paddingLeft: CENTER_WIDTH / 2 }}>
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                justifyContent: "flex-start",
+                paddingLeft: CENTER_WIDTH / 2,
+              }}
+            >
               {!isLeft && (
                 <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(i)} />
               )}
