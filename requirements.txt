@@ -1,0 +1,7 @@
+# Backend runtime deps for the Hugging Face Space (pip equivalent of the
+# backend slice of environment.yml). Frontend deps are separate (frontend/).
+fastapi
+uvicorn[standard]
+pandas==2.3.3
+requests
+python-dotenv
