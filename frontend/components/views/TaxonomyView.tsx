@@ -5,34 +5,44 @@
  *
  * Consumes /api/taxonomy (the backend shapes the per-source comparison), then
  * applies the active source filter client-side so it stays in sync with the
- * Advanced-options checkboxes — exactly like the record-based views. Ranks where
- * the *visible* sources disagree are highlighted red, and ranks that become
- * entirely empty after filtering are dropped.
+ * Advanced-options checkboxes — exactly like the record-based views. Ranks that
+ * become entirely empty after filtering are dropped.
+ *
+ * Disagreement is shown per-cell via a colour gradient (see lib/taxonomyShading):
+ * each cell is shaded by its character edit distance from the column's reference
+ * — the search query for Genus/Species, GBIF for every other rank. Blue when a
+ * column has a single differing value, orange when it has several.
  */
 
 import { useMemo } from "react";
-import { Alert, Loader, Table, Text, Tooltip } from "@mantine/core";
-import { IconAlertTriangle, IconCircleCheck } from "@tabler/icons-react";
+import { Group, Loader, Stack, Table, Text, Tooltip } from "@mantine/core";
 
 import { useActiveSourceKeys, useTaxonomy } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
 import { fullLabelForKey, keyForApiName, labelForKey } from "@/lib/sources";
+import {
+  cellValue,
+  computeShading,
+  SHADE_PALETTE,
+  type CellShade,
+} from "@/lib/taxonomyShading";
 import type { TaxonomyRow } from "@/lib/types";
-
-function cellValue(row: TaxonomyRow, rank: string): string {
-  const v = row[rank];
-  return v == null || v === "" ? "" : String(v);
-}
 
 export function TaxonomyView() {
   const query = useSearchStore((s) => s.submittedQuery);
   const { data, isLoading, isError } = useTaxonomy();
   const { keys, queriedSources } = useActiveSourceKeys();
 
-  // Filter sources to the active set, then recompute the present ranks and the
-  // disagreements over only the visible sources.
-  const { sources, ranks, disagreements } = useMemo(() => {
-    if (!data) return { sources: [] as TaxonomyRow[], ranks: [] as string[], disagreements: new Set<string>() };
+  // Filter sources to the active set, drop now-empty ranks, then shade each cell
+  // by edit distance from its column reference.
+  const { sources, ranks, shading } = useMemo(() => {
+    if (!data) {
+      return {
+        sources: [] as TaxonomyRow[],
+        ranks: [] as string[],
+        shading: new Map<string, Map<string, CellShade | null>>(),
+      };
+    }
 
     const allowed = new Set(keys);
     const filtered = data.sources.filter((row) => {
@@ -46,15 +56,10 @@ export function TaxonomyView() {
       filtered.some((row) => cellValue(row, r) !== ""),
     );
 
-    const disagree = new Set<string>();
-    for (const r of presentRanks) {
-      const values = new Set(
-        filtered.map((row) => cellValue(row, r)).filter((v) => v !== ""),
-      );
-      if (values.size > 1) disagree.add(r);
-    }
+    // reference for Genus/Species is the (normalised) query the backend echoed
+    const shading = computeShading(filtered, presentRanks, data.query);
 
-    return { sources: filtered, ranks: presentRanks, disagreements: disagree };
+    return { sources: filtered, ranks: presentRanks, shading };
   }, [data, keys, queriedSources]);
 
   if (isLoading) return <Loader />;
@@ -89,41 +94,101 @@ export function TaxonomyView() {
               const shortLabel = labelForKey(sourceKey);
               const fullLabel = fullLabelForKey(sourceKey);
               return (
-              <Table.Tr key={row.source}>
-                <Table.Td fw={600}>
-                  <Tooltip label={fullLabel} disabled={fullLabel === shortLabel} withArrow>
-                    <span>{shortLabel}</span>
-                  </Tooltip>
-                </Table.Td>
-                {ranks.map((r) => {
-                  const val = cellValue(row, r);
-                  return (
-                    <Table.Td
-                      key={r}
-                      className={disagreements.has(r) ? "disagreeCell" : undefined}
+                <Table.Tr key={row.source}>
+                  <Table.Td fw={600}>
+                    <Tooltip
+                      label={fullLabel}
+                      disabled={fullLabel === shortLabel}
+                      withArrow
                     >
-                      {val === "" ? "—" : val}
-                    </Table.Td>
-                  );
-                })}
-              </Table.Tr>
+                      <span>{shortLabel}</span>
+                    </Tooltip>
+                  </Table.Td>
+                  {ranks.map((r) => {
+                    const val = cellValue(row, r);
+                    const shade = shading.get(r)?.get(row.source) ?? null;
+                    return (
+                      <Table.Td key={r} style={shade ?? undefined}>
+                        {val === "" ? "—" : val}
+                      </Table.Td>
+                    );
+                  })}
+                </Table.Tr>
               );
             })}
           </Table.Tbody>
         </Table>
       </Table.ScrollContainer>
 
-      {sources.length > 1 &&
-        (disagreements.size > 0 ? (
-          <Alert mt="md" color="orange" variant="light" icon={<IconAlertTriangle />}>
-            Sources disagree on: <b>{[...disagreements].join(", ")}</b> (
-            {disagreements.size} rank{disagreements.size === 1 ? "" : "s"})
-          </Alert>
-        ) : (
-          <Alert mt="md" color="green" variant="light" icon={<IconCircleCheck />}>
-            All sources agree on the taxonomy.
-          </Alert>
-        ))}
+      <ShadingLegend />
     </>
+  );
+}
+
+/** Explains the white / blue / orange gradient under the table. */
+function ShadingLegend() {
+  const levels: Array<{ level: 1 | 2 | 3 | 4; label: string }> = [
+    { level: 1, label: "1" },
+    { level: 2, label: "2–5" },
+    { level: 3, label: "6–7" },
+    { level: 4, label: "8+" },
+  ];
+
+  return (
+    <Stack gap={6} mt="md">
+      <Text size="xs" c="dimmed">
+        Cell colour = character edit distance from the reference (Genus &amp;
+        Species: your search query; other ranks: GBIF). White = matches the
+        reference.
+      </Text>
+
+      <Group gap="lg">
+        <LegendRow
+          title="One differing value"
+          hue="blue"
+          levels={levels}
+        />
+        <LegendRow
+          title="Several differing values"
+          hue="orange"
+          levels={levels}
+        />
+      </Group>
+    </Stack>
+  );
+}
+
+function LegendRow({
+  title,
+  hue,
+  levels,
+}: {
+  title: string;
+  hue: "blue" | "orange";
+  levels: Array<{ level: 1 | 2 | 3 | 4; label: string }>;
+}) {
+  return (
+    <Group gap={6} wrap="nowrap">
+      <Text size="xs" fw={600}>
+        {title}:
+      </Text>
+      {levels.map(({ level, label }) => {
+        const shade = SHADE_PALETTE[hue][level];
+        return (
+          <span
+            key={level}
+            style={{
+              ...shade,
+              fontSize: 11,
+              padding: "1px 6px",
+              borderRadius: 3,
+              border: "1px solid rgba(0,0,0,0.1)",
+            }}
+          >
+            {label}
+          </span>
+        );
+      })}
+    </Group>
   );
 }

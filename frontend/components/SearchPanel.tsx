@@ -3,7 +3,7 @@
 /**
  * SearchPanel — ports the left search column of prototype_master.py:
  *   - search form (Enter submits, like st.form)
- *   - "Advanced options" collapse: kingdom-routing toggle + per-source checkboxes
+ *   - "Database selection" collapse: kingdom-routing toggle + per-source checkboxes
  *   - Select all / Unselect all (disabled while routing is on)
  *   - "Did you mean?" suggestions parsed from a 404 response
  */
@@ -104,7 +104,7 @@ export function SearchPanel() {
 
       <Divider />
 
-      {/* Advanced options */}
+      {/* Database selection */}
       <Box>
         <Button
           variant="subtle"
@@ -119,7 +119,7 @@ export function SearchPanel() {
           }
           onClick={advanced.toggle}
         >
-          Advanced options
+          Database selection
         </Button>
 
         <Collapse in={advancedOpen}>
