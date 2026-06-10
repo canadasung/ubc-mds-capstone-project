@@ -4,13 +4,14 @@
  * Timeline view for species name records.
  *
  * Renders dated taxonomy entries on either a horizontal Plotly chart or a
- * vertical CSS timeline. A segmented toggle lets users switch between the two
- * orientations. Accepted names display in square boxes; all other entries
- * display in rounded boxes. In the horizontal view, shape is communicated via
- * axis marker symbol (square vs circle) and border color, because Plotly
- * annotation boxes do not support CSS border-radius. In the vertical view,
- * true CSS border-radius is applied to each card. Undated entries appear in a
- * collapsible table below either view.
+ * vertical CSS timeline. Records that share a publication year are combined into
+ * a single card for that year, with an Accepted section and a Synonyms section
+ * inside. A year card is treated as accepted when any of its records is
+ * accepted. Accepted cards display square; synonym-only cards display rounded.
+ * Plotly annotation boxes have no border-radius property, so in the horizontal
+ * view rounding is applied to the SVG rectangles after each render. Status is
+ * also reinforced by the axis marker symbol (square vs circle) and border
+ * color. Undated entries appear in a collapsible table below either view.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -18,6 +19,7 @@ import dynamic from "next/dynamic";
 import {
   Alert,
   Anchor,
+  Button,
   Collapse,
   Group,
   Loader,
@@ -32,7 +34,12 @@ import type { Data, Layout } from "plotly.js";
 
 import { useFilteredRecords } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
-import { buildTimeline, type TimelineEntry } from "@/lib/transforms";
+import {
+  buildTimeline,
+  groupTimelineByYear,
+  type TimelineEntry,
+  type YearGroup,
+} from "@/lib/transforms";
 
 const PlotlyChart = dynamic(() => import("./PlotlyChart"), {
   ssr: false,
@@ -44,54 +51,89 @@ const COLOR_ACCEPTED = "#1c7ed6";
 /** Border color for synonym and unknown-status boxes, used in both views. */
 const COLOR_SYNONYM = "#e67e22";
 
+/** Horizontal pixels per entry in the horizontal view when no card is expanded. */
+const SLOT_COLLAPSED = 95;
 /**
- * Return true when the entry represents a currently accepted taxonomic name.
- *
- * Parameters
- * ----------
- * e : TimelineEntry
- *     A single timeline record.
- *
- * Returns
- * -------
- * boolean
- *     True when ``e.status`` equals "Accepted".
+ * Horizontal pixels per entry in the horizontal view when at least one card is
+ * expanded. Sized so two same-lane neighbors, which sit two slots apart, stay
+ * clear of an expanded box.
  */
-function entryIsAccepted(e: TimelineEntry): boolean {
-  return e.status === "Accepted";
-}
+const SLOT_EXPANDED = 190;
+/**
+ * Maximum width in pixels of an expanded card box. Long publication strings
+ * wrap to this width instead of widening the box past its slot.
+ */
+const CARD_WIDTH_EXPANDED = 300;
 
 /**
- * Build an HTML string for an expanded Plotly annotation card.
+ * Build the muted detail line for a single record (author, publication, source).
+ *
+ * Author and publication are dropped when they are the "—" placeholder. The
+ * source is rendered as a link when the record carries a URL.
  *
  * Parameters
  * ----------
  * e : TimelineEntry
- *     The record whose details are rendered.
- * year : number
- *     Publication year shown as a labelled field.
+ *     The record whose detail line is rendered.
  *
  * Returns
  * -------
  * string
  *     HTML string suitable for a Plotly annotation text property.
  */
-function cardHtml(e: TimelineEntry, year: number): string {
+function recordLineHtml(e: TimelineEntry): string {
   const src = e.url
     ? `<a href="${e.url}" target="_blank">${e.source}</a>`
     : e.source;
-  const status =
-    e.status && e.status !== "—"
-      ? `<br><span style="color:#aaa">Status</span> ${e.status}`
-      : "";
-  return (
-    `<b>${e.name}</b><br>` +
-    `<span style="color:#aaa">Year</span> ${year}<br>` +
-    `<span style="color:#aaa">Author</span> ${e.author}<br>` +
-    `<span style="color:#aaa">Publication</span> ${e.publicationName}<br>` +
-    `<span style="color:#aaa">Source</span> ${src}` +
-    status
-  );
+  const detail = [e.author, e.publicationName, src]
+    .filter((part) => part && part !== "—")
+    .join(" · ");
+  return `<b>${e.name}</b><br><span style="color:#888">${detail}</span>`;
+}
+
+/**
+ * Build a titled status section (Accepted or Synonyms) for a year card.
+ *
+ * Parameters
+ * ----------
+ * title : string
+ *     Section heading, "Accepted" or "Synonyms".
+ * color : string
+ *     Heading color, matching the card border palette.
+ * items : TimelineEntry[]
+ *     Records belonging to the section.
+ *
+ * Returns
+ * -------
+ * string
+ *     HTML for the section, or "" when there are no records.
+ */
+function sectionHtml(title: string, color: string, items: TimelineEntry[]): string {
+  if (items.length === 0) return "";
+  const rows = items.map(recordLineHtml).join("<br>");
+  return `<span style="color:${color}"><b>${title}</b></span><br>${rows}`;
+}
+
+/**
+ * Build the HTML for an expanded year card: Accepted then Synonyms sections.
+ *
+ * Parameters
+ * ----------
+ * group : YearGroup
+ *     The year group whose records are rendered.
+ *
+ * Returns
+ * -------
+ * string
+ *     HTML string suitable for a Plotly annotation text property.
+ */
+function groupCardHtml(group: YearGroup): string {
+  return [
+    sectionHtml("Accepted", COLOR_ACCEPTED, group.accepted),
+    sectionHtml("Synonyms", COLOR_SYNONYM, group.synonyms),
+  ]
+    .filter(Boolean)
+    .join("<br><br>");
 }
 
 /**
@@ -116,13 +158,135 @@ function nameStacked(name: string): string {
   return `<b>${parts[0]}<br>${parts.slice(1).join(" ")}</b>`;
 }
 
+/**
+ * Build the HTML for a collapsed year card.
+ *
+ * Shows a representative name (the accepted name when present, otherwise the
+ * first synonym) plus a count of the remaining records in the year.
+ *
+ * Parameters
+ * ----------
+ * group : YearGroup
+ *     The year group whose summary is rendered.
+ *
+ * Returns
+ * -------
+ * string
+ *     HTML string suitable for a Plotly annotation text property.
+ */
+function groupCollapsedHtml(group: YearGroup): string {
+  const representative = group.accepted[0] ?? group.synonyms[0];
+  const more =
+    group.count > 1
+      ? `<br><span style="color:#888">+${group.count - 1} more</span>`
+      : "";
+  return `${nameStacked(representative.name)}${more}`;
+}
+
+/**
+ * Round the corners of synonym year cards in the horizontal Plotly view.
+ *
+ * Plotly annotation boxes expose no border-radius property, so the rounding is
+ * applied to the rendered SVG rectangles after each draw. Year cards that
+ * contain an accepted record are left square, mirroring the vertical view.
+ *
+ * Parameters
+ * ----------
+ * graphDiv : HTMLElement or null
+ *     The Plotly graph container supplied by the chart render callbacks.
+ * annotationIndex : number[]
+ *     Maps each annotation's array position to its year-group index, or -1 for
+ *     non-card annotations such as year labels.
+ * groups : YearGroup[]
+ *     Year groups, used to look up each card's accepted or synonym status.
+ *
+ * Returns
+ * -------
+ * void
+ */
+function roundSynonymAnnotations(
+  graphDiv: HTMLElement | null,
+  annotationIndex: number[],
+  groups: YearGroup[],
+): void {
+  if (!graphDiv) return;
+  // Radius in pixels, matching the vertical card border-radius.
+  const radius = "10";
+  graphDiv.querySelectorAll<SVGGElement>("g.annotation").forEach((el) => {
+    const pos = Number(el.getAttribute("data-index"));
+    const idx = Number.isNaN(pos) ? -1 : annotationIndex[pos];
+    const group = idx >= 0 ? groups[idx] : undefined;
+    const rounded = group != null && !group.isAccepted;
+    el.querySelectorAll("rect").forEach((rect) => {
+      if (rounded) {
+        rect.setAttribute("rx", radius);
+        rect.setAttribute("ry", radius);
+      } else {
+        rect.removeAttribute("rx");
+        rect.removeAttribute("ry");
+      }
+    });
+  });
+}
+
 // ---- Vertical timeline sub-components ------------------------------------
 
+interface StatusSectionProps {
+  /** Section heading, "Accepted" or "Synonyms". */
+  title: string;
+  /** Heading color, matching the card border palette. */
+  color: string;
+  /** Records belonging to the section. */
+  items: TimelineEntry[];
+}
+
+/**
+ * Render a titled status section inside an expanded vertical year card.
+ *
+ * Parameters
+ * ----------
+ * title : string
+ *     Section heading, "Accepted" or "Synonyms".
+ * color : string
+ *     Heading color, matching the card border palette.
+ * items : TimelineEntry[]
+ *     Records belonging to the section.
+ */
+function StatusSection({ title, color, items }: StatusSectionProps) {
+  if (items.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ color, fontWeight: "bold" }}>{title}</div>
+      {items.map((e, i) => {
+        const meta = [e.author, e.publicationName].filter((p) => p && p !== "—");
+        return (
+          <div key={`${e.name}-${i}`} style={{ marginTop: 2 }}>
+            <div style={{ fontWeight: "bold" }}>{e.name}</div>
+            <div style={{ color: "#888" }}>
+              {meta.length > 0 && <>{meta.join(" · ")} · </>}
+              {e.url ? (
+                <a
+                  href={e.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: COLOR_ACCEPTED }}
+                >
+                  {e.source}
+                </a>
+              ) : (
+                e.source
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 interface VerticalCardProps {
-  /** Timeline record to display. */
-  entry: TimelineEntry;
-  /** Publication year shown in the expanded state. */
-  year: number;
+  /** Year group rendered by the card. */
+  group: YearGroup;
   /** Whether the card is currently in the expanded state. */
   isOpen: boolean;
   /** Callback invoked when the user clicks the card. */
@@ -130,29 +294,27 @@ interface VerticalCardProps {
 }
 
 /**
- * Clickable card for the vertical timeline view.
+ * Clickable year card for the vertical timeline view.
  *
- * Renders with a square border (border-radius 0) when the entry status is
- * "Accepted" and with a rounded border (border-radius 10px) otherwise.
- * Clicking toggles between a compact stacked-name display and an expanded
- * detail view showing author, publication, source, and status.
+ * Renders with a square border (border-radius 0) when the year contains an
+ * accepted record and with a rounded border (border-radius 10px) otherwise.
+ * Clicking toggles between a compact representative-name display and an
+ * expanded view with Accepted and Synonyms sections.
  *
  * Parameters
  * ----------
- * entry : TimelineEntry
- *     Record providing name, author, publication, source, and status.
- * year : number
- *     Publication year shown in the expanded detail view.
+ * group : YearGroup
+ *     The year group providing the records to display.
  * isOpen : boolean
  *     True when the card should render in the expanded state.
  * onToggle : () => void
  *     Callback invoked on click to toggle the expanded state.
  */
-function VerticalCard({ entry, year, isOpen, onToggle }: VerticalCardProps) {
-  const accepted = entryIsAccepted(entry);
-  const borderColor = accepted ? COLOR_ACCEPTED : COLOR_SYNONYM;
-  const borderRadius = accepted ? 0 : 10;
-  const nameParts = entry.name.trim().split(/\s+/);
+function VerticalCard({ group, isOpen, onToggle }: VerticalCardProps) {
+  const borderColor = group.isAccepted ? COLOR_ACCEPTED : COLOR_SYNONYM;
+  const borderRadius = group.isAccepted ? 0 : 10;
+  const representative = group.accepted[0] ?? group.synonyms[0];
+  const nameParts = representative.name.trim().split(/\s+/);
 
   return (
     <div
@@ -166,7 +328,7 @@ function VerticalCard({ entry, year, isOpen, onToggle }: VerticalCardProps) {
         fontFamily: "Courier New, monospace",
         fontSize: 13,
         color: "#333",
-        maxWidth: 260,
+        maxWidth: isOpen ? 300 : 260,
         minWidth: 120,
         textAlign: isOpen ? "left" : "center",
         userSelect: "none",
@@ -175,36 +337,8 @@ function VerticalCard({ entry, year, isOpen, onToggle }: VerticalCardProps) {
     >
       {isOpen ? (
         <div>
-          <div style={{ fontWeight: "bold", marginBottom: 4 }}>{entry.name}</div>
-          <div>
-            <span style={{ color: "#aaa" }}>Year</span> {year}
-          </div>
-          <div>
-            <span style={{ color: "#aaa" }}>Author</span> {entry.author}
-          </div>
-          <div>
-            <span style={{ color: "#aaa" }}>Publication</span> {entry.publicationName}
-          </div>
-          <div>
-            <span style={{ color: "#aaa" }}>Source</span>{" "}
-            {entry.url ? (
-              <a
-                href={entry.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: COLOR_ACCEPTED }}
-              >
-                {entry.source}
-              </a>
-            ) : (
-              entry.source
-            )}
-          </div>
-          {entry.status && entry.status !== "—" && (
-            <div>
-              <span style={{ color: "#aaa" }}>Status</span> {entry.status}
-            </div>
-          )}
+          <StatusSection title="Accepted" color={COLOR_ACCEPTED} items={group.accepted} />
+          <StatusSection title="Synonyms" color={COLOR_SYNONYM} items={group.synonyms} />
         </div>
       ) : (
         <div style={{ fontWeight: "bold" }}>
@@ -215,7 +349,12 @@ function VerticalCard({ entry, year, isOpen, onToggle }: VerticalCardProps) {
               {nameParts.slice(1).join(" ")}
             </>
           ) : (
-            entry.name
+            representative.name
+          )}
+          {group.count > 1 && (
+            <div style={{ color: "#888", fontWeight: "normal", fontSize: 11 }}>
+              +{group.count - 1} more
+            </div>
           )}
         </div>
       )}
@@ -224,36 +363,36 @@ function VerticalCard({ entry, year, isOpen, onToggle }: VerticalCardProps) {
 }
 
 interface VerticalTimelineProps {
-  /** Entries sorted oldest to newest. */
-  sorted: TimelineEntry[];
+  /** Year groups, oldest to newest. */
+  groups: YearGroup[];
   /** Mapping from source label to accent color, used for axis dots. */
   sourceColors: Record<string, string>;
-  /** Indices (into sorted) of currently expanded cards. */
+  /** Indices (into groups) of currently expanded cards. */
   expanded: Set<number>;
   /** Callback to toggle the expanded state of the card at the given index. */
   onToggle: (i: number) => void;
 }
 
 /**
- * Vertical CSS timeline for dated taxonomy entries.
+ * Vertical CSS timeline for year-grouped taxonomy entries.
  *
- * Lays out entries top to bottom along a central vertical axis line, with
- * cards alternating on the left and right sides. Each entry has a colored dot
- * and year label on the axis. Accepted names use square-cornered cards; all
- * other entries use rounded-cornered cards.
+ * Lays out year cards top to bottom along a central vertical axis line, with
+ * cards alternating on the left and right sides. Each year has a colored dot
+ * and year label on the axis. Years containing an accepted record use
+ * square-cornered cards; synonym-only years use rounded-cornered cards.
  *
  * Parameters
  * ----------
- * sorted : TimelineEntry[]
- *     Entries sorted oldest to newest.
+ * groups : YearGroup[]
+ *     Year groups, oldest to newest.
  * sourceColors : Record<string, string>
  *     Accent colors keyed by source label, applied to axis dots.
  * expanded : Set<number>
- *     Set of indices whose cards are in the expanded state.
+ *     Set of group indices whose cards are in the expanded state.
  * onToggle : (i: number) => void
  *     Callback invoked with the card index to toggle its expanded state.
  */
-function VerticalTimeline({ sorted, sourceColors, expanded, onToggle }: VerticalTimelineProps) {
+function VerticalTimeline({ groups, sourceColors, expanded, onToggle }: VerticalTimelineProps) {
   const CENTER_WIDTH = 64;
 
   return (
@@ -273,15 +412,15 @@ function VerticalTimeline({ sorted, sourceColors, expanded, onToggle }: Vertical
         }}
       />
 
-      {[...sorted].reverse().map((entry, displayIdx) => {
-        const i = sorted.length - 1 - displayIdx;
+      {[...groups].reverse().map((group, displayIdx) => {
+        const i = groups.length - 1 - displayIdx;
         const isLeft = displayIdx % 2 === 0;
-        const dotColor = sourceColors[entry.source] ?? "#3498db";
+        const dotColor = sourceColors[group.source] ?? "#3498db";
         const isOpen = expanded.has(i);
 
         return (
           <div
-            key={`${entry.name}-${i}`}
+            key={`year-${group.year}-${i}`}
             style={{
               display: "flex",
               alignItems: "center",
@@ -299,12 +438,7 @@ function VerticalTimeline({ sorted, sourceColors, expanded, onToggle }: Vertical
               }}
             >
               {isLeft && (
-                <VerticalCard
-                  entry={entry}
-                  year={entry.year!}
-                  isOpen={isOpen}
-                  onToggle={() => onToggle(i)}
-                />
+                <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(i)} />
               )}
             </div>
 
@@ -337,19 +471,14 @@ function VerticalTimeline({ sorted, sourceColors, expanded, onToggle }: Vertical
                   lineHeight: 1,
                 }}
               >
-                {entry.year}
+                {group.year}
               </Text>
             </div>
 
             {/* Right card slot */}
             <div style={{ flex: 1, paddingLeft: CENTER_WIDTH / 2 }}>
               {!isLeft && (
-                <VerticalCard
-                  entry={entry}
-                  year={entry.year!}
-                  isOpen={isOpen}
-                  onToggle={() => onToggle(i)}
-                />
+                <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(i)} />
               )}
             </div>
           </div>
@@ -364,12 +493,12 @@ function VerticalTimeline({ sorted, sourceColors, expanded, onToggle }: Vertical
 /**
  * Timeline view component for species name records.
  *
- * Displays dated records either as a horizontal Plotly chart or as a vertical
- * CSS timeline, controlled by a segmented toggle. In the horizontal view,
- * accepted names use square axis markers and synonyms use circle markers, with
- * matching border colors (blue for accepted, orange for synonyms). In the
- * vertical view, accepted names use square-cornered cards and all other entries
- * use rounded-cornered cards. Undated entries appear in a collapsible table
+ * Combines records that share a publication year into one card per year, shown
+ * either as a horizontal Plotly chart or a vertical CSS timeline via a
+ * segmented toggle. Each card has an Accepted section and a Synonyms section; a
+ * year is treated as accepted when any record is accepted, which drives the
+ * square (accepted) versus rounded (synonym) card shape, the axis marker
+ * symbol, and the border color. Undated entries appear in a collapsible table
  * below either view.
  */
 export function TimelineView() {
@@ -378,20 +507,25 @@ export function TimelineView() {
   const [undatedOpen, undated] = useDisclosure(false);
   const [orientation, setOrientation] = useState<"horizontal" | "vertical">("horizontal");
 
-  // Dated entries sorted oldest to newest, plus colors and the undated set.
-  const { sorted, undatedEntries, sourceColors } = useMemo(() => {
+  // Dated records grouped into one entry per year (oldest to newest), plus
+  // colors, the undated set, and the total dated record count for the header.
+  const { groups, undatedEntries, sourceColors, datedCount } = useMemo(() => {
     const t = buildTimeline(records);
-    const s = [...t.dated].sort((a, b) => a.year! - b.year!);
-    return { sorted: s, undatedEntries: t.undated, sourceColors: t.sourceColors };
+    return {
+      groups: groupTimelineByYear(t.dated),
+      undatedEntries: t.undated,
+      sourceColors: t.sourceColors,
+      datedCount: t.dated.length,
+    };
   }, [records]);
 
-  // The newest entry (latest year, last in sorted) starts expanded.
-  // State resets whenever the data changes.
-  const newestIdx = sorted.length - 1;
+  // The newest year (latest, last in groups) starts expanded. State resets
+  // whenever the data changes.
+  const newestIdx = groups.length - 1;
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   useEffect(() => {
     setExpanded(newestIdx >= 0 ? new Set([newestIdx]) : new Set());
-  }, [sorted, newestIdx]);
+  }, [groups, newestIdx]);
 
   const toggleCard = useCallback((i: number) => {
     setExpanded((prev) => {
@@ -402,29 +536,52 @@ export function TimelineView() {
     });
   }, []);
 
-  // Builds all Plotly figure data for the horizontal view.
-  // Expanded cards are ordered last so they render on top.
-  const figure = useMemo(() => {
-    if (sorted.length === 0) return null;
+  // One control for every card: collapse all when all are open, otherwise
+  // expand all. Drives both the horizontal and vertical views (shared state).
+  const allExpanded = groups.length > 0 && expanded.size === groups.length;
+  const toggleAll = useCallback(() => {
+    setExpanded((prev) =>
+      prev.size === groups.length ? new Set() : new Set(groups.map((_, i) => i)),
+    );
+  }, [groups]);
 
-    const years = sorted.map((s) => s.year!);
-    const yPos = sorted.map((_, i) => (i % 2 === 0 ? 0.5 : -0.5));
-    const yearMin = Math.min(...years) - 30;
-    const yearMax = Math.max(...years) + 30;
+  // Builds all Plotly figure data for the horizontal view.
+  //
+  // Year cards are spaced evenly by index (slot position), not by their year
+  // value, so neighbors never collide the way they do when clustered years share
+  // an x coordinate. The plot widens with the year count, and wider again when
+  // any card is expanded, while the chart scrolls horizontally inside its
+  // container. The real publication year is kept only as label text. Expanded
+  // cards are ordered last so they render on top.
+  const figure = useMemo(() => {
+    if (groups.length === 0) return null;
+
+    const years = groups.map((g) => g.year);
+    const xPos = groups.map((_, i) => i);
+    const yPos = groups.map((_, i) => (i % 2 === 0 ? 0.5 : -0.5));
+    const xMin = -0.6;
+    const xMax = groups.length - 0.4;
+
+    // Wider slots whenever any card is expanded, so the larger boxes and their
+    // same-lane neighbors (two slots away) stay clear of each other. The chart
+    // grows to this width and scrolls horizontally inside its container.
+    const anyExpanded = expanded.size > 0;
+    const slot = anyExpanded ? SLOT_EXPANDED : SLOT_COLLAPSED;
+    const minWidth = slot * groups.length + 60;
 
     const shapes: Partial<Layout>["shapes"] = [
       {
         type: "line",
-        x0: yearMin,
-        x1: yearMax,
+        x0: xMin,
+        x1: xMax,
         y0: 0,
         y1: 0,
         line: { color: "#bdc3c7", width: 2 },
       },
-      ...sorted.map((_, i) => ({
+      ...groups.map((_, i) => ({
         type: "line" as const,
-        x0: years[i],
-        x1: years[i],
+        x0: xPos[i],
+        x1: xPos[i],
         y0: 0,
         y1: yPos[i],
         line: { color: "#bdc3c7", width: 1, dash: "dot" as const },
@@ -433,33 +590,36 @@ export function TimelineView() {
 
     type Ann = NonNullable<Partial<Layout>["annotations"]>[number];
 
-    // Card annotations tagged with their sorted index so expanded cards can be
+    // Card annotations tagged with their group index so expanded cards can be
     // reordered to the top layer without losing the click mapping.
-    const cards = sorted.map((e, i) => {
+    const cards = groups.map((g, i) => {
       const isOpen = expanded.has(i);
-      const borderColor = entryIsAccepted(e) ? COLOR_ACCEPTED : COLOR_SYNONYM;
+      const borderColor = g.isAccepted ? COLOR_ACCEPTED : COLOR_SYNONYM;
       const ann: Ann = {
-        x: years[i],
+        x: xPos[i],
         y: yPos[i],
-        text: isOpen ? cardHtml(e, years[i]) : nameStacked(e.name),
+        text: isOpen ? groupCardHtml(g) : groupCollapsedHtml(g),
         showarrow: false,
         bgcolor: "white",
         bordercolor: borderColor,
         borderwidth: 2,
         borderpad: isOpen ? 10 : 6,
-        align: isOpen ? "left" : "center",
+        align: "left",
         font: { size: 13, color: "#333", family: "Courier New, monospace" },
         xanchor: "center",
         yanchor: "middle",
         captureevents: true,
+        // Cap an expanded box so long publication strings wrap instead of
+        // widening it past its slot and overlapping a neighbor.
+        ...(isOpen ? { width: CARD_WIDTH_EXPANDED } : {}),
       };
       return { ann, idx: i, isOpen };
     });
 
     // Year labels sit on the center line. Not clickable.
-    const yearLabels = sorted.map((_, i) => {
+    const yearLabels = groups.map((_, i) => {
       const ann: Ann = {
-        x: years[i],
+        x: xPos[i],
         y: 0,
         yshift: 9,
         text: `<b>${years[i]}</b>`,
@@ -482,24 +642,24 @@ export function TimelineView() {
       ...cards.filter((c) => c.isOpen),
     ];
     const annotations: Partial<Layout>["annotations"] = ordered.map((o) => o.ann);
-    // annotation array position -> sorted index (or -1 for non-card labels)
+    // annotation array position -> group index (or -1 for non-card labels)
     const annotationIndex = ordered.map((o) => o.idx);
 
     const data: Data[] = [
       {
         type: "scatter",
         mode: "markers",
-        x: years,
-        y: years.map(() => 0),
+        x: xPos,
+        y: xPos.map(() => 0),
         marker: {
           size: 9,
-          color: sorted.map((e) => sourceColors[e.source] ?? "#3498db"),
-          // square marker for accepted names, circle for synonyms
-          symbol: sorted.map((e) =>
-            entryIsAccepted(e) ? "square" : "circle"
+          color: groups.map((g) => sourceColors[g.source] ?? "#3498db"),
+          // square marker when the year has an accepted record, circle otherwise
+          symbol: groups.map((g) =>
+            g.isAccepted ? "square" : "circle"
           ) as unknown as string,
         },
-        text: sorted.map((e) => e.name),
+        text: groups.map((g) => `${g.year}: ${g.count} name${g.count === 1 ? "" : "s"}`),
         hoverinfo: "text",
       },
     ];
@@ -509,22 +669,23 @@ export function TimelineView() {
       margin: { l: 20, r: 20, t: 30, b: 20 },
       xaxis: {
         title: { text: "Year of Publication" },
-        range: [yearMin, yearMax],
+        range: [xMin, xMax],
         showgrid: false,
         zeroline: false,
         showticklabels: false,
+        fixedrange: true,
       },
-      yaxis: { visible: false, range: [-1.4, 1.4] },
+      yaxis: { visible: false, range: [-1.4, 1.4], fixedrange: true },
       plot_bgcolor: "white",
       paper_bgcolor: "white",
       showlegend: false,
-      dragmode: "pan",
+      dragmode: false,
       shapes,
       annotations,
     };
 
-    return { data, layout, annotationIndex };
-  }, [sorted, expanded, sourceColors]);
+    return { data, layout, annotationIndex, minWidth };
+  }, [groups, expanded, sourceColors]);
 
   if (records.length === 0) {
     return <Text c="dimmed">No results to plot.</Text>;
@@ -532,46 +693,62 @@ export function TimelineView() {
 
   return (
     <>
-      {sorted.length > 0 ? (
+      {groups.length > 0 ? (
         <>
           <Group justify="space-between" mb="sm" wrap="nowrap">
             <Text>
               <b>
-                {sorted.length} name{sorted.length === 1 ? "" : "s"}
+                {datedCount} name{datedCount === 1 ? "" : "s"}
               </b>{" "}
-              with publication dates for <i>{query}</i>{" "}
+              with publication dates for <i>{query}</i>, grouped into{" "}
+              <b>
+                {groups.length} year{groups.length === 1 ? "" : "s"}
+              </b>{" "}
               <Text span c="dimmed" size="xs">
                 · click a card to expand or collapse it
               </Text>
             </Text>
-            <SegmentedControl
-              value={orientation}
-              onChange={(v) => setOrientation(v as "horizontal" | "vertical")}
-              data={[
-                { label: "Horizontal", value: "horizontal" },
-                { label: "Vertical", value: "vertical" },
-              ]}
-              size="xs"
-            />
+            <Group gap="xs" wrap="nowrap">
+              <Button variant="default" size="xs" onClick={toggleAll}>
+                {allExpanded ? "Collapse all" : "Expand all"}
+              </Button>
+              <SegmentedControl
+                value={orientation}
+                onChange={(v) => setOrientation(v as "horizontal" | "vertical")}
+                data={[
+                  { label: "Horizontal", value: "horizontal" },
+                  { label: "Vertical", value: "vertical" },
+                ]}
+                size="xs"
+              />
+            </Group>
           </Group>
 
           {orientation === "horizontal" ? (
             figure != null && (
-              <PlotlyChart
-                data={figure.data}
-                layout={figure.layout}
-                config={{ scrollZoom: true, displayModeBar: false }}
-                style={{ width: "100%" }}
-                useResizeHandler
-                onClickAnnotation={(e) => {
-                  const idx = figure.annotationIndex[e.index];
-                  if (idx != null && idx >= 0) toggleCard(idx);
-                }}
-              />
+              <div style={{ overflowX: "auto" }}>
+                <PlotlyChart
+                  data={figure.data}
+                  layout={figure.layout}
+                  config={{ scrollZoom: false, displayModeBar: false }}
+                  style={{ width: "100%", minWidth: figure.minWidth }}
+                  useResizeHandler
+                  onClickAnnotation={(e) => {
+                    const idx = figure.annotationIndex[e.index];
+                    if (idx != null && idx >= 0) toggleCard(idx);
+                  }}
+                  onInitialized={(_, gd) =>
+                    roundSynonymAnnotations(gd, figure.annotationIndex, groups)
+                  }
+                  onUpdate={(_, gd) =>
+                    roundSynonymAnnotations(gd, figure.annotationIndex, groups)
+                  }
+                />
+              </div>
             )
           ) : (
             <VerticalTimeline
-              sorted={sorted}
+              groups={groups}
               sourceColors={sourceColors}
               expanded={expanded}
               onToggle={toggleCard}
