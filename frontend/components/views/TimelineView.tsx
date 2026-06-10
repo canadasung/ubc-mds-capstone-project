@@ -577,7 +577,9 @@ function VerticalTimeline({ groups, sourceColors, expanded, onToggle }: Vertical
                 style={{
                   width: 10,
                   height: 10,
-                  borderRadius: "50%",
+                  // Square dot for years with an accepted record, circle
+                  // otherwise, matching the horizontal view's axis markers.
+                  borderRadius: group.isAccepted ? 0 : "50%",
                   backgroundColor: dotColor,
                   boxShadow: "0 0 0 2px white",
                   marginBottom: 2,
