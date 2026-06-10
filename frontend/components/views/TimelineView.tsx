@@ -470,6 +470,8 @@ function VerticalCard({ group, isOpen, onToggle }: VerticalCardProps) {
 interface VerticalTimelineProps {
   /** Year groups, oldest to newest. */
   groups: YearGroup[];
+  /** Canonical group indices in display order (top to bottom). */
+  order: number[];
   /** Mapping from source label to accent color, used for axis dots. */
   sourceColors: Record<string, string>;
   /** Indices (into groups) of currently expanded cards. */
@@ -490,6 +492,8 @@ interface VerticalTimelineProps {
  * ----------
  * groups : YearGroup[]
  *     Year groups, oldest to newest.
+ * order : number[]
+ *     Canonical group indices in display order (top to bottom).
  * sourceColors : Record<string, string>
  *     Accent colors keyed by source label, applied to axis dots.
  * expanded : Set<number>
@@ -497,7 +501,7 @@ interface VerticalTimelineProps {
  * onToggle : (i: number) => void
  *     Callback invoked with the card index to toggle its expanded state.
  */
-function VerticalTimeline({ groups, sourceColors, expanded, onToggle }: VerticalTimelineProps) {
+function VerticalTimeline({ groups, order, sourceColors, expanded, onToggle }: VerticalTimelineProps) {
   const CENTER_WIDTH = 64;
 
   return (
@@ -517,15 +521,15 @@ function VerticalTimeline({ groups, sourceColors, expanded, onToggle }: Vertical
         }}
       />
 
-      {[...groups].reverse().map((group, displayIdx) => {
-        const i = groups.length - 1 - displayIdx;
+      {order.map((ci, displayIdx) => {
+        const group = groups[ci];
         const isLeft = displayIdx % 2 === 0;
         const dotColor = sourceColors[group.source] ?? "#3498db";
-        const isOpen = expanded.has(i);
+        const isOpen = expanded.has(ci);
 
         return (
           <div
-            key={`year-${group.year}-${i}`}
+            key={`year-${group.year}-${ci}`}
             style={{
               display: "flex",
               alignItems: "center",
@@ -557,7 +561,7 @@ function VerticalTimeline({ groups, sourceColors, expanded, onToggle }: Vertical
               }}
             >
               {isLeft && (
-                <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(i)} />
+                <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(ci)} />
               )}
             </div>
 
@@ -609,7 +613,7 @@ function VerticalTimeline({ groups, sourceColors, expanded, onToggle }: Vertical
               }}
             >
               {!isLeft && (
-                <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(i)} />
+                <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(ci)} />
               )}
             </div>
           </div>
@@ -637,6 +641,7 @@ export function TimelineView() {
   const query = useSearchStore((s) => s.submittedQuery);
   const [undatedOpen, undated] = useDisclosure(false);
   const [orientation, setOrientation] = useState<"horizontal" | "vertical">("horizontal");
+  const [yearOrder, setYearOrder] = useState<"asc" | "desc">("asc");
 
   // Dated records grouped into one entry per year (oldest to newest), plus
   // colors, the undated set, and the total dated record count for the header.
@@ -649,6 +654,18 @@ export function TimelineView() {
       datedCount: t.dated.length,
     };
   }, [records]);
+
+  // Canonical group indices arranged in the chosen display order. "asc" shows
+  // oldest first (left in horizontal, top in vertical); "desc" shows newest
+  // first. The expanded-state set stays keyed on canonical indices, so flipping
+  // the order does not disturb which cards are open.
+  const order = useMemo(
+    () =>
+      yearOrder === "asc"
+        ? groups.map((_, i) => i)
+        : groups.map((_, i) => groups.length - 1 - i),
+    [groups, yearOrder],
+  );
 
   // The newest year (latest, last in groups) starts expanded. State resets
   // whenever the data changes.
@@ -687,11 +704,14 @@ export function TimelineView() {
   const figure = useMemo(() => {
     if (groups.length === 0) return null;
 
-    const years = groups.map((g) => g.year);
-    const xPos = groups.map((_, i) => i);
-    const yPos = groups.map((_, i) => (i % 2 === 0 ? 0.5 : -0.5));
+    // Groups arranged in the chosen display order (left to right). Card content
+    // and the click mapping keep each group's canonical index via `order`.
+    const ord = order.map((ci) => groups[ci]);
+    const years = ord.map((g) => g.year);
+    const xPos = ord.map((_, d) => d);
+    const yPos = ord.map((_, d) => (d % 2 === 0 ? 0.5 : -0.5));
     const xMin = -0.6;
-    const xMax = groups.length - 0.4;
+    const xMax = ord.length - 0.4;
 
     // Wider slots whenever any card is expanded, so the larger boxes and their
     // same-lane neighbors (two slots away) stay clear of each other. The chart
@@ -720,26 +740,27 @@ export function TimelineView() {
         y1: 0,
         line: { color: "#bdc3c7", width: 2 },
       },
-      ...groups.map((_, i) => ({
+      ...ord.map((_, d) => ({
         type: "line" as const,
-        x0: xPos[i],
-        x1: xPos[i],
+        x0: xPos[d],
+        x1: xPos[d],
         y0: 0,
-        y1: yPos[i],
+        y1: yPos[d],
         line: { color: "#bdc3c7", width: 1, dash: "dot" as const },
       })),
     ];
 
     type Ann = NonNullable<Partial<Layout>["annotations"]>[number];
 
-    // Card annotations tagged with their group index so expanded cards can be
-    // reordered to the top layer without losing the click mapping.
-    const cards = groups.map((g, i) => {
-      const isOpen = expanded.has(i);
+    // Card annotations tagged with their canonical group index so expanded cards
+    // can be reordered to the top layer without losing the click mapping.
+    const cards = ord.map((g, d) => {
+      const ci = order[d];
+      const isOpen = expanded.has(ci);
       const borderColor = g.isAccepted ? COLOR_ACCEPTED : COLOR_SYNONYM;
       const ann: Ann = {
-        x: xPos[i],
-        y: yPos[i],
+        x: xPos[d],
+        y: yPos[d],
         text: isOpen ? groupCardHtml(g, CARD_WRAP_CHARS) : groupCollapsedHtml(g),
         showarrow: false,
         bgcolor: "white",
@@ -755,16 +776,16 @@ export function TimelineView() {
         // keeps every expanded card the same size without clipping.
         ...(isOpen ? { width: CARD_WIDTH_EXPANDED } : {}),
       };
-      return { ann, idx: i, isOpen };
+      return { ann, idx: ci, isOpen };
     });
 
     // Year labels sit on the center line. Not clickable.
-    const yearLabels = groups.map((_, i) => {
+    const yearLabels = ord.map((_, d) => {
       const ann: Ann = {
-        x: xPos[i],
+        x: xPos[d],
         y: 0,
         yshift: 9,
-        text: `<b>${years[i]}</b>`,
+        text: `<b>${years[d]}</b>`,
         showarrow: false,
         bgcolor: "rgba(255,255,255,0.85)",
         borderpad: 1,
@@ -795,13 +816,13 @@ export function TimelineView() {
         y: xPos.map(() => 0),
         marker: {
           size: 9,
-          color: groups.map((g) => sourceColors[g.source] ?? "#3498db"),
+          color: ord.map((g) => sourceColors[g.source] ?? "#3498db"),
           // square marker when the year has an accepted record, circle otherwise
-          symbol: groups.map((g) =>
+          symbol: ord.map((g) =>
             g.isAccepted ? "square" : "circle"
           ) as unknown as string,
         },
-        text: groups.map((g) => `${g.year}: ${g.count} name${g.count === 1 ? "" : "s"}`),
+        text: ord.map((g) => `${g.year}: ${g.count} name${g.count === 1 ? "" : "s"}`),
         hoverinfo: "text",
       },
     ];
@@ -827,7 +848,7 @@ export function TimelineView() {
     };
 
     return { data, layout, annotationIndex, minWidth };
-  }, [groups, expanded, sourceColors]);
+  }, [groups, order, expanded, sourceColors]);
 
   if (records.length === 0) {
     return <Text c="dimmed">No results to plot.</Text>;
@@ -851,6 +872,13 @@ export function TimelineView() {
               </Text>
             </Text>
             <Group gap="xs" wrap="nowrap">
+              <Button
+                variant="default"
+                size="xs"
+                onClick={() => setYearOrder((o) => (o === "asc" ? "desc" : "asc"))}
+              >
+                {yearOrder === "asc" ? "Years: oldest first" : "Years: newest first"}
+              </Button>
               <Button variant="default" size="xs" onClick={toggleAll}>
                 {allExpanded ? "Collapse all" : "Expand all"}
               </Button>
@@ -891,6 +919,7 @@ export function TimelineView() {
           ) : (
             <VerticalTimeline
               groups={groups}
+              order={order}
               sourceColors={sourceColors}
               expanded={expanded}
               onToggle={toggleCard}
