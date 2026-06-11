@@ -934,11 +934,11 @@ export function TimelineView() {
           <Group justify="space-between" mb="sm" wrap="nowrap">
             <Text>
               <b>
-                {datedCount} name{datedCount === 1 ? "" : "s"}
+                {datedCount} record{datedCount === 1 ? "" : "s"}
               </b>{" "}
-              with publication dates for <i>{query}</i>, grouped into{" "}
+              containing publication dates found, with <i>{query}</i>, grouped into{" "}
               <b>
-                {groups.length} year{groups.length === 1 ? "" : "s"}
+                {groups.length} unique species name{groups.length === 1 ? "" : "s"}
               </b>{" "}
               <Text span c="dimmed" size="xs">
                 · click a card to expand or collapse it
