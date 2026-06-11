@@ -628,9 +628,9 @@ type UndatedSortKey = "name" | "author" | "source" | "status";
 
 /** Header label and sort key for each undated-entries table column. */
 const UNDATED_COLUMNS: { label: string; key: UndatedSortKey }[] = [
-  { label: "Name", key: "name" },
+  { label: "Species Name", key: "name" },
   { label: "Author", key: "author" },
-  { label: "Source", key: "source" },
+  { label: "API Name", key: "source" },
   { label: "Status", key: "status" },
 ];
 
