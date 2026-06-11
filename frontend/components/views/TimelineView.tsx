@@ -623,6 +623,50 @@ function VerticalTimeline({ groups, order, sourceColors, expanded, onToggle }: V
   );
 }
 
+/** Columns the undated-entries table can be sorted by. */
+type UndatedSortKey = "name" | "author" | "source" | "status";
+
+/** Header label and sort key for each undated-entries table column. */
+const UNDATED_COLUMNS: { label: string; key: UndatedSortKey }[] = [
+  { label: "Name", key: "name" },
+  { label: "Author", key: "author" },
+  { label: "Source", key: "source" },
+  { label: "Status", key: "status" },
+];
+
+/**
+ * Small triangular caret indicating a column's sort direction.
+ *
+ * Parameters
+ * ----------
+ * dir : "asc", "desc", or null
+ *     Active sort direction for the column, or null when the column is not the
+ *     current sort key.
+ *
+ * Returns
+ * -------
+ * JSX.Element
+ *     An upward caret for ascending, a downward caret for descending, or a
+ *     dimmed downward caret when the column is not sorted.
+ */
+function SortCaret({ dir }: { dir: "asc" | "desc" | null }) {
+  const base = {
+    display: "inline-block",
+    width: 0,
+    height: 0,
+    borderLeft: "4px solid transparent",
+    borderRight: "4px solid transparent",
+    marginLeft: 4,
+  } as const;
+  if (dir === "asc") {
+    return <span style={{ ...base, borderBottom: "5px solid currentColor" }} />;
+  }
+  if (dir === "desc") {
+    return <span style={{ ...base, borderTop: "5px solid currentColor" }} />;
+  }
+  return <span style={{ ...base, borderTop: "5px solid currentColor", opacity: 0.25 }} />;
+}
+
 // ---- Main component -------------------------------------------------------
 
 /**
@@ -667,13 +711,19 @@ export function TimelineView() {
     [groups, yearOrder],
   );
 
-  // The newest year (latest, last in groups) starts expanded. State resets
-  // whenever the data changes.
-  const newestIdx = groups.length - 1;
+  // Year cards that contain an accepted record start expanded; all others
+  // start collapsed. State resets whenever the data changes.
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   useEffect(() => {
-    setExpanded(newestIdx >= 0 ? new Set([newestIdx]) : new Set());
-  }, [groups, newestIdx]);
+    setExpanded(
+      new Set(
+        groups.reduce<number[]>((acc, g, i) => {
+          if (g.isAccepted) acc.push(i);
+          return acc;
+        }, []),
+      ),
+    );
+  }, [groups]);
 
   const toggleCard = useCallback((i: number) => {
     setExpanded((prev) => {
@@ -692,6 +742,29 @@ export function TimelineView() {
       prev.size === groups.length ? new Set() : new Set(groups.map((_, i) => i)),
     );
   }, [groups]);
+
+  // Sorting for the undated-entries table. Clicking a column cycles ascending,
+  // descending, then back to the original order.
+  const [undatedSort, setUndatedSort] = useState<
+    { key: UndatedSortKey; dir: "asc" | "desc" } | null
+  >(null);
+  const sortedUndated = useMemo(() => {
+    if (!undatedSort) return undatedEntries;
+    const { key, dir } = undatedSort;
+    return [...undatedEntries].sort((a, b) => {
+      const cmp = String(a[key] ?? "").localeCompare(String(b[key] ?? ""), undefined, {
+        sensitivity: "base",
+      });
+      return dir === "asc" ? cmp : -cmp;
+    });
+  }, [undatedEntries, undatedSort]);
+  const toggleUndatedSort = useCallback((key: UndatedSortKey) => {
+    setUndatedSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return null;
+    });
+  }, []);
 
   // Builds all Plotly figure data for the horizontal view.
   //
@@ -945,14 +1018,26 @@ export function TimelineView() {
             <Table withTableBorder striped mt="xs" fz="sm">
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>Name</Table.Th>
-                  <Table.Th>Author</Table.Th>
-                  <Table.Th>Source</Table.Th>
-                  <Table.Th>Status</Table.Th>
+                  {UNDATED_COLUMNS.map(({ label, key }) => (
+                    <Table.Th key={key}>
+                      <UnstyledButton
+                        onClick={() => toggleUndatedSort(key)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          fontSize: "inherit",
+                          fontWeight: "inherit",
+                        }}
+                      >
+                        {label}
+                        <SortCaret dir={undatedSort?.key === key ? undatedSort.dir : null} />
+                      </UnstyledButton>
+                    </Table.Th>
+                  ))}
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {undatedEntries.map((e, i) => (
+                {sortedUndated.map((e, i) => (
                   <Table.Tr key={`${e.name}-${i}`}>
                     <Table.Td>
                       {e.url ? (
