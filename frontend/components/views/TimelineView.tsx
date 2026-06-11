@@ -5,9 +5,10 @@
  *
  * Renders dated taxonomy entries on either a horizontal Plotly chart or a
  * vertical CSS timeline. Records that share a publication year are combined into
- * a single card for that year, with an Accepted section and a Synonyms section
- * inside. A year card is treated as accepted when any of its records is
- * accepted. Accepted cards display square; synonym-only cards display rounded.
+ * a single card for that year, headed by the name and year and listing one
+ * labeled block per record (API, status, author, source). A year card is
+ * treated as accepted when any of its records is accepted. Accepted cards
+ * display square; synonym-only cards display rounded.
  * Plotly annotation boxes have no border-radius property, so in the horizontal
  * view rounding is applied to the SVG rectangles after each render. Status is
  * also reinforced by the axis marker symbol (square vs circle) and border
@@ -50,6 +51,26 @@ const PlotlyChart = dynamic(() => import("./PlotlyChart"), {
 const COLOR_ACCEPTED = "#1c7ed6";
 /** Border color for synonym and unknown-status boxes, used in both views. */
 const COLOR_SYNONYM = "#e67e22";
+
+/**
+ * Text color for a record status: blue for accepted, orange for synonym, gray
+ * for anything else (unknown or unavailable).
+ *
+ * Parameters
+ * ----------
+ * status : string
+ *     A record's status value, e.g. "Accepted" or "Synonym".
+ *
+ * Returns
+ * -------
+ * string
+ *     A CSS color string.
+ */
+function statusColor(status: string): string {
+  if (status === "Accepted") return COLOR_ACCEPTED;
+  if (status === "Synonym") return COLOR_SYNONYM;
+  return "#888";
+}
 
 /** Horizontal pixels per entry in the horizontal view when no card is expanded. */
 const SLOT_COLLAPSED = 95;
@@ -117,12 +138,43 @@ function wrapLines(text: string, maxChars: number): string[] {
 }
 
 /**
- * Build the wrapped HTML for a single record, plus its line count.
+ * Build one labeled, wrapped field ("Label: value") for a card.
  *
- * The record renders as a bold name line, an optional author and publication
- * line, and a source line (a link when the record carries a URL). Each part is
- * wrapped to *maxChars*. The line count is returned so the horizontal view can
- * reserve enough vertical room for the card.
+ * The "Label:" prefix is rendered in gray; the value follows in the default
+ * color. The whole line is wrapped to *maxChars*.
+ *
+ * Parameters
+ * ----------
+ * label : string
+ *     Field label without the trailing colon, e.g. "Author".
+ * value : string
+ *     Field value.
+ * maxChars : number
+ *     Maximum number of characters per wrapped line.
+ *
+ * Returns
+ * -------
+ * { html: string; lines: number }
+ *     The field HTML and the number of text lines it occupies.
+ */
+function labeledField(
+  label: string,
+  value: string,
+  maxChars: number,
+): { html: string; lines: number } {
+  const lines = wrapLines(`${label}: ${value}`, maxChars);
+  const out = [...lines];
+  out[0] = out[0].replace(/^([^:]*:)/, '<span style="color:#888">$1</span>');
+  return { html: out.join("<br>"), lines: lines.length };
+}
+
+/**
+ * Build the HTML for a single record as a block of labeled fields.
+ *
+ * Renders four labeled lines, each on its own line: API (the source database, a
+ * link when the record has a URL), Status (colored by accepted/synonym), Author,
+ * and Source (the publication). The line count is returned so the horizontal
+ * view can reserve enough vertical room for the card.
  *
  * Parameters
  * ----------
@@ -137,56 +189,23 @@ function wrapLines(text: string, maxChars: number): string[] {
  *     The record's HTML and the number of text lines it occupies.
  */
 function recordHtml(e: TimelineEntry, maxChars: number): { html: string; lines: number } {
-  const nameLines = wrapLines(e.name, maxChars);
-  const metaText = [e.author, e.publicationName]
-    .filter((part) => part && part !== "—")
-    .join(" · ");
-  const metaLines = metaText ? wrapLines(metaText, maxChars) : [];
-  const src = e.url
+  const apiValue = e.url
     ? `<a href="${e.url}" target="_blank">${e.source}</a>`
     : e.source;
-  const parts = [
-    `<b>${nameLines.join("<br>")}</b>`,
-    ...(metaLines.length
-      ? [`<span style="color:#888">${metaLines.join("<br>")}</span>`]
-      : []),
-    `<span style="color:#888">${src}</span>`,
-  ];
-  return { html: parts.join("<br>"), lines: nameLines.length + metaLines.length + 1 };
+  const apiLine = `<span style="color:#888">API:</span> ${apiValue}`;
+  const statusLine = `<span style="color:#888">Status:</span> <span style="color:${statusColor(e.status)}">${e.status}</span>`;
+  const author = labeledField("Author", e.author, maxChars);
+  const source = labeledField("Source", e.publicationName, maxChars);
+  const html = [apiLine, statusLine, author.html, source.html].join("<br>");
+  return { html, lines: 2 + author.lines + source.lines };
 }
 
 /**
- * Build a titled status section (Accepted or Synonyms) for a year card.
+ * Build the HTML for an expanded year card.
  *
- * Parameters
- * ----------
- * title : string
- *     Section heading, "Accepted" or "Synonyms".
- * color : string
- *     Heading color, matching the card border palette.
- * items : TimelineEntry[]
- *     Records belonging to the section.
- * maxChars : number
- *     Maximum number of characters per wrapped line.
- *
- * Returns
- * -------
- * string
- *     HTML for the section, or "" when there are no records.
- */
-function sectionHtml(
-  title: string,
-  color: string,
-  items: TimelineEntry[],
-  maxChars: number,
-): string {
-  if (items.length === 0) return "";
-  const rows = items.map((e) => recordHtml(e, maxChars).html).join("<br>");
-  return `<span style="color:${color}"><b>${title}</b></span><br>${rows}`;
-}
-
-/**
- * Build the HTML for an expanded year card: Accepted then Synonyms sections.
+ * A bold "Name, Year" header sits at the top (using the accepted name when
+ * present, otherwise the first record), followed by one labeled block per
+ * record, accepted records first. Each record carries its own status field.
  *
  * Parameters
  * ----------
@@ -201,12 +220,12 @@ function sectionHtml(
  *     HTML string suitable for a Plotly annotation text property.
  */
 function groupCardHtml(group: YearGroup, maxChars: number): string {
-  return [
-    sectionHtml("Accepted", COLOR_ACCEPTED, group.accepted, maxChars),
-    sectionHtml("Synonyms", COLOR_SYNONYM, group.synonyms, maxChars),
-  ]
-    .filter(Boolean)
-    .join("<br><br>");
+  const representative = group.accepted[0] ?? group.synonyms[0];
+  const header = `<span style="font-size:15px"><b>${representative.name}, ${group.year}</b></span>`;
+  const blocks = [...group.accepted, ...group.synonyms].map(
+    (e) => recordHtml(e, maxChars).html,
+  );
+  return [header, ...blocks].join("<br><br>");
 }
 
 /**
@@ -259,10 +278,9 @@ function groupCollapsedHtml(group: YearGroup): string {
 /**
  * Estimate the rendered pixel height of an expanded year card.
  *
- * Counts one heading line per non-empty section plus roughly two and a half
- * lines per record (a name and a possibly wrapped detail line). The estimate
- * lets the horizontal view reserve enough vertical room that expanded cards on
- * opposite lanes do not overlap.
+ * Counts the header line plus, for each record, a separating blank line and its
+ * labeled field lines. The estimate lets the horizontal view reserve enough
+ * vertical room that expanded cards on opposite lanes do not overlap.
  *
  * Parameters
  * ----------
@@ -278,13 +296,10 @@ function groupCollapsedHtml(group: YearGroup): string {
  */
 function estimateExpandedCardPx(group: YearGroup, maxChars: number): number {
   const LINE_PX = 18;
-  let lines = 0;
-  for (const section of [group.accepted, group.synonyms]) {
-    if (section.length === 0) continue;
-    lines += 1; // section heading
-    for (const e of section) lines += recordHtml(e, maxChars).lines;
+  let lines = 1; // header
+  for (const e of [...group.accepted, ...group.synonyms]) {
+    lines += 1 + recordHtml(e, maxChars).lines; // separating gap + the record
   }
-  if (group.accepted.length && group.synonyms.length) lines += 1; // gap between sections
   return lines * LINE_PX + 24;
 }
 
@@ -336,55 +351,46 @@ function roundSynonymAnnotations(
 
 // ---- Vertical timeline sub-components ------------------------------------
 
-interface StatusSectionProps {
-  /** Section heading, "Accepted" or "Synonyms". */
-  title: string;
-  /** Heading color, matching the card border palette. */
-  color: string;
-  /** Records belonging to the section. */
-  items: TimelineEntry[];
-}
-
 /**
- * Render a titled status section inside an expanded vertical year card.
+ * Render one record as a block of labeled fields in a vertical year card.
+ *
+ * Shows API (the source database, a link when available), Status (colored by
+ * accepted/synonym), Author, and Source (the publication), each on its own line.
  *
  * Parameters
  * ----------
- * title : string
- *     Section heading, "Accepted" or "Synonyms".
- * color : string
- *     Heading color, matching the card border palette.
- * items : TimelineEntry[]
- *     Records belonging to the section.
+ * entry : TimelineEntry
+ *     The record to render.
  */
-function StatusSection({ title, color, items }: StatusSectionProps) {
-  if (items.length === 0) return null;
+function RecordBlock({ entry }: { entry: TimelineEntry }) {
+  const label = (text: string) => <span style={{ color: "#888" }}>{text}</span>;
   return (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ color, fontWeight: "bold" }}>{title}</div>
-      {items.map((e, i) => {
-        const meta = [e.author, e.publicationName].filter((p) => p && p !== "—");
-        return (
-          <div key={`${e.name}-${i}`} style={{ marginTop: 2 }}>
-            <div style={{ fontWeight: "bold" }}>{e.name}</div>
-            <div style={{ color: "#888" }}>
-              {meta.length > 0 && <>{meta.join(" · ")} · </>}
-              {e.url ? (
-                <a
-                  href={e.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: COLOR_ACCEPTED }}
-                >
-                  {e.source}
-                </a>
-              ) : (
-                e.source
-              )}
-            </div>
-          </div>
-        );
-      })}
+    <div style={{ marginTop: 8 }}>
+      <div>
+        {label("API:")}{" "}
+        {entry.url ? (
+          <a
+            href={entry.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: COLOR_ACCEPTED }}
+          >
+            {entry.source}
+          </a>
+        ) : (
+          entry.source
+        )}
+      </div>
+      <div>
+        {label("Status:")}{" "}
+        <span style={{ color: statusColor(entry.status) }}>{entry.status}</span>
+      </div>
+      <div>
+        {label("Author:")} {entry.author}
+      </div>
+      <div>
+        {label("Source:")} {entry.publicationName}
+      </div>
     </div>
   );
 }
@@ -404,7 +410,8 @@ interface VerticalCardProps {
  * Renders with a square border (border-radius 0) when the year contains an
  * accepted record and with a rounded border (border-radius 10px) otherwise.
  * Clicking toggles between a compact representative-name display and an
- * expanded view with Accepted and Synonyms sections.
+ * expanded view with a "Name, Year" header followed by one labeled block per
+ * record (API, status, author, source).
  *
  * Parameters
  * ----------
@@ -442,8 +449,12 @@ function VerticalCard({ group, isOpen, onToggle }: VerticalCardProps) {
     >
       {isOpen ? (
         <div>
-          <StatusSection title="Accepted" color={COLOR_ACCEPTED} items={group.accepted} />
-          <StatusSection title="Synonyms" color={COLOR_SYNONYM} items={group.synonyms} />
+          <div style={{ fontWeight: "bold", fontSize: 15, marginBottom: 4 }}>
+            {representative.name}, {group.year}
+          </div>
+          {[...group.accepted, ...group.synonyms].map((e, i) => (
+            <RecordBlock key={`${e.source}-${i}`} entry={e} />
+          ))}
         </div>
       ) : (
         <div style={{ fontWeight: "bold" }}>
