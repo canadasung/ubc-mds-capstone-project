@@ -58,7 +58,7 @@ export function SearchPanel() {
       <form onSubmit={handleSubmit}>
         <Stack gap="sm">
           <TextInput
-            placeholder="Enter species name (e.g. Amanita muscaria)"
+            placeholder="Enter species name (e.g. Podospora anserina)"
             value={query}
             onChange={(e) => setQuery(e.currentTarget.value)}
             leftSection={<IconSearch size={16} />}
