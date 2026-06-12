@@ -15,8 +15,7 @@ interface SearchState {
   // ── Search form ───────────────────────────────────────────────
   query: string; // current text-input value
   submittedQuery: string; // last submitted query — drives the data hooks
-  useRouting: boolean; // "Choose databases based on kingdom"
-  selectedSources: string[]; // manual selection (used when useRouting === false)
+  selectedSources: string[];
 
   // ── Layout ────────────────────────────────────────────────────
   panelOpen: boolean;
@@ -25,9 +24,9 @@ interface SearchState {
   // ── Actions ───────────────────────────────────────────────────
   setQuery: (q: string) => void;
   submit: () => void;
-  setUseRouting: (v: boolean) => void;
   toggleSource: (key: string) => void;
   setAllSources: (on: boolean) => void;
+  setSources: (keys: string[]) => void;
   togglePanel: () => void;
   setActiveView: (v: ViewKey) => void;
 }
@@ -35,8 +34,7 @@ interface SearchState {
 export const useSearchStore = create<SearchState>((set, get) => ({
   query: "",
   submittedQuery: "",
-  useRouting: true,
-  selectedSources: [...SOURCE_KEYS], // all on by default (mirrors value=True)
+  selectedSources: [...SOURCE_KEYS],
 
   panelOpen: true,
   activeView: "Overview",
@@ -48,8 +46,6 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     if (q) set({ submittedQuery: q });
   },
 
-  setUseRouting: (v) => set({ useRouting: v }),
-
   toggleSource: (key) =>
     set((s) => ({
       selectedSources: s.selectedSources.includes(key)
@@ -58,6 +54,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     })),
 
   setAllSources: (on) => set({ selectedSources: on ? [...SOURCE_KEYS] : [] }),
+
+  setSources: (keys) => set({ selectedSources: keys }),
 
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
 

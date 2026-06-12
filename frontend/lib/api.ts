@@ -53,12 +53,11 @@ export function getSources(): Promise<SourcesResponse> {
 
 export function getSearch(
   query: string,
-  useRouting: boolean,
   mock = true,
 ): Promise<SearchResponse> {
   const params = new URLSearchParams({
     query,
-    use_routing: String(useRouting),
+    use_routing: "false",
     mock: String(mock),
   });
   return getJson<SearchResponse>(`/api/search?${params.toString()}`);
