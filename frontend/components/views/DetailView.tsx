@@ -13,7 +13,6 @@
 
 import { useMemo } from "react";
 import { Anchor, Button, Group, Table, Text } from "@mantine/core";
-import { IconDownload } from "@tabler/icons-react";
 
 import { useFilteredRecords } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
@@ -75,11 +74,7 @@ export function DetailView() {
         <Text c="dimmed" size="sm">
           {records.length} row{records.length === 1 ? "" : "s"} × {columns.length} columns
         </Text>
-        <Button
-          size="compact-sm"
-          leftSection={<IconDownload size={16} />}
-          onClick={handleDownload}
-        >
+        <Button size="compact-sm" onClick={handleDownload}>
           Download CSV
         </Button>
       </Group>
