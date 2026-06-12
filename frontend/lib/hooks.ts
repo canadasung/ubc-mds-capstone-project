@@ -23,11 +23,10 @@ export function useSources() {
 /** Raw search for the currently-submitted query. */
 export function useSearch() {
   const query = useSearchStore((s) => s.submittedQuery);
-  const useRouting = useSearchStore((s) => s.useRouting);
 
   return useQuery<SearchResponse>({
-    queryKey: ["search", query, useRouting],
-    queryFn: () => getSearch(query, useRouting),
+    queryKey: ["search", query],
+    queryFn: () => getSearch(query),
     enabled: query.length > 0,
   });
 }
@@ -43,51 +42,38 @@ export function useTaxonomy() {
 }
 
 /**
- * The set of source keys currently active, using the same rule as
- * useFilteredRecords:
- *   - routing ON  → the sources the server reports it queried
- *   - routing OFF → the user's manual selection
- *
- * `queriedSources` is returned too so callers can apply the same "keep unknown
- * sources rather than drop them" fallback.
+ * The set of source keys currently active (the user's manual selection).
+ * `queriedSources` is the full list returned by the server, used for the
+ * "keep unknown sources" fallback in useFilteredRecords.
  */
 export function useActiveSourceKeys(): {
   keys: string[];
   queriedSources: string[];
 } {
   const search = useSearch();
-  const useRouting = useSearchStore((s) => s.useRouting);
   const selectedSources = useSearchStore((s) => s.selectedSources);
 
   const queriedSources = search.data?.sources ?? [];
-  const keys = useRouting ? queriedSources : selectedSources;
-  return { keys, queriedSources };
+  return { keys: selectedSources, queriedSources };
 }
 
 /**
- * Records filtered to the active source set.
- *
- * - routing ON  → keep the set the server reports it queried (response.sources)
- * - routing OFF → keep the user's manual selection (store.selectedSources)
- *
- * Until the backend accepts a source-filter param (see ARCHITECTURE.md §7,
- * phase 2), this filtering happens client-side. Records whose source maps to an
- * unknown key are kept rather than silently dropped.
+ * Records filtered to the user's manually selected source set.
+ * Filtering happens client-side; records whose source maps to an unknown key
+ * are kept rather than silently dropped.
  */
 export function useFilteredRecords(): {
   records: SpeciesRecord[];
   activeSourceKeys: string[];
 } {
   const search = useSearch();
-  const useRouting = useSearchStore((s) => s.useRouting);
   const selectedSources = useSearchStore((s) => s.selectedSources);
 
   return useMemo(() => {
     const data = search.data;
     if (!data) return { records: [], activeSourceKeys: [] };
 
-    const activeSourceKeys = useRouting ? data.sources : selectedSources;
-    const allowed = new Set(activeSourceKeys);
+    const allowed = new Set(selectedSources);
 
     const records = data.results.filter((rec) => {
       const key = keyForApiName(sourceOf(rec));
@@ -95,6 +81,6 @@ export function useFilteredRecords(): {
       return allowed.has(key) || !data.sources.includes(key);
     });
 
-    return { records, activeSourceKeys };
-  }, [search.data, useRouting, selectedSources]);
+    return { records, activeSourceKeys: selectedSources };
+  }, [search.data, selectedSources]);
 }
