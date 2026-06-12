@@ -96,6 +96,15 @@ const CARD_CHAR_PX = 7.8;
  */
 const CARD_WRAP_CHARS = Math.floor((CARD_WIDTH_EXPANDED - 24) / CARD_CHAR_PX);
 
+/** Minimum zoom level for the timeline scale control. */
+const ZOOM_MIN = 0.4;
+/** Maximum zoom level for the timeline scale control. */
+const ZOOM_MAX = 2.4;
+/** Zoom increment per click of the scale control. */
+const ZOOM_STEP = 0.2;
+/** Fixed height in pixels of the zoomable timeline canvas. */
+const CANVAS_HEIGHT = 640;
+
 /**
  * Word-wrap plain text to a maximum line length.
  *
@@ -816,6 +825,102 @@ function SortCaret({ dir }: { dir: "asc" | "desc" | null }) {
   return <span style={{ ...base, borderTop: "5px solid currentColor", opacity: 0.25 }} />;
 }
 
+/**
+ * Small "fit / reset" glyph (four corner brackets) for the zoom control.
+ *
+ * Drawn as an inline SVG so it needs no icon dependency.
+ *
+ * Returns
+ * -------
+ * JSX.Element
+ *     An SVG corners icon.
+ */
+function FitIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 9V5a1 1 0 0 1 1-1h4" />
+      <path d="M20 9V5a1 1 0 0 0-1-1h-4" />
+      <path d="M4 15v4a1 1 0 0 0 1 1h4" />
+      <path d="M20 15v4a1 1 0 0 1-1 1h-4" />
+    </svg>
+  );
+}
+
+interface ZoomControlsProps {
+  /** Increase the zoom level. */
+  onZoomIn: () => void;
+  /** Decrease the zoom level. */
+  onZoomOut: () => void;
+  /** Reset the zoom level to 1. */
+  onReset: () => void;
+}
+
+/**
+ * Floating zoom control for the timeline canvas: zoom in, zoom out, reset.
+ *
+ * Rendered as a stacked group of bordered buttons, mirroring the control in the
+ * Relations view.
+ *
+ * Parameters
+ * ----------
+ * onZoomIn : () => void
+ *     Handler for the zoom-in button.
+ * onZoomOut : () => void
+ *     Handler for the zoom-out button.
+ * onReset : () => void
+ *     Handler for the reset button.
+ */
+function ZoomControls({ onZoomIn, onZoomOut, onReset }: ZoomControlsProps) {
+  const cell: CSSProperties = {
+    width: 34,
+    height: 34,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#fff",
+    color: "#495057",
+    cursor: "pointer",
+    fontSize: 20,
+    lineHeight: 1,
+  };
+  const divider = <div style={{ height: 1, background: "#dee2e6" }} />;
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        border: "1px solid #ced4da",
+        borderRadius: 6,
+        overflow: "hidden",
+        background: "#fff",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+      }}
+    >
+      <UnstyledButton style={cell} onClick={onZoomIn} aria-label="Zoom in">
+        +
+      </UnstyledButton>
+      {divider}
+      <UnstyledButton style={cell} onClick={onZoomOut} aria-label="Zoom out">
+        −
+      </UnstyledButton>
+      {divider}
+      <UnstyledButton style={{ ...cell, fontSize: 14 }} onClick={onReset} aria-label="Reset zoom">
+        <FitIcon />
+      </UnstyledButton>
+    </div>
+  );
+}
+
 // ---- Main component -------------------------------------------------------
 
 /**
@@ -835,6 +940,19 @@ export function TimelineView() {
   const [undatedOpen, undated] = useDisclosure(false);
   const [orientation, setOrientation] = useState<"horizontal" | "vertical">("horizontal");
   const [yearOrder, setYearOrder] = useState<"asc" | "desc">("asc");
+
+  // Scale control for the timeline canvas. A CSS zoom is applied to the chart
+  // content; react-plotly only resizes on window resize, so it is unaffected.
+  const [zoom, setZoom] = useState(1);
+  const zoomIn = useCallback(
+    () => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 100) / 100)),
+    [],
+  );
+  const zoomOut = useCallback(
+    () => setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - ZOOM_STEP) * 100) / 100)),
+    [],
+  );
+  const resetZoom = useCallback(() => setZoom(1), []);
 
   // Dated records grouped into one entry per year (oldest to newest), plus
   // colors, the undated set, and the total dated record count for the header.
@@ -1122,36 +1240,52 @@ export function TimelineView() {
             </Group>
           </Group>
 
-          {orientation === "horizontal" ? (
-            figure != null && (
-              <div style={{ overflowX: "auto" }}>
-                <PlotlyChart
-                  data={figure.data}
-                  layout={figure.layout}
-                  config={{ scrollZoom: false, displayModeBar: false }}
-                  style={{ width: "100%", minWidth: figure.minWidth }}
-                  useResizeHandler
-                  onClickAnnotation={(e) => {
-                    const idx = figure.annotationIndex[e.index];
-                    if (idx != null && idx >= 0) toggleCard(idx);
-                  }}
-                  onInitialized={(_, gd) =>
-                    styleCardBorders(gd, figure.annotationIndex, groups)
-                  }
-                  onUpdate={(_, gd) =>
-                    styleCardBorders(gd, figure.annotationIndex, groups)
-                  }
-                />
+          <div style={{ position: "relative" }}>
+            <div
+              style={{
+                height: CANVAS_HEIGHT,
+                overflow: "auto",
+                border: "1px solid #e9ecef",
+                borderRadius: 8,
+              }}
+            >
+              <div style={{ zoom }}>
+                {orientation === "horizontal" ? (
+                  figure != null && (
+                    <div style={{ overflowX: "auto" }}>
+                      <PlotlyChart
+                        data={figure.data}
+                        layout={figure.layout}
+                        config={{ scrollZoom: false, displayModeBar: false }}
+                        style={{ width: "100%", minWidth: figure.minWidth }}
+                        useResizeHandler
+                        onClickAnnotation={(e) => {
+                          const idx = figure.annotationIndex[e.index];
+                          if (idx != null && idx >= 0) toggleCard(idx);
+                        }}
+                        onInitialized={(_, gd) =>
+                          styleCardBorders(gd, figure.annotationIndex, groups)
+                        }
+                        onUpdate={(_, gd) =>
+                          styleCardBorders(gd, figure.annotationIndex, groups)
+                        }
+                      />
+                    </div>
+                  )
+                ) : (
+                  <VerticalTimeline
+                    groups={groups}
+                    order={order}
+                    expanded={expanded}
+                    onToggle={toggleCard}
+                  />
+                )}
               </div>
-            )
-          ) : (
-            <VerticalTimeline
-              groups={groups}
-              order={order}
-              expanded={expanded}
-              onToggle={toggleCard}
-            />
-          )}
+            </div>
+            <div style={{ position: "absolute", left: 12, bottom: 12, zIndex: 5 }}>
+              <ZoomControls onZoomIn={zoomIn} onZoomOut={zoomOut} onReset={resetZoom} />
+            </div>
+          </div>
         </>
       ) : (
         <Alert variant="light" color="blue">
