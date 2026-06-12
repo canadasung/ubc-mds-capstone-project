@@ -1061,14 +1061,15 @@ export function TimelineView() {
 
     // Grow the plot height so the two lanes sit far enough apart that the
     // tallest expanded card cannot overlap a card on the opposite lane. Lanes
-    // are at y = ±0.5 within a 2.8-unit range, so the pixel gap between them is
-    // height / 2.8; keep that gap above the tallest expanded card, with margin.
+    // are at y = ±0.5 within a 2.0-unit range (see the yaxis below), so the
+    // pixel gap between them is height / 2; keep that above the tallest card.
+    // The range hugs the lanes (±1.0) so there is little empty margin top/bottom.
     const tallestCard = groups.reduce(
       (max, g, i) =>
         expanded.has(i) ? Math.max(max, estimateExpandedCardPx(g, CARD_WRAP_CHARS)) : max,
       0,
     );
-    const plotHeight = Math.min(1600, Math.max(480, Math.ceil(2.8 * tallestCard * 1.2)));
+    const plotHeight = Math.min(1600, Math.max(480, Math.ceil(2.3 * tallestCard)));
 
     const shapes: Partial<Layout>["shapes"] = [
       {
@@ -1184,7 +1185,7 @@ export function TimelineView() {
         showticklabels: false,
         fixedrange: true,
       },
-      yaxis: { visible: false, range: [-1.4, 1.4], fixedrange: true },
+      yaxis: { visible: false, range: [-1, 1], fixedrange: true },
       plot_bgcolor: "white",
       paper_bgcolor: "white",
       showlegend: false,
