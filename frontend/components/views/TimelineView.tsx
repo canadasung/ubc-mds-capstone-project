@@ -74,14 +74,16 @@ function statusColor(status: string): string {
   return "#888";
 }
 
-/** Horizontal pixels per entry in the horizontal view when no card is expanded. */
-const SLOT_COLLAPSED = 95;
-/**
- * Horizontal pixels per entry in the horizontal view when at least one card is
- * expanded. Sized so two same-lane neighbors, which sit two slots apart, stay
- * clear of an expanded box.
- */
-const SLOT_EXPANDED = 190;
+/** Estimated rendered width in pixels of a collapsed year card. */
+const COLLAPSED_CARD_PX = 140;
+/** Minimum horizontal gap in pixels kept between two same-lane cards. */
+const SAME_LANE_GAP = 30;
+/** Factor by which the timeline length is kept longer than all cards combined. */
+const TIMELINE_OVERSHOOT = 1.15;
+/** Extra horizontal margin in pixels past the first/last card on the axis. */
+const END_PAD_PX = 20;
+/** Floor for pixels-per-year so sparse data keeps a sane axis. */
+const MIN_PX_PER_YEAR = 3;
 /**
  * Target width in pixels of an expanded card box. Card text is wrapped to fit
  * this width so it never widens past its slot or clips at the box edge.
@@ -1034,30 +1036,53 @@ export function TimelineView() {
 
   // Builds all Plotly figure data for the horizontal view.
   //
-  // Year cards are spaced evenly by index (slot position), not by their year
-  // value, so neighbors never collide the way they do when clustered years share
-  // an x coordinate. The plot widens with the year count, and wider again when
-  // any card is expanded, while the chart scrolls horizontally inside its
-  // container. The real publication year is kept only as label text. Expanded
-  // cards are ordered last so they render on top.
+  // Cards are placed at their real publication year (a proportional time axis),
+  // alternating between two lanes. The plot width is computed so the timeline is
+  // always longer than all the cards laid end to end and so no two same-lane
+  // cards overlap; the chart scrolls horizontally inside its container. The
+  // display order (oldest/newest first) is applied by reversing the x-axis.
   const figure = useMemo(() => {
     if (groups.length === 0) return null;
 
-    // Groups arranged in the chosen display order (left to right). Card content
-    // and the click mapping keep each group's canonical index via `order`.
-    const ord = order.map((ci) => groups[ci]);
-    const years = ord.map((g) => g.year);
-    const xPos = ord.map((_, d) => d);
-    const yPos = ord.map((_, d) => (d % 2 === 0 ? 0.5 : -0.5));
-    const xMin = -0.6;
-    const xMax = ord.length - 0.4;
+    // groups is sorted ascending by year, with one (distinct) year per group.
+    const n = groups.length;
+    const years = groups.map((g) => g.year);
+    const yPos = groups.map((_, i) => (i % 2 === 0 ? 0.5 : -0.5));
 
-    // Wider slots whenever any card is expanded, so the larger boxes and their
-    // same-lane neighbors (two slots away) stay clear of each other. The chart
-    // grows to this width and scrolls horizontally inside its container.
-    const anyExpanded = expanded.size > 0;
-    const slot = anyExpanded ? SLOT_EXPANDED : SLOT_COLLAPSED;
-    const minWidth = slot * groups.length + 60;
+    // Estimated rendered width of each card, used to size the timeline.
+    const widths = groups.map((_, i) =>
+      expanded.has(i) ? CARD_WIDTH_EXPANDED + 24 : COLLAPSED_CARD_PX,
+    );
+    const sumWidths = widths.reduce((a, b) => a + b, 0);
+
+    const yearMin = years[0];
+    const yearMax = years[n - 1];
+    const yearSpan = Math.max(1, yearMax - yearMin);
+
+    // Pixels per year. Large enough that (a) no two same-lane cards (two
+    // positions apart) overlap at their real-year spacing, and (b) the timeline
+    // is longer than all cards combined. The end padding below reserves each end
+    // card's half-width, so the (b) target is written in terms of yearSpan.
+    const endHalf = widths[0] / 2 + widths[n - 1] / 2;
+    let pxPerYear =
+      (TIMELINE_OVERSHOOT * sumWidths - endHalf - 2 * END_PAD_PX) / yearSpan;
+    for (let i = 0; i + 2 < n; i++) {
+      const gapYears = years[i + 2] - years[i];
+      if (gapYears > 0) {
+        pxPerYear = Math.max(
+          pxPerYear,
+          (widths[i] / 2 + widths[i + 2] / 2 + SAME_LANE_GAP) / gapYears,
+        );
+      }
+    }
+    pxPerYear = Math.max(pxPerYear, MIN_PX_PER_YEAR);
+
+    // Extend the axis past the first and last card by their half-widths (plus a
+    // small margin) so the end cards sit fully inside the timeline, not clipped.
+    const axisMin = yearMin - (widths[0] / 2 + END_PAD_PX) / pxPerYear;
+    const axisMax = yearMax + (widths[n - 1] / 2 + END_PAD_PX) / pxPerYear;
+    const axisSpan = axisMax - axisMin;
+    const minWidth = Math.min(16000, Math.max(Math.ceil(axisSpan * pxPerYear) + 40, 600));
 
     // Grow the plot height so the two lanes sit far enough apart that the
     // tallest expanded card cannot overlap a card on the opposite lane. Lanes
@@ -1074,8 +1099,8 @@ export function TimelineView() {
     const shapes: Partial<Layout>["shapes"] = [
       {
         type: "line",
-        x0: xMin,
-        x1: xMax,
+        x0: axisMin,
+        x1: axisMax,
         y0: 0,
         y1: 0,
         line: { color: "#bdc3c7", width: 2 },
@@ -1083,7 +1108,7 @@ export function TimelineView() {
       // Vertical end caps marking where the timeline starts and ends. Sized in
       // pixels (ysizemode "pixel", anchored at the y=0 axis) so they keep a
       // fixed length no matter how tall the plot grows when cards expand.
-      ...[xMin, xMax].map((x) => ({
+      ...[axisMin, axisMax].map((x) => ({
         type: "line" as const,
         x0: x,
         x1: x,
@@ -1093,12 +1118,12 @@ export function TimelineView() {
         y1: 13,
         line: { color: "#495057", width: 4 },
       })),
-      ...ord.map((_, d) => ({
+      ...groups.map((_, i) => ({
         type: "line" as const,
-        x0: xPos[d],
-        x1: xPos[d],
+        x0: years[i],
+        x1: years[i],
         y0: 0,
-        y1: yPos[d],
+        y1: yPos[i],
         line: { color: "#bdc3c7", width: 1, dash: "dot" as const },
       })),
     ];
@@ -1107,13 +1132,12 @@ export function TimelineView() {
 
     // Card annotations tagged with their canonical group index so expanded cards
     // can be reordered to the top layer without losing the click mapping.
-    const cards = ord.map((g, d) => {
-      const ci = order[d];
-      const isOpen = expanded.has(ci);
+    const cards = groups.map((g, i) => {
+      const isOpen = expanded.has(i);
       const borderColor = g.isAccepted ? COLOR_ACCEPTED : COLOR_SYNONYM;
       const ann: Ann = {
-        x: xPos[d],
-        y: yPos[d],
+        x: years[i],
+        y: yPos[i],
         text: isOpen ? groupCardHtml(g, CARD_WRAP_CHARS) : groupCollapsedHtml(g),
         showarrow: false,
         bgcolor: "white",
@@ -1129,16 +1153,16 @@ export function TimelineView() {
         // keeps every expanded card the same size without clipping.
         ...(isOpen ? { width: CARD_WIDTH_EXPANDED } : {}),
       };
-      return { ann, idx: ci, isOpen };
+      return { ann, idx: i, isOpen };
     });
 
     // Year labels sit on the center line. Not clickable.
-    const yearLabels = ord.map((_, d) => {
+    const yearLabels = groups.map((_, i) => {
       const ann: Ann = {
-        x: xPos[d],
+        x: years[i],
         y: 0,
         yshift: 9,
-        text: `<b>${years[d]}</b>`,
+        text: `<b>${years[i]}</b>`,
         showarrow: false,
         bgcolor: "rgba(255,255,255,0.85)",
         borderpad: 1,
@@ -1165,21 +1189,25 @@ export function TimelineView() {
       {
         type: "scatter",
         mode: "markers",
-        x: xPos,
-        y: xPos.map(() => 0),
+        x: years,
+        y: years.map(() => 0),
         // Uniform black circles: dots no longer encode source or status.
         marker: { size: 9, color: "#000", symbol: "circle" },
-        text: ord.map((g) => `${g.year}: ${g.count} name${g.count === 1 ? "" : "s"}`),
+        text: groups.map((g) => `${g.year}: ${g.count} name${g.count === 1 ? "" : "s"}`),
         hoverinfo: "text",
       },
     ];
+
+    // Oldest-first keeps the natural axis; newest-first reverses it.
+    const xRange: [number, number] =
+      yearOrder === "asc" ? [axisMin, axisMax] : [axisMax, axisMin];
 
     const layout: Partial<Layout> = {
       height: plotHeight,
       margin: { l: 20, r: 20, t: 30, b: 20 },
       xaxis: {
         title: { text: "Year of Publication" },
-        range: [xMin, xMax],
+        range: xRange,
         showgrid: false,
         zeroline: false,
         showticklabels: false,
@@ -1195,7 +1223,7 @@ export function TimelineView() {
     };
 
     return { data, layout, annotationIndex, minWidth };
-  }, [groups, order, expanded]);
+  }, [groups, expanded, yearOrder]);
 
   if (records.length === 0) {
     return <Text c="dimmed">No results to plot.</Text>;
