@@ -47,6 +47,8 @@ export function TaxonomyView() {
     const allowed = new Set(keys);
     const filtered = data.sources.filter((row) => {
       const k = keyForApiName(row.source);
+      // Index Fungorum is excluded from this view.
+      if (k === "index_fungorum") return false;
       // keep when allowed, or when the source is unknown to the queried set
       return allowed.has(k) || !queriedSources.includes(k);
     });
@@ -125,7 +127,7 @@ export function TaxonomyView() {
   );
 }
 
-/** Explains the white / blue / orange gradient under the table. */
+/** Explains the white → blue gradient under the table. */
 function ShadingLegend() {
   const levels: Array<{ level: 1 | 2 | 3 | 4; label: string }> = [
     { level: 1, label: "1" },
@@ -142,43 +144,15 @@ function ShadingLegend() {
         reference.
       </Text>
 
-      <Group gap="lg">
-        <LegendRow
-          title="One differing value"
-          hue="blue"
-          levels={levels}
-        />
-        <LegendRow
-          title="Several differing values"
-          hue="orange"
-          levels={levels}
-        />
-      </Group>
-    </Stack>
-  );
-}
-
-function LegendRow({
-  title,
-  hue,
-  levels,
-}: {
-  title: string;
-  hue: "blue" | "orange";
-  levels: Array<{ level: 1 | 2 | 3 | 4; label: string }>;
-}) {
-  return (
-    <Group gap={6} wrap="nowrap">
-      <Text size="xs" fw={600}>
-        {title}:
-      </Text>
-      {levels.map(({ level, label }) => {
-        const shade = SHADE_PALETTE[hue][level];
-        return (
+      <Group gap={6} wrap="nowrap">
+        <Text size="xs" fw={600}>
+          Edit distance:
+        </Text>
+        {levels.map(({ level, label }) => (
           <span
             key={level}
             style={{
-              ...shade,
+              ...SHADE_PALETTE[level],
               fontSize: 11,
               padding: "1px 6px",
               borderRadius: 3,
@@ -187,8 +161,8 @@ function LegendRow({
           >
             {label}
           </span>
-        );
-      })}
-    </Group>
+        ))}
+      </Group>
+    </Stack>
   );
 }

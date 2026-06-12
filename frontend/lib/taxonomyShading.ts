@@ -12,11 +12,8 @@
  *     If GBIF is not in the visible set, the first visible source is used.
  *
  * A cell that matches the reference stays white. Cells that differ are shaded on
- * a gradient by their edit distance from the reference. The HUE is decided per
- * column by how many *distinct* differing values it contains:
- *
- *   - exactly one differing value  → blue gradient
- *   - two or more differing values → orange gradient (a "second/third group")
+ * a single blue gradient by their edit distance from the reference — the further
+ * the value, the darker the blue.
  *
  * All logic here is pure so it can be unit-tested without React.
  */
@@ -66,25 +63,15 @@ export function distanceLevel(d: number): 0 | 1 | 2 | 3 | 4 {
   return 4;
 }
 
-export type Hue = "blue" | "orange";
-
 /**
- * Palette per hue, indexed by shade level 1–4 (level 0 is white = no shade).
+ * Blue palette indexed by shade level 1–4 (level 0 is white = no shade).
  * Text colour is chosen for contrast against each background.
  */
-export const SHADE_PALETTE: Record<Hue, Record<1 | 2 | 3 | 4, CellShade>> = {
-  blue: {
-    1: { backgroundColor: "#d7e9fb", color: "#1a1a1a" },
-    2: { backgroundColor: "#6aa6e0", color: "#ffffff" },
-    3: { backgroundColor: "#2f64ad", color: "#ffffff" },
-    4: { backgroundColor: "#15356e", color: "#ffffff" },
-  },
-  orange: {
-    1: { backgroundColor: "#ffe8cc", color: "#1a1a1a" },
-    2: { backgroundColor: "#f6a04a", color: "#1a1a1a" },
-    3: { backgroundColor: "#d2691e", color: "#ffffff" },
-    4: { backgroundColor: "#7a3300", color: "#ffffff" },
-  },
+export const SHADE_PALETTE: Record<1 | 2 | 3 | 4, CellShade> = {
+  1: { backgroundColor: "#d7e9fb", color: "#1a1a1a" },
+  2: { backgroundColor: "#6aa6e0", color: "#ffffff" },
+  3: { backgroundColor: "#2f64ad", color: "#ffffff" },
+  4: { backgroundColor: "#15356e", color: "#ffffff" },
 };
 
 const norm = (s: string): string => s.trim().toLowerCase();
@@ -138,14 +125,6 @@ export function shadeColumn(
   const result = new Map<string, CellShade | null>();
   const refNorm = norm(reference);
 
-  // Distinct non-empty values that differ from the reference → decides the hue.
-  const differing = new Set<string>();
-  for (const row of rows) {
-    const v = norm(cellValue(row, rank));
-    if (v && v !== refNorm) differing.add(v);
-  }
-  const hue: Hue = differing.size >= 2 ? "orange" : "blue";
-
   for (const row of rows) {
     const raw = cellValue(row, rank);
     const v = norm(raw);
@@ -154,7 +133,7 @@ export function shadeColumn(
       continue;
     }
     const level = distanceLevel(levenshtein(v, refNorm));
-    result.set(row.source, level === 0 ? null : SHADE_PALETTE[hue][level]);
+    result.set(row.source, level === 0 ? null : SHADE_PALETTE[level]);
   }
   return result;
 }
