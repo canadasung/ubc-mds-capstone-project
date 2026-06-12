@@ -3,16 +3,17 @@
 /**
  * Timeline view for species name records.
  *
- * Renders dated taxonomy entries on either a horizontal Plotly chart or a
- * vertical CSS timeline. Records that share a publication year are combined into
- * a single card for that year, headed by the name and year and listing one
- * labeled block per record (API, status, author, source). A year card is
- * treated as accepted when any of its records is accepted. Accepted cards
- * display square; synonym-only cards display rounded.
- * Plotly annotation boxes have no border-radius property, so in the horizontal
- * view rounding is applied to the SVG rectangles after each render. Axis dots
- * are uniform black circles and do not encode source or status. Undated entries
- * appear in a collapsible table below either view.
+ * Renders dated taxonomy entries on either a horizontal Plotly chart (a
+ * proportional time axis) or a vertical CSS timeline. Records that share a
+ * publication year are combined into a single card for that year, headed by the
+ * name and year and listing one labeled block per record (API, status, author,
+ * source). A year card is treated as accepted when any of its records is
+ * accepted: accepted years display square (green), synonym-only years rounded
+ * (purple), and mixed years a split square-over-rounded border. Plotly
+ * annotation boxes have no per-corner radius, so in the horizontal view the
+ * card borders are drawn onto the SVG after each render. Axis dots are uniform
+ * black circles and do not encode source or status. Undated entries appear in a
+ * collapsible table below either view.
  */
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
@@ -85,8 +86,8 @@ const END_PAD_PX = 20;
 /** Floor for pixels-per-year so sparse data keeps a sane axis. */
 const MIN_PX_PER_YEAR = 3;
 /**
- * Target width in pixels of an expanded card box. Card text is wrapped to fit
- * this width so it never widens past its slot or clips at the box edge.
+ * Target text width in pixels of an expanded card box. Card text is wrapped to
+ * fit this width so the box stays a predictable size and does not clip.
  */
 const CARD_WIDTH_EXPANDED = 300;
 /** Approximate monospace character advance at the card font size, in pixels. */
@@ -440,17 +441,6 @@ function styleCardBorders(
 // ---- Vertical timeline sub-components ------------------------------------
 
 /**
- * Render one record as a block of labeled fields in a vertical year card.
- *
- * Shows API (the source database, a link when available), Status (colored by
- * accepted/synonym), Author, and Source (the publication), each on its own line.
- *
- * Parameters
- * ----------
- * entry : TimelineEntry
- *     The record to render.
- */
-/**
  * Small external-link glyph rendered inline after a link's text.
  *
  * Drawn as an inline SVG so it needs no icon dependency and inherits the link
@@ -482,6 +472,17 @@ function ExternalLinkIcon() {
   );
 }
 
+/**
+ * Render one record as a block of labeled fields in a vertical year card.
+ *
+ * Shows API (the source database, a link when available), Status (colored by
+ * accepted/synonym), Author, and Source (the publication), each on its own line.
+ *
+ * Parameters
+ * ----------
+ * entry : TimelineEntry
+ *     The record to render.
+ */
 function RecordBlock({ entry }: { entry: TimelineEntry }) {
   const label = (text: string) => <span style={{ color: "#888" }}>{text}</span>;
   return (
@@ -632,8 +633,8 @@ interface VerticalTimelineProps {
  *
  * Lays out year cards top to bottom along a central vertical axis line, with
  * cards alternating on the left and right sides. Each year has a black dot and
- * year label on the axis. Years containing an accepted record use
- * square-cornered cards; synonym-only years use rounded-cornered cards.
+ * year label on the axis. Accepted-only years use square cards, synonym-only
+ * years rounded cards, and mixed years a split square-over-rounded card.
  *
  * Parameters
  * ----------
@@ -929,11 +930,13 @@ function ZoomControls({ onZoomIn, onZoomOut, onReset }: ZoomControlsProps) {
  * Timeline view component for species name records.
  *
  * Combines records that share a publication year into one card per year, shown
- * either as a horizontal Plotly chart or a vertical CSS timeline via a
- * segmented toggle. Each card has an Accepted section and a Synonyms section; a
- * year is treated as accepted when any record is accepted, which drives the
- * square (accepted) versus rounded (synonym) card shape, the axis marker
- * symbol, and the border color. Undated entries appear in a collapsible table
+ * either as a horizontal Plotly chart (a proportional time axis) or a vertical
+ * CSS timeline, via a segmented toggle. Each card has a "Name, Year" header and
+ * one labeled block per record (API, status, author, source). A year is treated
+ * as accepted when any record is accepted, which drives the card shape and
+ * border color: square green for accepted, rounded purple for synonym, and a
+ * split border for a year holding both. Controls cover year order, expand or
+ * collapse all, and a zoom scale. Undated entries appear in a collapsible table
  * below either view.
  */
 export function TimelineView() {
