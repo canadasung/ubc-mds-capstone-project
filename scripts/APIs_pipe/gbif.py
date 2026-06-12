@@ -215,6 +215,7 @@ class GBIFAPI(SpeciesAPI):
         return [
             self._format_row(
                 api_name=GBIF_PORTAL.display_name,
+                kingdom=synonym_search_term_data.get("kingdom", ""),
                 genus=genus,
                 species=species,
                 api_internal_id=key,

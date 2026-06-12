@@ -2,46 +2,48 @@
 Looks up a species name in GBIF to find its kingdom, then returns the list
 of databases to search for that kingdom.
 
-    from scripts.apis_pipe..gbif import GBIFAPI
     from scripts.utils.router import TaxonRouter
 
-    router = TaxonRouter(gbif_client=GBIFAPI())
+    router = TaxonRouter()
     router.route("Amanita muscaria")
-    # ['gbif', 'col', 'genbank', 'index_fungorum', 'mushroomobs', ...]
+    # ['GBIF', 'COL', 'GenBank', 'Index Fungorum', 'Mushroom Observer', ...]
 """
 
-from scripts.apis_pipe.base import SpeciesAPI
+from scripts.apis_pipe.gbif import GBIFAPI
 
 ANIMALIA_APIS: list[str] = [
-    "gbif",
-    "col",
-    "genbank",
+    "GBIF",
+    "COL",
+    "GenBank",
+    "ITIS",
+    "FishBase",
 ]
 
 PLANTAE_APIS: list[str] = [
-    "gbif",
-    "col",
-    "genbank",
-    "tropicos",
-    "symbiota_bryophyte",
-    "symbiota_cch2",
-    "symbiota_sernec",
-    "symbiota_nansh",
-    "symbiota_swbiodiversity",
-    "symbiota_macroalgae",
-    "symbiota_pterido",
-    "symbiota_neherbaria",
-    "symbiota_midatlantic",
+    "GBIF",
+    "COL",
+    "GenBank",
+    "ITIS",
+    "Tropicos",
+    "Bryophyte Portal",
+    "CCH2",
+    "SERNEC",
+    "NANSH",
+    "Algae Herbarium Portal",
+    "Pterido Portal",
+    "CNH",
+    "Mid-Atlantic Herbaria Consortium",
+    "swbiodiversity",
 ]
 
 FUNGI_APIS: list[str] = [
-    "gbif",
-    "col",
-    "genbank",
-    "index_fungorum",
-    "mushroomobs",
-    "symbiota_mycoportal",
-    "symbiota_lichen",
+    "GBIF",
+    "COL",
+    "GenBank",
+    "Index Fungorum",
+    "Mushroom Observer",
+    "MyCoPortal",
+    "Lichen Portal",
 ]
 
 _KINGDOM_MAP: dict[str, list[str]] = {
@@ -52,15 +54,17 @@ _KINGDOM_MAP: dict[str, list[str]] = {
 
 
 class TaxonRouter:
-
-    def __init__(self, gbif_client: SpeciesAPI):
-        self.gbif = gbif_client
+    def __init__(self):
+        self.gbif = GBIFAPI()
 
     def _get_kingdom(self, name: str) -> str:
         """Ask GBIF which kingdom a species belongs to. Returns 'Unknown' on failure."""
         try:
-            res = self.gbif.search(name)
-            return res.get("kingdom", "Unknown") if res else "Unknown"
+            df = self.gbif.get_synonyms(name)
+            if df.empty:
+                return "Unknown"
+            kingdom = df["kingdom"].iloc[0]
+            return kingdom if kingdom else "Unknown"
         except Exception as e:
             print(f"Router kingdom lookup failed: {e}")
             return "Unknown"
