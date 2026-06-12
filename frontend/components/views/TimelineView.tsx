@@ -350,12 +350,13 @@ function ensureMixedGradient(svg: SVGSVGElement | null): void {
 /**
  * Style each year card's border in the horizontal Plotly view.
  *
- * Plotly annotation boxes are a single rectangle, so the styling is applied to
- * the rendered SVG after each draw. A year with an accepted record gets square
- * corners; a synonym-only year gets rounded corners. A year holding both
- * accepted and synonym records additionally gets a split border color (green
- * over purple). An SVG rectangle cannot mix corner radii per side, so mixed
- * cards keep square corners here; the vertical view splits the corners too.
+ * Plotly annotation boxes are a single SVG rectangle, styled after each draw.
+ * An accepted-only year gets square corners; a synonym-only year gets rounded
+ * corners. A year holding both is split like the vertical card: because a
+ * rectangle cannot mix corner radii per side, its border is drawn as a separate
+ * path with square top corners and rounded bottom corners, stroked with the
+ * green-over-purple gradient. The rectangle is kept for its white fill and click
+ * target, but its own border is hidden.
  *
  * Parameters
  * ----------
@@ -377,28 +378,51 @@ function styleCardBorders(
   groups: YearGroup[],
 ): void {
   if (!graphDiv) return;
-  const radius = "10";
+  const radius = 10;
   graphDiv.querySelectorAll<SVGGElement>("g.annotation").forEach((el) => {
     const pos = Number(el.getAttribute("data-index"));
     const idx = Number.isNaN(pos) ? -1 : annotationIndex[pos];
     const group = idx >= 0 ? groups[idx] : undefined;
     if (!group) return;
+    const rect = el.querySelector<SVGRectElement>("rect");
+    if (!rect) return;
     const mixed = group.accepted.length > 0 && group.synonyms.length > 0;
-    el.querySelectorAll("rect").forEach((rect) => {
+    const existing = el.querySelector<SVGPathElement>("path[data-card-border]");
+
+    if (mixed) {
+      ensureMixedGradient(rect.ownerSVGElement);
+      // Hide the rect's own border; keep its (square) white fill and clicks.
+      rect.style.stroke = "none";
+      rect.removeAttribute("rx");
+      rect.removeAttribute("ry");
+      const { x, y, width: w, height: h } = rect.getBBox();
+      const r = Math.min(radius, w / 2, h / 2);
+      const d =
+        `M${x},${y} L${x + w},${y} L${x + w},${y + h - r} ` +
+        `Q${x + w},${y + h} ${x + w - r},${y + h} ` +
+        `L${x + r},${y + h} Q${x},${y + h} ${x},${y + h - r} Z`;
+      const path =
+        existing ?? document.createElementNS("http://www.w3.org/2000/svg", "path");
+      if (!existing) {
+        path.setAttribute("data-card-border", "1");
+        path.style.pointerEvents = "none"; // never block clicks on the card
+        rect.parentNode?.insertBefore(path, rect.nextSibling);
+      }
+      path.setAttribute("d", d);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "url(#timelineMixedBorder)");
+      path.setAttribute("stroke-width", "2");
+    } else {
+      existing?.remove();
+      rect.style.stroke = group.isAccepted ? COLOR_ACCEPTED : COLOR_SYNONYM;
       if (group.isAccepted) {
         rect.removeAttribute("rx");
         rect.removeAttribute("ry");
       } else {
-        rect.setAttribute("rx", radius);
-        rect.setAttribute("ry", radius);
+        rect.setAttribute("rx", String(radius));
+        rect.setAttribute("ry", String(radius));
       }
-      if (mixed) {
-        ensureMixedGradient(rect.ownerSVGElement);
-        rect.style.stroke = "url(#timelineMixedBorder)";
-      } else {
-        rect.style.stroke = group.isAccepted ? COLOR_ACCEPTED : COLOR_SYNONYM;
-      }
-    });
+    }
   });
 }
 
@@ -630,6 +654,23 @@ function VerticalTimeline({ groups, order, expanded, onToggle }: VerticalTimelin
           zIndex: 0,
         }}
       />
+      {/* End caps marking where the timeline starts and ends */}
+      {(["top", "bottom"] as const).map((edge) => (
+        <div
+          key={edge}
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: "50%",
+            [edge]: 0,
+            transform: "translateX(-50%)",
+            width: 16,
+            height: 3,
+            backgroundColor: "#868e96",
+            zIndex: 0,
+          }}
+        />
+      ))}
 
       {order.map((ci, displayIdx) => {
         const group = groups[ci];
@@ -920,6 +961,19 @@ export function TimelineView() {
         y1: 0,
         line: { color: "#bdc3c7", width: 2 },
       },
+      // Vertical end caps marking where the timeline starts and ends. Sized in
+      // pixels (ysizemode "pixel", anchored at the y=0 axis) so they keep a
+      // fixed length no matter how tall the plot grows when cards expand.
+      ...[xMin, xMax].map((x) => ({
+        type: "line" as const,
+        x0: x,
+        x1: x,
+        ysizemode: "pixel" as const,
+        yanchor: 0,
+        y0: -13,
+        y1: 13,
+        line: { color: "#495057", width: 4 },
+      })),
       ...ord.map((_, d) => ({
         type: "line" as const,
         x0: xPos[d],
