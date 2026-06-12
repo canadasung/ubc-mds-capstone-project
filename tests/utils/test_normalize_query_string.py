@@ -1,8 +1,16 @@
+"""
+Tests for scripts/utils/normalize_query_string.py
+
+Covers whitespace stripping, case normalization, and multi-word species names.
+
+Run all tests from the project root:
+    pytest tests/utils/test_normalize_query_string.py -v
+"""
+
 from scripts.utils.normalize_query_string import normalize_query_string
 
 
 class TestNormalizeQueryString:
-
     # 1. All-lowercase input gets first letter capitalized
     def test_all_lower(self):
         assert normalize_query_string("amanita muscaria") == "Amanita muscaria"
@@ -45,8 +53,14 @@ class TestNormalizeQueryString:
 
     # 10. Three-part name (e.g. with variety) is handled correctly
     def test_three_part_name(self):
-        assert normalize_query_string("amanita muscaria var. alba") == "Amanita muscaria var. alba"
+        assert (
+            normalize_query_string("amanita muscaria var. alba")
+            == "Amanita muscaria var. alba"
+        )
 
     # 11. Three-part name with mixed case and extra whitespace is fully normalized
     def test_three_part_name_uppercase_mixed(self):
-        assert normalize_query_string("  AMANITA   MUSCARIA VAR. \tALBA ") == "Amanita muscaria var. alba"
+        assert (
+            normalize_query_string("  AMANITA   MUSCARIA VAR. \tALBA ")
+            == "Amanita muscaria var. alba"
+        )
