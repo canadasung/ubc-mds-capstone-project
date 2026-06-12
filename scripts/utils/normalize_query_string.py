@@ -16,6 +16,5 @@ def normalize_query_string(name: str) -> str:
         >>> normalize_scientific_name(" AMANITA  MUSCARIA")
         'Amanita muscaria'
     """
-    # TODO: add remove punctuation??
     normalized = " ".join(name.split())
     return normalized.lower().capitalize()
