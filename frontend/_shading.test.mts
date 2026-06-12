@@ -49,16 +49,16 @@ ok(columnReference("Species", rows, "Amanita muscaria") === "muscaria", "species
 ok(columnReference("Family", rows, "Amanita muscaria") === "Amanitaceae", "family ref = GBIF");
 ok(columnReference("Family", rows.slice(1), "x") === "Amanitaceae", "family ref fallback = first visible");
 
-// one differing value -> blue gradient
+// differing cells -> blue gradient, matching cells stay white
 const fam = shadeColumn(rows, "Family", "Amanitaceae");
 ok(fam.get("GBIF") === null && fam.get("symbiota_mycoportal") === null, "matching cells stay white");
 ok(
   fam.get("mushroomobs")!.backgroundColor ===
-    SHADE_PALETTE.blue[lvl("pluteaceae", "amanitaceae")].backgroundColor,
-  "single differing value -> blue",
+    SHADE_PALETTE[lvl("pluteaceae", "amanitaceae")].backgroundColor,
+  "differing value -> blue",
 );
 
-// two+ differing values -> orange gradient
+// multiple differing values are all shaded on the same blue scale
 const rows2: TaxonomyRow[] = [
   { source: "GBIF", synonym_count: 0, Family: "Amanitaceae" },
   { source: "b", synonym_count: 0, Family: "Pluteaceae" },
@@ -68,13 +68,13 @@ const fam2 = shadeColumn(rows2, "Family", "Amanitaceae");
 ok(fam2.get("GBIF") === null, "reference stays white");
 ok(
   fam2.get("b")!.backgroundColor ===
-    SHADE_PALETTE.orange[lvl("pluteaceae", "amanitaceae")].backgroundColor,
-  "two+ differing values -> orange (b)",
+    SHADE_PALETTE[lvl("pluteaceae", "amanitaceae")].backgroundColor,
+  "differing value -> blue (b)",
 );
 ok(
   fam2.get("c")!.backgroundColor ===
-    SHADE_PALETTE.orange[lvl("strophariaceae", "amanitaceae")].backgroundColor,
-  "two+ differing values -> orange (c)",
+    SHADE_PALETTE[lvl("strophariaceae", "amanitaceae")].backgroundColor,
+  "differing value -> blue (c)",
 );
 
 // genus differing from the query is shaded even for GBIF
@@ -82,7 +82,7 @@ const rows3: TaxonomyRow[] = [{ source: "GBIF", synonym_count: 0, Genus: "Amanit
 const g = shadeColumn(rows3, "Genus", columnReference("Genus", rows3, "Amanita muscaria"));
 ok(
   g.get("GBIF") !== null &&
-    g.get("GBIF")!.backgroundColor === SHADE_PALETTE.blue[lvl("amanitaria", "amanita")].backgroundColor,
+    g.get("GBIF")!.backgroundColor === SHADE_PALETTE[lvl("amanitaria", "amanita")].backgroundColor,
   "GBIF genus differing from query -> blue",
 );
 
