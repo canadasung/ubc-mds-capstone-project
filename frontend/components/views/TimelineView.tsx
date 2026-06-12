@@ -10,12 +10,12 @@
  * treated as accepted when any of its records is accepted. Accepted cards
  * display square; synonym-only cards display rounded.
  * Plotly annotation boxes have no border-radius property, so in the horizontal
- * view rounding is applied to the SVG rectangles after each render. Status is
- * also reinforced by the axis marker symbol (square vs circle) and border
- * color. Undated entries appear in a collapsible table below either view.
+ * view rounding is applied to the SVG rectangles after each render. Axis dots
+ * are uniform black circles and do not encode source or status. Undated entries
+ * appear in a collapsible table below either view.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import {
   Alert,
@@ -47,13 +47,15 @@ const PlotlyChart = dynamic(() => import("./PlotlyChart"), {
   loading: () => <Loader />,
 });
 
-/** Border color for accepted taxonomic name boxes, used in both views. */
-const COLOR_ACCEPTED = "#1c7ed6";
-/** Border color for synonym and unknown-status boxes, used in both views. */
-const COLOR_SYNONYM = "#e67e22";
+/** Accent color for accepted names (status text and card border), both views. */
+const COLOR_ACCEPTED = "#2f9e44";
+/** Accent color for synonym and unknown-status names, both views. */
+const COLOR_SYNONYM = "#9c36b5";
+/** Link color, kept distinct from the accepted-name color so links stand out. */
+const COLOR_LINK = "#1c7ed6";
 
 /**
- * Text color for a record status: blue for accepted, orange for synonym, gray
+ * Text color for a record status: green for accepted, purple for synonym, gray
  * for anything else (unknown or unavailable).
  *
  * Parameters
@@ -190,7 +192,7 @@ function labeledField(
  */
 function recordHtml(e: TimelineEntry, maxChars: number): { html: string; lines: number } {
   const apiValue = e.url
-    ? `<a href="${e.url}" target="_blank">${e.source}</a>`
+    ? `<a href="${e.url}" target="_blank"><span style="color:${COLOR_LINK}"><u>${e.source}</u></span></a>`
     : e.source;
   const apiLine = `<span style="color:#888">API:</span> ${apiValue}`;
   const statusLine = `<span style="color:#888">Status:</span> <span style="color:${statusColor(e.status)}">${e.status}</span>`;
@@ -304,11 +306,56 @@ function estimateExpandedCardPx(group: YearGroup, maxChars: number): number {
 }
 
 /**
- * Round the corners of synonym year cards in the horizontal Plotly view.
+ * Ensure the SVG holds the linear gradient used for mixed-status card borders.
  *
- * Plotly annotation boxes expose no border-radius property, so the rounding is
- * applied to the rendered SVG rectangles after each draw. Year cards that
- * contain an accepted record are left square, mirroring the vertical view.
+ * The gradient is green over the top half and purple over the bottom half, in
+ * object bounding-box units so it maps to each card's own box. It is created
+ * once per SVG and reused.
+ *
+ * Parameters
+ * ----------
+ * svg : SVGSVGElement or null
+ *     The SVG that owns the card rectangles.
+ *
+ * Returns
+ * -------
+ * void
+ */
+function ensureMixedGradient(svg: SVGSVGElement | null): void {
+  if (!svg || svg.querySelector("#timelineMixedBorder")) return;
+  const ns = "http://www.w3.org/2000/svg";
+  let defs = svg.querySelector("defs");
+  if (!defs) {
+    defs = document.createElementNS(ns, "defs");
+    svg.insertBefore(defs, svg.firstChild);
+  }
+  const gradient = document.createElementNS(ns, "linearGradient");
+  gradient.setAttribute("id", "timelineMixedBorder");
+  gradient.setAttribute("x1", "0");
+  gradient.setAttribute("y1", "0");
+  gradient.setAttribute("x2", "0");
+  gradient.setAttribute("y2", "1");
+  for (const [offset, color] of [
+    ["50%", COLOR_ACCEPTED],
+    ["50%", COLOR_SYNONYM],
+  ] as const) {
+    const stop = document.createElementNS(ns, "stop");
+    stop.setAttribute("offset", offset);
+    stop.setAttribute("stop-color", color);
+    gradient.appendChild(stop);
+  }
+  defs.appendChild(gradient);
+}
+
+/**
+ * Style each year card's border in the horizontal Plotly view.
+ *
+ * Plotly annotation boxes are a single rectangle, so the styling is applied to
+ * the rendered SVG after each draw. A year with an accepted record gets square
+ * corners; a synonym-only year gets rounded corners. A year holding both
+ * accepted and synonym records additionally gets a split border color (green
+ * over purple). An SVG rectangle cannot mix corner radii per side, so mixed
+ * cards keep square corners here; the vertical view splits the corners too.
  *
  * Parameters
  * ----------
@@ -318,32 +365,38 @@ function estimateExpandedCardPx(group: YearGroup, maxChars: number): number {
  *     Maps each annotation's array position to its year-group index, or -1 for
  *     non-card annotations such as year labels.
  * groups : YearGroup[]
- *     Year groups, used to look up each card's accepted or synonym status.
+ *     Year groups, used to look up each card's record statuses.
  *
  * Returns
  * -------
  * void
  */
-function roundSynonymAnnotations(
+function styleCardBorders(
   graphDiv: HTMLElement | null,
   annotationIndex: number[],
   groups: YearGroup[],
 ): void {
   if (!graphDiv) return;
-  // Radius in pixels, matching the vertical card border-radius.
   const radius = "10";
   graphDiv.querySelectorAll<SVGGElement>("g.annotation").forEach((el) => {
     const pos = Number(el.getAttribute("data-index"));
     const idx = Number.isNaN(pos) ? -1 : annotationIndex[pos];
     const group = idx >= 0 ? groups[idx] : undefined;
-    const rounded = group != null && !group.isAccepted;
+    if (!group) return;
+    const mixed = group.accepted.length > 0 && group.synonyms.length > 0;
     el.querySelectorAll("rect").forEach((rect) => {
-      if (rounded) {
-        rect.setAttribute("rx", radius);
-        rect.setAttribute("ry", radius);
-      } else {
+      if (group.isAccepted) {
         rect.removeAttribute("rx");
         rect.removeAttribute("ry");
+      } else {
+        rect.setAttribute("rx", radius);
+        rect.setAttribute("ry", radius);
+      }
+      if (mixed) {
+        ensureMixedGradient(rect.ownerSVGElement);
+        rect.style.stroke = "url(#timelineMixedBorder)";
+      } else {
+        rect.style.stroke = group.isAccepted ? COLOR_ACCEPTED : COLOR_SYNONYM;
       }
     });
   });
@@ -362,6 +415,38 @@ function roundSynonymAnnotations(
  * entry : TimelineEntry
  *     The record to render.
  */
+/**
+ * Small external-link glyph rendered inline after a link's text.
+ *
+ * Drawn as an inline SVG so it needs no icon dependency and inherits the link
+ * color through ``currentColor``.
+ *
+ * Returns
+ * -------
+ * JSX.Element
+ *     An SVG external-link icon.
+ */
+function ExternalLinkIcon() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ marginLeft: 3, verticalAlign: "-1px" }}
+      aria-hidden
+    >
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
+  );
+}
+
 function RecordBlock({ entry }: { entry: TimelineEntry }) {
   const label = (text: string) => <span style={{ color: "#888" }}>{text}</span>;
   return (
@@ -373,9 +458,10 @@ function RecordBlock({ entry }: { entry: TimelineEntry }) {
             href={entry.url}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: COLOR_ACCEPTED }}
+            style={{ color: COLOR_LINK, textDecoration: "underline" }}
           >
             {entry.source}
+            <ExternalLinkIcon />
           </a>
         ) : (
           entry.source
@@ -407,11 +493,12 @@ interface VerticalCardProps {
 /**
  * Clickable year card for the vertical timeline view.
  *
- * Renders with a square border (border-radius 0) when the year contains an
- * accepted record and with a rounded border (border-radius 10px) otherwise.
- * Clicking toggles between a compact representative-name display and an
- * expanded view with a "Name, Year" header followed by one labeled block per
- * record (API, status, author, source).
+ * An accepted-only year gets a square green border; a synonym-only year gets a
+ * rounded purple border. A year holding both is split: a green square-cornered
+ * top half over a purple rounded-cornered bottom half. Clicking toggles
+ * between a compact representative-name display and an expanded view with a
+ * "Name, Year" header followed by one labeled block per record (API, status,
+ * author, source).
  *
  * Parameters
  * ----------
@@ -423,18 +510,34 @@ interface VerticalCardProps {
  *     Callback invoked on click to toggle the expanded state.
  */
 function VerticalCard({ group, isOpen, onToggle }: VerticalCardProps) {
-  const borderColor = group.isAccepted ? COLOR_ACCEPTED : COLOR_SYNONYM;
-  const borderRadius = group.isAccepted ? 0 : 10;
+  const hasAccepted = group.accepted.length > 0;
+  const hasSynonym = group.synonyms.length > 0;
   const representative = group.accepted[0] ?? group.synonyms[0];
   const nameParts = representative.name.trim().split(/\s+/);
+
+  // Border reflects the record statuses. A mixed year uses a gradient border
+  // (green top, purple bottom) with square top corners and rounded bottom
+  // corners; the two-background trick lets the radius clip the border gradient.
+  let borderStyle: CSSProperties;
+  if (hasAccepted && hasSynonym) {
+    borderStyle = {
+      border: "2px solid transparent",
+      borderRadius: "0 0 10px 10px",
+      background:
+        "linear-gradient(#fff, #fff) padding-box, " +
+        `linear-gradient(to bottom, ${COLOR_ACCEPTED} 50%, ${COLOR_SYNONYM} 50%) border-box`,
+    };
+  } else if (hasAccepted) {
+    borderStyle = { border: `2px solid ${COLOR_ACCEPTED}`, borderRadius: 0, backgroundColor: "white" };
+  } else {
+    borderStyle = { border: `2px solid ${COLOR_SYNONYM}`, borderRadius: 10, backgroundColor: "white" };
+  }
 
   return (
     <div
       onClick={onToggle}
       style={{
-        border: `2px solid ${borderColor}`,
-        borderRadius,
-        backgroundColor: "white",
+        ...borderStyle,
         padding: isOpen ? "10px 14px" : "6px 10px",
         cursor: "pointer",
         fontFamily: "Courier New, monospace",
@@ -483,8 +586,6 @@ interface VerticalTimelineProps {
   groups: YearGroup[];
   /** Canonical group indices in display order (top to bottom). */
   order: number[];
-  /** Mapping from source label to accent color, used for axis dots. */
-  sourceColors: Record<string, string>;
   /** Indices (into groups) of currently expanded cards. */
   expanded: Set<number>;
   /** Callback to toggle the expanded state of the card at the given index. */
@@ -495,8 +596,8 @@ interface VerticalTimelineProps {
  * Vertical CSS timeline for year-grouped taxonomy entries.
  *
  * Lays out year cards top to bottom along a central vertical axis line, with
- * cards alternating on the left and right sides. Each year has a colored dot
- * and year label on the axis. Years containing an accepted record use
+ * cards alternating on the left and right sides. Each year has a black dot and
+ * year label on the axis. Years containing an accepted record use
  * square-cornered cards; synonym-only years use rounded-cornered cards.
  *
  * Parameters
@@ -505,14 +606,12 @@ interface VerticalTimelineProps {
  *     Year groups, oldest to newest.
  * order : number[]
  *     Canonical group indices in display order (top to bottom).
- * sourceColors : Record<string, string>
- *     Accent colors keyed by source label, applied to axis dots.
  * expanded : Set<number>
  *     Set of group indices whose cards are in the expanded state.
  * onToggle : (i: number) => void
  *     Callback invoked with the card index to toggle its expanded state.
  */
-function VerticalTimeline({ groups, order, sourceColors, expanded, onToggle }: VerticalTimelineProps) {
+function VerticalTimeline({ groups, order, expanded, onToggle }: VerticalTimelineProps) {
   const CENTER_WIDTH = 64;
 
   return (
@@ -535,7 +634,6 @@ function VerticalTimeline({ groups, order, sourceColors, expanded, onToggle }: V
       {order.map((ci, displayIdx) => {
         const group = groups[ci];
         const isLeft = displayIdx % 2 === 0;
-        const dotColor = sourceColors[group.source] ?? "#3498db";
         const isOpen = expanded.has(ci);
 
         return (
@@ -592,10 +690,9 @@ function VerticalTimeline({ groups, order, sourceColors, expanded, onToggle }: V
                 style={{
                   width: 10,
                   height: 10,
-                  // Square dot for years with an accepted record, circle
-                  // otherwise, matching the horizontal view's axis markers.
-                  borderRadius: group.isAccepted ? 0 : "50%",
-                  backgroundColor: dotColor,
+                  // Uniform black circle: dots no longer encode source or status.
+                  borderRadius: "50%",
+                  backgroundColor: "#000",
                   boxShadow: "0 0 0 2px white",
                   marginBottom: 2,
                 }}
@@ -700,12 +797,11 @@ export function TimelineView() {
 
   // Dated records grouped into one entry per year (oldest to newest), plus
   // colors, the undated set, and the total dated record count for the header.
-  const { groups, undatedEntries, sourceColors, datedCount } = useMemo(() => {
+  const { groups, undatedEntries, datedCount } = useMemo(() => {
     const t = buildTimeline(records);
     return {
       groups: groupTimelineByYear(t.dated),
       undatedEntries: t.undated,
-      sourceColors: t.sourceColors,
       datedCount: t.dated.length,
     };
   }, [records]);
@@ -898,14 +994,8 @@ export function TimelineView() {
         mode: "markers",
         x: xPos,
         y: xPos.map(() => 0),
-        marker: {
-          size: 9,
-          color: ord.map((g) => sourceColors[g.source] ?? "#3498db"),
-          // square marker when the year has an accepted record, circle otherwise
-          symbol: ord.map((g) =>
-            g.isAccepted ? "square" : "circle"
-          ) as unknown as string,
-        },
+        // Uniform black circles: dots no longer encode source or status.
+        marker: { size: 9, color: "#000", symbol: "circle" },
         text: ord.map((g) => `${g.year}: ${g.count} name${g.count === 1 ? "" : "s"}`),
         hoverinfo: "text",
       },
@@ -932,7 +1022,7 @@ export function TimelineView() {
     };
 
     return { data, layout, annotationIndex, minWidth };
-  }, [groups, order, expanded, sourceColors]);
+  }, [groups, order, expanded]);
 
   if (records.length === 0) {
     return <Text c="dimmed">No results to plot.</Text>;
@@ -947,7 +1037,7 @@ export function TimelineView() {
               <b>
                 {datedCount} record{datedCount === 1 ? "" : "s"}
               </b>{" "}
-              containing publication dates found, with <i>{query}</i>, grouped into{" "}
+              containing publication dates found of <i>{query}</i>, with{" "}
               <b>
                 {groups.length} unique species name{groups.length === 1 ? "" : "s"}
               </b>{" "}
@@ -992,10 +1082,10 @@ export function TimelineView() {
                     if (idx != null && idx >= 0) toggleCard(idx);
                   }}
                   onInitialized={(_, gd) =>
-                    roundSynonymAnnotations(gd, figure.annotationIndex, groups)
+                    styleCardBorders(gd, figure.annotationIndex, groups)
                   }
                   onUpdate={(_, gd) =>
-                    roundSynonymAnnotations(gd, figure.annotationIndex, groups)
+                    styleCardBorders(gd, figure.annotationIndex, groups)
                   }
                 />
               </div>
@@ -1004,7 +1094,6 @@ export function TimelineView() {
             <VerticalTimeline
               groups={groups}
               order={order}
-              sourceColors={sourceColors}
               expanded={expanded}
               onToggle={toggleCard}
             />
