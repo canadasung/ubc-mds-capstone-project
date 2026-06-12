@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import TROPICOS_API_KEY_PLACEHOLDER, TROPICOS_PORTAL
+from scripts.config import TROPICOS_API_KEY_PLACEHOLDER, TROPICOS_PORTAL
 
 load_dotenv()
 

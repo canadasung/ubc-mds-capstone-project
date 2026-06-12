@@ -10,7 +10,7 @@ animals, fungi, and microbes, including synonym data.
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import ITIS_PORTAL
+from scripts.config import ITIS_PORTAL
 
 
 class ITISAPI(SpeciesAPI):

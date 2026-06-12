@@ -9,7 +9,7 @@ import re
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import GBIF_PORTAL
+from scripts.config import GBIF_PORTAL
 
 
 class GBIFAPI(SpeciesAPI):

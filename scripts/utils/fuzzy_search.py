@@ -21,7 +21,6 @@ def fuzzy_search(query):
     Returns the matched name as a string if an exact match is found.
     Returns a list of up to 10 suggested name strings if no exact match is found.
     """
-    # Try to match the query against the GBIF backbone taxonomy.
     # strict=false allows fuzzy matching, not just exact.
     match_resp = requests.get(
         f"{GBIF_BASE}/species/match",
@@ -31,27 +30,21 @@ def fuzzy_search(query):
     match_resp.raise_for_status()
     match = match_resp.json()
 
-    # Case: NONE
-    if match.get("matchType") == "NONE":
-        return []
+    match_type = match.get("matchType")
 
-    # Case: EXACT
-    # If GBIF found an exact match, return the accepted name immediately
-    if match.get("matchType") == "EXACT":
-        # "species" is only populated when the match is at species rank.
-        # "canonicalName" is always present and covers genus/family matches.
-        # e.g. searching "Amanita" (a genus) returns species=None,
-        # so we fall back to canonicalName to avoid returning None.
-        #print(f'species: {match.get("species")}')
-        #print(f'canonicalName: {match.get("canonicalName")}')
-        return match.get("species") or match.get("canonicalName")
+    # Case: EXACT at species rank — return the resolved name directly.
+    if match_type == "EXACT" and match.get("rank") == "SPECIES":
+        return match.get("canonicalName")
 
-    # Case: FUZZY or HIGHERRANK
-    # No exact match, so fetch ranked suggestions for the query string
-    suggest_query = match.get("species") or match.get("canonicalName") or query
+    # Case: FUZZY — backbone resolved a misspelling to a species; return it directly.
+    if match_type == "FUZZY":
+        return match.get("canonicalName")
+
+    # All other cases (HIGHERRANK, NONE, or EXACT above species rank) fall through to /species/suggest with the original query.
+    # /species/suggest is an independent prefix search and can surface candidates even when the backbone match fails entirely.
     suggest_resp = requests.get(
         f"{GBIF_BASE}/species/suggest",
-        params={"q": suggest_query, "limit": 10, "rank": "SPECIES"},
+        params={"q": query, "limit": 10, "rank": "SPECIES"},
         timeout=10,
     )
     suggest_resp.raise_for_status()
@@ -67,8 +60,3 @@ def fuzzy_search(query):
             suggestions.append(name)
 
     return suggestions
-
-
-if __name__ == "__main__":
-    for query in ["Amanita muscaria", "Amanita muscara", "fly agaric", " ", ""]:
-        print(f"{query!r} -> {fuzzy_search(query)}")

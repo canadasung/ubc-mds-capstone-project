@@ -8,7 +8,7 @@ of fungal observations.
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import MUSHROOM_OBSERVER_PORTAL
+from scripts.config import MUSHROOM_OBSERVER_PORTAL
 
 
 class MushroomObserverAPI(SpeciesAPI):
