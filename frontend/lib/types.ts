@@ -1,5 +1,5 @@
 /**
- * TypeScript mirrors of the FastAPI JSON contract (api/routers/*.py).
+ * TypeScript mirrors of the FastAPI JSON contract (backend_api/routers/*.py).
  * One flat record == one row of the underlying sample CSV (snake_case columns).
  */
 

@@ -1,10 +1,10 @@
 # Dockerfile for the FastAPI backend on a Hugging Face Docker Space.
 #
 # Build context = the Space repo root, which must contain (at minimum):
-#   Dockerfile  requirements.txt  README.md  api/  scripts/  data/sample/
+#   Dockerfile  requirements.txt  README.md  backend_api/  scripts/  data/sample/
 #
 # The routers add the project root to sys.path and read data/sample/*.csv, so
-# api/, scripts/, and data/ all have to be present (see api/routers/*.py).
+# backend_api/, scripts/, and data/ all have to be present (see backend_api/routers/*.py).
 
 FROM python:3.12-slim
 
@@ -24,4 +24,4 @@ USER user
 
 # HF's default app port.
 EXPOSE 7860
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["uvicorn", "backend_api.main:app", "--host", "0.0.0.0", "--port", "7860"]

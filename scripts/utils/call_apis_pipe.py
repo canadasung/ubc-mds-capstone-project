@@ -13,6 +13,7 @@ Typical usage:
 import json
 from typing import List, Optional
 
+from deprecated.synonyms import SynonymEngine
 from scripts.apis_pipe.col import COLAPI
 
 # import API client implementations
@@ -23,7 +24,6 @@ from scripts.apis_pipe.mushroomobs import MushroomObserverAPI
 from scripts.apis_pipe.symbiota import SymbiotaAPI
 from scripts.apis_pipe.tropicos import TropicosAPI
 from scripts.utils.router import TaxonRouter
-from scripts.utils.synonyms import SynonymEngine
 
 # Flexible alias for source strings
 Source = str

@@ -12,16 +12,28 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from deprecated.app.prototype_master_views import (
+    view_debug,
+    view_node,
+    view_table,
+    view_taxonomy,
+)
+
 # Ensure the project root is on sys.path so `scripts` is importable
 # regardless of which directory Streamlit is launched from.
 _PROJECT_ROOT = Path(__file__).parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from scripts.utils.normalize_query_string import normalize_query_string  # noqa: E402
-from scripts.utils.router import ANIMALIA_APIS, PLANTAE_APIS, FUNGI_APIS, TaxonRouter  # noqa: E402
+from deprecated.app.prototype_master_views import view_timeline
 from scripts.apis_pipe.gbif import GBIFAPI  # noqa: E402
-from prototype_master_views import view_table, view_timeline, view_node, view_taxonomy, view_debug
+from scripts.utils.normalize_query_string import normalize_query_string  # noqa: E402
+from scripts.utils.router import (  # noqa: E402
+    ANIMALIA_APIS,
+    FUNGI_APIS,
+    PLANTAE_APIS,
+    TaxonRouter,
+)
 
 # ── CLI flags ─────────────────────────────────────────────────────────────────
 # Usage: streamlit run prototype_master.py -- --debug
@@ -42,23 +54,23 @@ _SAMPLE_DIR = _APP_DIR.parent / "data" / "sample"
 _ALL_APIS: list[str] = list(dict.fromkeys(ANIMALIA_APIS + PLANTAE_APIS + FUNGI_APIS))
 
 _API_LABELS: dict[str, str] = {
-    "gbif":                   "GBIF",
-    "col":                    "COL",
-    "genbank":                "GenBank",
-    "tropicos":               "Tropicos",
-    "index_fungorum":         "Index Fungorum",
-    "mushroomobs":            "Mushroom Observer",
-    "symbiota_mycoportal":    "MycoPortal",
-    "symbiota_lichen":        "Lichen Portal",
-    "symbiota_bryophyte":     "Bryophyte Portal",
-    "symbiota_cch2":          "CCH2",
-    "symbiota_sernec":        "SERNEC",
-    "symbiota_nansh":         "NANSH",
+    "gbif": "GBIF",
+    "col": "COL",
+    "genbank": "GenBank",
+    "tropicos": "Tropicos",
+    "index_fungorum": "Index Fungorum",
+    "mushroomobs": "Mushroom Observer",
+    "symbiota_mycoportal": "MycoPortal",
+    "symbiota_lichen": "Lichen Portal",
+    "symbiota_bryophyte": "Bryophyte Portal",
+    "symbiota_cch2": "CCH2",
+    "symbiota_sernec": "SERNEC",
+    "symbiota_nansh": "NANSH",
     "symbiota_swbiodiversity": "SW Biodiversity",
-    "symbiota_macroalgae":    "Macroalgae Portal",
-    "symbiota_pterido":       "Pteridophyte Portal",
-    "symbiota_neherbaria":    "NE Herbaria",
-    "symbiota_midatlantic":   "Mid-Atlantic Herbaria",
+    "symbiota_macroalgae": "Macroalgae Portal",
+    "symbiota_pterido": "Pteridophyte Portal",
+    "symbiota_neherbaria": "NE Herbaria",
+    "symbiota_midatlantic": "Mid-Atlantic Herbaria",
 }
 
 
@@ -80,16 +92,22 @@ def _query_to_filename(query: str) -> str:
     'Amanita muscaria'  →  'amanita_muscaria'
     ' AMANITA  MUSCARIA '  →  'amanita_muscaria'
     """
-    normalized = normalize_query_string(query)           # strip, collapse whitespace, capitalize first
-    filename = normalized.lower().replace(" ", "_")      # lowercase + spaces → underscores
-    filename = re.sub(r"[^a-z0-9_]", "", filename)      # strip any remaining non-alphanumeric chars
+    normalized = normalize_query_string(
+        query
+    )  # strip, collapse whitespace, capitalize first
+    filename = normalized.lower().replace(" ", "_")  # lowercase + spaces → underscores
+    filename = re.sub(
+        r"[^a-z0-9_]", "", filename
+    )  # strip any remaining non-alphanumeric chars
     return filename
 
 
 def _list_available_samples() -> list[str]:
     """Return human-readable names for all available sample CSV files."""
     return [
-        normalize_query_string(f.stem.removeprefix("sample_table_data_").replace("_", " "))
+        normalize_query_string(
+            f.stem.removeprefix("sample_table_data_").replace("_", " ")
+        )
         for f in sorted(_SAMPLE_DIR.glob("sample_table_data_*.csv"))
     ]
 
@@ -128,7 +146,12 @@ def run_search(query: str, **kwargs) -> pd.DataFrame:
     query = query.strip()
     if not query:
         raise SearchError("Search query must not be empty.")
-    return _mock_search(query, **kwargs) if USE_MOCK_DATA else _live_search(query, **kwargs)
+    return (
+        _mock_search(query, **kwargs)
+        if USE_MOCK_DATA
+        else _live_search(query, **kwargs)
+    )
+
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -164,14 +187,20 @@ st.markdown(
 )
 
 # ── Session state defaults ────────────────────────────────────────────────────
-st.session_state.setdefault("search_results", None)      # pd.DataFrame | None
-st.session_state.setdefault("selected_record", None)     # dict | None
-st.session_state.setdefault("pinned_records", [])        # list[dict]
-st.session_state.setdefault("search_panel_open", True)          # bool
-st.session_state.setdefault("debug_mode", _cli_args.debug)      # bool — set via --debug flag
+st.session_state.setdefault("search_results", None)  # pd.DataFrame | None
+st.session_state.setdefault("selected_record", None)  # dict | None
+st.session_state.setdefault("pinned_records", [])  # list[dict]
+st.session_state.setdefault("search_panel_open", True)  # bool
+st.session_state.setdefault(
+    "debug_mode", _cli_args.debug
+)  # bool — set via --debug flag
 st.session_state.setdefault("active_tab", "Debug" if _cli_args.debug else "Table")
-st.session_state.setdefault("last_search_query", "")     # str — backing store for the search field
-st.session_state.setdefault("selected_sources", [])      # list[str] — APIs selected for last search
+st.session_state.setdefault(
+    "last_search_query", ""
+)  # str — backing store for the search field
+st.session_state.setdefault(
+    "selected_sources", []
+)  # list[str] — APIs selected for last search
 st.session_state.setdefault("_search_error", None)
 for _key in _ALL_APIS:
     st.session_state.setdefault(f"source_{_key}", True)
@@ -225,7 +254,9 @@ with left_col:
                 placeholder="Enter species name (e.g. Amanita muscaria)",
                 key="search_query",
             )
-            search_btn = st.form_submit_button("Search", width="stretch", type="primary")
+            search_btn = st.form_submit_button(
+                "Search", width="stretch", type="primary"
+            )
 
         with st.expander("Advanced options", expanded=False, key="advanced_options"):
             use_routing = st.checkbox(
@@ -240,7 +271,9 @@ with left_col:
                     f"source_{k}": True for k in _ALL_APIS
                 }
                 _rerun_needed = True
-            if st.button("Unselect all", use_container_width=True, disabled=use_routing):
+            if st.button(
+                "Unselect all", use_container_width=True, disabled=use_routing
+            ):
                 st.session_state["_pending_source_updates"] = {
                     f"source_{k}": False for k in _ALL_APIS
                 }
@@ -255,7 +288,6 @@ with left_col:
     # ── Search handler ────────────────────────────────────────────────────
     # Guard: search_btn / query are only defined when the panel is open.
     if _panel_open and search_btn and query:
-
         # Step 1: determine which databases to search.
         try:
             if st.session_state.get("use_kingdom_routing", True):
@@ -264,7 +296,9 @@ with left_col:
                     f"source_{key}": key in selected_sources for key in _ALL_APIS
                 }
             else:
-                selected_sources = [k for k in _ALL_APIS if st.session_state.get(f"source_{k}", True)]
+                selected_sources = [
+                    k for k in _ALL_APIS if st.session_state.get(f"source_{k}", True)
+                ]
         except Exception as e:
             st.warning(f"Kingdom lookup failed, using all databases. ({e})")
             selected_sources = list(_ALL_APIS)
@@ -273,8 +307,8 @@ with left_col:
         try:
             df = run_search(query)
             st.session_state["search_results"] = df
-            st.session_state["selected_record"] = None    # clear stale selection
-            st.session_state["last_search_query"] = query # persist to backing store
+            st.session_state["selected_record"] = None  # clear stale selection
+            st.session_state["last_search_query"] = query  # persist to backing store
         except SearchError as e:
             st.session_state["_search_error"] = str(e)
 
@@ -285,7 +319,6 @@ with left_col:
 # RIGHT — Views
 # ═══════════════════════════════════════════════════════════════════════════
 with right_col:
-
     _debug_on = st.session_state["debug_mode"]
     _tab_options = (
         ["Debug", "Table", "Timeline", "Node", "Taxonomic"]

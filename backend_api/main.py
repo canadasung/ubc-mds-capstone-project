@@ -2,15 +2,16 @@
 FastAPI backend — wraps the existing scripts/ pipeline and exposes HTTP endpoints.
 
 Run with:
-    uvicorn api.main:app --reload --port 8000
+    uvicorn backend_api.main:app --reload --port 8000
 """
 
 import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routers.search import router as search_router
-from api.routers.taxonomy import router as taxonomy_router
+
+from backend_api.routers.search import router as search_router
+from backend_api.routers.taxonomy import router as taxonomy_router
 
 app = FastAPI(title="Species Synonym API")
 

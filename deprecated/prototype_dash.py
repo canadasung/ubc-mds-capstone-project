@@ -11,7 +11,7 @@ from dash import Dash, Input, Output, dash_table, dcc, html
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from scripts.utils.call_APIs import call_apis
+from deprecated.call_APIs import call_apis
 
 source_labels = {
     "gbif": "GBIF",

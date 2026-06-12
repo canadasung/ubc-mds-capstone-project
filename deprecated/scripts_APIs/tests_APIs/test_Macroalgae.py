@@ -9,7 +9,7 @@ Run from the home directory:
 
 import pytest
 
-from scripts.APIs.Macroalgae import get_macroalgae_synonyms
+from deprecated.scripts_APIs.Macroalgae import get_macroalgae_synonyms
 from tests.APIs.template_ApiTests import ApiTests
 
 

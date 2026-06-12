@@ -9,7 +9,7 @@ Run from the home directory:
 
 import pytest
 
-from scripts.APIs.WoRMS import get_worms_synonyms
+from deprecated.scripts_APIs.WoRMS import get_worms_synonyms
 from tests.APIs.template_ApiTests import ApiTests
 
 

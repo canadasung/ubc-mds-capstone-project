@@ -7,14 +7,14 @@ Calls any combination of GBIF, GenBank, and MushroomObserver synonym APIs for a 
 import json
 from typing import Literal
 
-from scripts.APIs.BryophytePortal import get_bryophyteportal_synonyms
-from scripts.APIs.COL import get_checklistbank_synonyms
-from scripts.APIs.GBIF import get_gbif_synonyms
-from scripts.APIs.GenBank import get_genbank_synonyms
-from scripts.APIs.IndexFungorum import get_indexfungorum_synonyms
-from scripts.APIs.Macroalgae import get_macroalgae_synonyms
-from scripts.APIs.MushroomObs import get_mushroom_observer_synonyms
-from scripts.APIs.MyCoPortal import get_mycoportal_synonyms
+from deprecated.scripts_APIs.BryophytePortal import get_bryophyteportal_synonyms
+from deprecated.scripts_APIs.COL import get_checklistbank_synonyms
+from deprecated.scripts_APIs.GBIF import get_gbif_synonyms
+from deprecated.scripts_APIs.GenBank import get_genbank_synonyms
+from deprecated.scripts_APIs.IndexFungorum import get_indexfungorum_synonyms
+from deprecated.scripts_APIs.Macroalgae import get_macroalgae_synonyms
+from deprecated.scripts_APIs.MushroomObs import get_mushroom_observer_synonyms
+from deprecated.scripts_APIs.MyCoPortal import get_mycoportal_synonyms
 
 Source = Literal[
     "gbif",
