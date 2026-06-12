@@ -10,7 +10,7 @@ NOTE: These tests require internet access and will fail if the machine is offlin
 Notice: These tests are intended only to check for basic connectivity to all APIs and do not guarantee that all API calls in the pipeline will succeed. Other code may call APIs incorrectly, or call endpoints that are not working or not supported.
 
 Run from the project root:
-    pytest tests/APIs_pipe/test_API_online.py -v
+    pytest tests/utils/test_API_online.py -v
 """
 
 import os

@@ -3,7 +3,7 @@ test_env_configured.py — Verify the .env file exists and all required
 environment variables are filled in with real (non-placeholder) values.
 
 Run from the project root:
-    pytest tests/APIs_pipe/test_env_configured.py -v
+    pytest tests/utils/test_env_configured.py -v
 """
 
 import os
@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
-from scripts.APIs_pipe.config import TROPICOS_API_KEY_PLACEHOLDER
+from scripts.config import TROPICOS_API_KEY_PLACEHOLDER
 
 # Load .env from the project root before any assertions
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
