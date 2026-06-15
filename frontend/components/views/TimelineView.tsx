@@ -3,19 +3,20 @@
 /**
  * Timeline view for species name records.
  *
- * Renders dated taxonomy entries on either a horizontal Plotly chart or a
- * vertical CSS timeline. Records that share a publication year are combined into
- * a single card for that year, headed by the name and year and listing one
- * labeled block per record (API, status, author, source). A year card is
- * treated as accepted when any of its records is accepted. Accepted cards
- * display square; synonym-only cards display rounded.
- * Plotly annotation boxes have no border-radius property, so in the horizontal
- * view rounding is applied to the SVG rectangles after each render. Axis dots
- * are uniform black circles and do not encode source or status. Undated entries
- * appear in a collapsible table below either view.
+ * Renders dated taxonomy entries on either a horizontal Plotly chart (a
+ * proportional time axis) or a vertical CSS timeline. Records that share a
+ * publication year are combined into a single card for that year, headed by the
+ * name and year and listing one labeled block per record (API, status, author,
+ * source). A year card is treated as accepted when any of its records is
+ * accepted: accepted years display square (green), synonym-only years rounded
+ * (purple), and mixed years a split square-over-rounded border. Plotly
+ * annotation boxes have no per-corner radius, so in the horizontal view the
+ * card borders are drawn onto the SVG after each render. Axis dots are uniform
+ * black circles and do not encode source or status. Undated entries appear in a
+ * collapsible table below either view.
  */
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import {
   Alert,
@@ -74,17 +75,23 @@ function statusColor(status: string): string {
   return "#888";
 }
 
-/** Horizontal pixels per entry in the horizontal view when no card is expanded. */
-const SLOT_COLLAPSED = 95;
+/** Estimated rendered width in pixels of a collapsed year card. */
+const COLLAPSED_CARD_PX = 140;
+/** Minimum horizontal gap in pixels kept between two same-lane cards. */
+const SAME_LANE_GAP = 30;
+/** Factor by which the timeline length is kept longer than all cards combined. */
+const TIMELINE_OVERSHOOT = 1.15;
+/** Extra horizontal margin in pixels past the first/last card on the axis. */
+const END_PAD_PX = 20;
+/** Floor for pixels-per-year so sparse data keeps a sane axis. */
+const MIN_PX_PER_YEAR = 3;
+/** Estimated rendered height in pixels of a collapsed vertical card. */
+const COLLAPSED_VERTICAL_PX = 64;
+/** Minimum vertical gap in pixels between two same-side cards (vertical view). */
+const SAME_SIDE_GAP = 24;
 /**
- * Horizontal pixels per entry in the horizontal view when at least one card is
- * expanded. Sized so two same-lane neighbors, which sit two slots apart, stay
- * clear of an expanded box.
- */
-const SLOT_EXPANDED = 190;
-/**
- * Target width in pixels of an expanded card box. Card text is wrapped to fit
- * this width so it never widens past its slot or clips at the box edge.
+ * Target text width in pixels of an expanded card box. Card text is wrapped to
+ * fit this width so the box stays a predictable size and does not clip.
  */
 const CARD_WIDTH_EXPANDED = 300;
 /** Approximate monospace character advance at the card font size, in pixels. */
@@ -95,6 +102,17 @@ const CARD_CHAR_PX = 7.8;
  * card text is wrapped to this width with explicit line breaks.
  */
 const CARD_WRAP_CHARS = Math.floor((CARD_WIDTH_EXPANDED - 24) / CARD_CHAR_PX);
+
+/** Minimum zoom level for the timeline scale control. */
+const ZOOM_MIN = 0.4;
+/** Maximum zoom level for the timeline scale control. */
+const ZOOM_MAX = 2.4;
+/** Zoom increment per click of the scale control. */
+const ZOOM_STEP = 0.2;
+/** Fixed height in pixels of the zoomable timeline canvas. */
+const CANVAS_HEIGHT = 640;
+/** Natural content width in pixels of the vertical view (cards on both sides). */
+const VERTICAL_WIDTH = 760;
 
 /**
  * Word-wrap plain text to a maximum line length.
@@ -429,17 +447,6 @@ function styleCardBorders(
 // ---- Vertical timeline sub-components ------------------------------------
 
 /**
- * Render one record as a block of labeled fields in a vertical year card.
- *
- * Shows API (the source database, a link when available), Status (colored by
- * accepted/synonym), Author, and Source (the publication), each on its own line.
- *
- * Parameters
- * ----------
- * entry : TimelineEntry
- *     The record to render.
- */
-/**
  * Small external-link glyph rendered inline after a link's text.
  *
  * Drawn as an inline SVG so it needs no icon dependency and inherits the link
@@ -471,6 +478,17 @@ function ExternalLinkIcon() {
   );
 }
 
+/**
+ * Render one record as a block of labeled fields in a vertical year card.
+ *
+ * Shows API (the source database, a link when available), Status (colored by
+ * accepted/synonym), Author, and Source (the publication), each on its own line.
+ *
+ * Parameters
+ * ----------
+ * entry : TimelineEntry
+ *     The record to render.
+ */
 function RecordBlock({ entry }: { entry: TimelineEntry }) {
   const label = (text: string) => <span style={{ color: "#888" }}>{text}</span>;
   return (
@@ -619,10 +637,12 @@ interface VerticalTimelineProps {
 /**
  * Vertical CSS timeline for year-grouped taxonomy entries.
  *
- * Lays out year cards top to bottom along a central vertical axis line, with
- * cards alternating on the left and right sides. Each year has a black dot and
- * year label on the axis. Years containing an accepted record use
- * square-cornered cards; synonym-only years use rounded-cornered cards.
+ * Cards are positioned by their publication year along a central vertical axis
+ * (a proportional time scale, matching the horizontal view), alternating left
+ * and right. The axis grows so two same-side cards never overlap. Each year has
+ * a black dot and a year label. Accepted-only years use square cards,
+ * synonym-only years rounded cards, and mixed years a split square-over-rounded
+ * card.
  *
  * Parameters
  * ----------
@@ -637,9 +657,34 @@ interface VerticalTimelineProps {
  */
 function VerticalTimeline({ groups, order, expanded, onToggle }: VerticalTimelineProps) {
   const CENTER_WIDTH = 64;
+  const n = order.length;
+  const years = order.map((ci) => groups[ci].year);
+  const heights = order.map((ci) =>
+    expanded.has(ci) ? estimateExpandedCardPx(groups[ci], CARD_WRAP_CHARS) : COLLAPSED_VERTICAL_PX,
+  );
+
+  // Pixels per year, large enough that two same-side cards (two positions apart)
+  // never overlap at their real-year spacing. Adjacent cards sit on opposite
+  // sides of the axis, so they may be close without colliding.
+  let pxPerYear = MIN_PX_PER_YEAR;
+  for (let d = 0; d + 2 < n; d++) {
+    const gap = Math.abs(years[d + 2] - years[d]);
+    if (gap > 0) {
+      pxPerYear = Math.max(pxPerYear, (heights[d] / 2 + heights[d + 2] / 2 + SAME_SIDE_GAP) / gap);
+    }
+  }
+
+  // Vertical position of each card is proportional to its year, measured from
+  // the first displayed year. Padding reserves the end cards' half-heights so
+  // they do not clip past the container.
+  const topPad = Math.max(28, heights[0] / 2 + 8);
+  const bottomPad = Math.max(28, heights[n - 1] / 2 + 8);
+  const span = Math.abs(years[n - 1] - years[0]);
+  const totalHeight = topPad + span * pxPerYear + bottomPad;
+  const topOf = (d: number) => topPad + Math.abs(years[d] - years[0]) * pxPerYear;
 
   return (
-    <div style={{ position: "relative", paddingTop: 8, paddingBottom: 8 }}>
+    <div style={{ position: "relative", height: totalHeight }}>
       {/* Central vertical axis line */}
       <div
         aria-hidden
@@ -672,27 +717,21 @@ function VerticalTimeline({ groups, order, expanded, onToggle }: VerticalTimelin
         />
       ))}
 
-      {order.map((ci, displayIdx) => {
+      {order.map((ci, d) => {
         const group = groups[ci];
-        const isLeft = displayIdx % 2 === 0;
+        const isLeft = d % 2 === 0;
         const isOpen = expanded.has(ci);
+        const top = topOf(d);
+        const cardEdge = `calc(50% + ${CENTER_WIDTH}px)`;
 
         return (
-          <div
-            key={`year-${group.year}-${ci}`}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: 24,
-              position: "relative",
-            }}
-          >
+          <div key={`year-${group.year}-${ci}`}>
             {/* Dashed connector from the central axis to this card */}
             <div
               aria-hidden
               style={{
                 position: "absolute",
-                top: "50%",
+                top,
                 left: isLeft ? undefined : "50%",
                 right: isLeft ? "50%" : undefined,
                 width: CENTER_WIDTH,
@@ -701,70 +740,58 @@ function VerticalTimeline({ groups, order, expanded, onToggle }: VerticalTimelin
               }}
             />
 
-            {/* Left card slot */}
+            {/* Card, vertically centered on its year position */}
             <div
               style={{
-                flex: 1,
-                display: "flex",
-                justifyContent: "flex-end",
-                paddingRight: CENTER_WIDTH / 2,
-              }}
-            >
-              {isLeft && (
-                <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(ci)} />
-              )}
-            </div>
-
-            {/* Axis dot and year label */}
-            <div
-              style={{
-                width: CENTER_WIDTH,
-                flexShrink: 0,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                position: "relative",
+                position: "absolute",
+                top,
+                transform: "translateY(-50%)",
+                left: isLeft ? undefined : cardEdge,
+                right: isLeft ? cardEdge : undefined,
                 zIndex: 1,
               }}
             >
-              <div
-                style={{
-                  width: 10,
-                  height: 10,
-                  // Uniform black circle: dots no longer encode source or status.
-                  borderRadius: "50%",
-                  backgroundColor: "#000",
-                  boxShadow: "0 0 0 2px white",
-                  marginBottom: 2,
-                }}
-              />
-              <Text
-                size="xs"
-                style={{
-                  fontFamily: "Courier New, monospace",
-                  fontWeight: "bold",
-                  lineHeight: 1,
-                  backgroundColor: "rgba(255,255,255,0.85)",
-                  padding: "1px 2px",
-                }}
-              >
-                {group.year}
-              </Text>
+              <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(ci)} />
             </div>
 
-            {/* Right card slot */}
+            {/* Year label, on the card's side next to the dot */}
             <div
               style={{
-                flex: 1,
-                display: "flex",
-                justifyContent: "flex-start",
-                paddingLeft: CENTER_WIDTH / 2,
+                position: "absolute",
+                top,
+                transform: "translateY(-50%)",
+                left: isLeft ? undefined : "calc(50% + 10px)",
+                right: isLeft ? "calc(50% + 10px)" : undefined,
+                fontFamily: "Courier New, monospace",
+                fontWeight: "bold",
+                fontSize: 11,
+                lineHeight: 1,
+                color: "#333",
+                backgroundColor: "rgba(255,255,255,0.85)",
+                padding: "1px 3px",
+                whiteSpace: "nowrap",
+                zIndex: 2,
               }}
             >
-              {!isLeft && (
-                <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(ci)} />
-              )}
+              {group.year}
             </div>
+
+            {/* Axis dot at the year position */}
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                top,
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                backgroundColor: "#000",
+                boxShadow: "0 0 0 2px white",
+                zIndex: 3,
+              }}
+            />
           </div>
         );
       })}
@@ -816,17 +843,115 @@ function SortCaret({ dir }: { dir: "asc" | "desc" | null }) {
   return <span style={{ ...base, borderTop: "5px solid currentColor", opacity: 0.25 }} />;
 }
 
+/**
+ * Small "fit / reset" glyph (four corner brackets) for the zoom control.
+ *
+ * Drawn as an inline SVG so it needs no icon dependency.
+ *
+ * Returns
+ * -------
+ * JSX.Element
+ *     An SVG corners icon.
+ */
+function FitIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 9V5a1 1 0 0 1 1-1h4" />
+      <path d="M20 9V5a1 1 0 0 0-1-1h-4" />
+      <path d="M4 15v4a1 1 0 0 0 1 1h4" />
+      <path d="M20 15v4a1 1 0 0 1-1 1h-4" />
+    </svg>
+  );
+}
+
+interface ZoomControlsProps {
+  /** Increase the zoom level. */
+  onZoomIn: () => void;
+  /** Decrease the zoom level. */
+  onZoomOut: () => void;
+  /** Reset the zoom level to 1. */
+  onReset: () => void;
+}
+
+/**
+ * Floating zoom control for the timeline canvas: zoom in, zoom out, reset.
+ *
+ * Rendered as a stacked group of bordered buttons, mirroring the control in the
+ * Relations view.
+ *
+ * Parameters
+ * ----------
+ * onZoomIn : () => void
+ *     Handler for the zoom-in button.
+ * onZoomOut : () => void
+ *     Handler for the zoom-out button.
+ * onReset : () => void
+ *     Handler for the reset button.
+ */
+function ZoomControls({ onZoomIn, onZoomOut, onReset }: ZoomControlsProps) {
+  const cell: CSSProperties = {
+    width: 34,
+    height: 34,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#fff",
+    color: "#495057",
+    cursor: "pointer",
+    fontSize: 20,
+    lineHeight: 1,
+  };
+  const divider = <div style={{ height: 1, background: "#dee2e6" }} />;
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        border: "1px solid #ced4da",
+        borderRadius: 6,
+        overflow: "hidden",
+        background: "#fff",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+      }}
+    >
+      <UnstyledButton style={cell} onClick={onZoomIn} aria-label="Zoom in">
+        +
+      </UnstyledButton>
+      {divider}
+      <UnstyledButton style={cell} onClick={onZoomOut} aria-label="Zoom out">
+        −
+      </UnstyledButton>
+      {divider}
+      <UnstyledButton style={{ ...cell, fontSize: 14 }} onClick={onReset} aria-label="Reset zoom">
+        <FitIcon />
+      </UnstyledButton>
+    </div>
+  );
+}
+
 // ---- Main component -------------------------------------------------------
 
 /**
  * Timeline view component for species name records.
  *
  * Combines records that share a publication year into one card per year, shown
- * either as a horizontal Plotly chart or a vertical CSS timeline via a
- * segmented toggle. Each card has an Accepted section and a Synonyms section; a
- * year is treated as accepted when any record is accepted, which drives the
- * square (accepted) versus rounded (synonym) card shape, the axis marker
- * symbol, and the border color. Undated entries appear in a collapsible table
+ * either as a horizontal Plotly chart (a proportional time axis) or a vertical
+ * CSS timeline, via a segmented toggle. Each card has a "Name, Year" header and
+ * one labeled block per record (API, status, author, source). A year is treated
+ * as accepted when any record is accepted, which drives the card shape and
+ * border color: square green for accepted, rounded purple for synonym, and a
+ * split border for a year holding both. Controls cover year order, expand or
+ * collapse all, and a zoom scale. Undated entries appear in a collapsible table
  * below either view.
  */
 export function TimelineView() {
@@ -835,6 +960,35 @@ export function TimelineView() {
   const [undatedOpen, undated] = useDisclosure(false);
   const [orientation, setOrientation] = useState<"horizontal" | "vertical">("horizontal");
   const [yearOrder, setYearOrder] = useState<"asc" | "desc">("asc");
+
+  // Scale control for the timeline canvas. A CSS zoom is applied to the chart
+  // content; react-plotly only resizes on window resize, so it is unaffected.
+  const [zoom, setZoom] = useState(1);
+  const zoomIn = useCallback(
+    () => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 100) / 100)),
+    [],
+  );
+  const zoomOut = useCallback(
+    () => setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - ZOOM_STEP) * 100) / 100)),
+    [],
+  );
+  const resetZoom = useCallback(() => setZoom(1), []);
+
+  // The scaled content is measured at its natural (unscaled) size so the canvas
+  // can reserve the correct scrolled area at any zoom. A transform (not CSS
+  // zoom) is used to scale: it scales the rendered SVG faithfully, whereas CSS
+  // zoom re-lays-out and clips Plotly's multi-line annotation text.
+  const zoomContentRef = useRef<HTMLDivElement>(null);
+  const [naturalHeight, setNaturalHeight] = useState(CANVAS_HEIGHT);
+  useEffect(() => {
+    const el = zoomContentRef.current;
+    if (!el) return;
+    const measure = () => setNaturalHeight(el.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [orientation]);
 
   // Dated records grouped into one entry per year (oldest to newest), plus
   // colors, the undated set, and the total dated record count for the header.
@@ -916,47 +1070,71 @@ export function TimelineView() {
 
   // Builds all Plotly figure data for the horizontal view.
   //
-  // Year cards are spaced evenly by index (slot position), not by their year
-  // value, so neighbors never collide the way they do when clustered years share
-  // an x coordinate. The plot widens with the year count, and wider again when
-  // any card is expanded, while the chart scrolls horizontally inside its
-  // container. The real publication year is kept only as label text. Expanded
-  // cards are ordered last so they render on top.
+  // Cards are placed at their real publication year (a proportional time axis),
+  // alternating between two lanes. The plot width is computed so the timeline is
+  // always longer than all the cards laid end to end and so no two same-lane
+  // cards overlap; the chart scrolls horizontally inside its container. The
+  // display order (oldest/newest first) is applied by reversing the x-axis.
   const figure = useMemo(() => {
     if (groups.length === 0) return null;
 
-    // Groups arranged in the chosen display order (left to right). Card content
-    // and the click mapping keep each group's canonical index via `order`.
-    const ord = order.map((ci) => groups[ci]);
-    const years = ord.map((g) => g.year);
-    const xPos = ord.map((_, d) => d);
-    const yPos = ord.map((_, d) => (d % 2 === 0 ? 0.5 : -0.5));
-    const xMin = -0.6;
-    const xMax = ord.length - 0.4;
+    // groups is sorted ascending by year, with one (distinct) year per group.
+    const n = groups.length;
+    const years = groups.map((g) => g.year);
+    const yPos = groups.map((_, i) => (i % 2 === 0 ? 0.5 : -0.5));
 
-    // Wider slots whenever any card is expanded, so the larger boxes and their
-    // same-lane neighbors (two slots away) stay clear of each other. The chart
-    // grows to this width and scrolls horizontally inside its container.
-    const anyExpanded = expanded.size > 0;
-    const slot = anyExpanded ? SLOT_EXPANDED : SLOT_COLLAPSED;
-    const minWidth = slot * groups.length + 60;
+    // Estimated rendered width of each card, used to size the timeline.
+    const widths = groups.map((_, i) =>
+      expanded.has(i) ? CARD_WIDTH_EXPANDED + 24 : COLLAPSED_CARD_PX,
+    );
+    const sumWidths = widths.reduce((a, b) => a + b, 0);
+
+    const yearMin = years[0];
+    const yearMax = years[n - 1];
+    const yearSpan = Math.max(1, yearMax - yearMin);
+
+    // Pixels per year. Large enough that (a) no two same-lane cards (two
+    // positions apart) overlap at their real-year spacing, and (b) the timeline
+    // is longer than all cards combined. The end padding below reserves each end
+    // card's half-width, so the (b) target is written in terms of yearSpan.
+    const endHalf = widths[0] / 2 + widths[n - 1] / 2;
+    let pxPerYear =
+      (TIMELINE_OVERSHOOT * sumWidths - endHalf - 2 * END_PAD_PX) / yearSpan;
+    for (let i = 0; i + 2 < n; i++) {
+      const gapYears = years[i + 2] - years[i];
+      if (gapYears > 0) {
+        pxPerYear = Math.max(
+          pxPerYear,
+          (widths[i] / 2 + widths[i + 2] / 2 + SAME_LANE_GAP) / gapYears,
+        );
+      }
+    }
+    pxPerYear = Math.max(pxPerYear, MIN_PX_PER_YEAR);
+
+    // Extend the axis past the first and last card by their half-widths (plus a
+    // small margin) so the end cards sit fully inside the timeline, not clipped.
+    const axisMin = yearMin - (widths[0] / 2 + END_PAD_PX) / pxPerYear;
+    const axisMax = yearMax + (widths[n - 1] / 2 + END_PAD_PX) / pxPerYear;
+    const axisSpan = axisMax - axisMin;
+    const minWidth = Math.min(16000, Math.max(Math.ceil(axisSpan * pxPerYear) + 40, 600));
 
     // Grow the plot height so the two lanes sit far enough apart that the
     // tallest expanded card cannot overlap a card on the opposite lane. Lanes
-    // are at y = ±0.5 within a 2.8-unit range, so the pixel gap between them is
-    // height / 2.8; keep that gap above the tallest expanded card, with margin.
+    // are at y = ±0.5 within a 2.0-unit range (see the yaxis below), so the
+    // pixel gap between them is height / 2; keep that above the tallest card.
+    // The range hugs the lanes (±1.0) so there is little empty margin top/bottom.
     const tallestCard = groups.reduce(
       (max, g, i) =>
         expanded.has(i) ? Math.max(max, estimateExpandedCardPx(g, CARD_WRAP_CHARS)) : max,
       0,
     );
-    const plotHeight = Math.min(1600, Math.max(480, Math.ceil(2.8 * tallestCard * 1.2)));
+    const plotHeight = Math.min(1600, Math.max(480, Math.ceil(2.3 * tallestCard)));
 
     const shapes: Partial<Layout>["shapes"] = [
       {
         type: "line",
-        x0: xMin,
-        x1: xMax,
+        x0: axisMin,
+        x1: axisMax,
         y0: 0,
         y1: 0,
         line: { color: "#bdc3c7", width: 2 },
@@ -964,7 +1142,7 @@ export function TimelineView() {
       // Vertical end caps marking where the timeline starts and ends. Sized in
       // pixels (ysizemode "pixel", anchored at the y=0 axis) so they keep a
       // fixed length no matter how tall the plot grows when cards expand.
-      ...[xMin, xMax].map((x) => ({
+      ...[axisMin, axisMax].map((x) => ({
         type: "line" as const,
         x0: x,
         x1: x,
@@ -974,12 +1152,12 @@ export function TimelineView() {
         y1: 13,
         line: { color: "#495057", width: 4 },
       })),
-      ...ord.map((_, d) => ({
+      ...groups.map((_, i) => ({
         type: "line" as const,
-        x0: xPos[d],
-        x1: xPos[d],
+        x0: years[i],
+        x1: years[i],
         y0: 0,
-        y1: yPos[d],
+        y1: yPos[i],
         line: { color: "#bdc3c7", width: 1, dash: "dot" as const },
       })),
     ];
@@ -988,13 +1166,12 @@ export function TimelineView() {
 
     // Card annotations tagged with their canonical group index so expanded cards
     // can be reordered to the top layer without losing the click mapping.
-    const cards = ord.map((g, d) => {
-      const ci = order[d];
-      const isOpen = expanded.has(ci);
+    const cards = groups.map((g, i) => {
+      const isOpen = expanded.has(i);
       const borderColor = g.isAccepted ? COLOR_ACCEPTED : COLOR_SYNONYM;
       const ann: Ann = {
-        x: xPos[d],
-        y: yPos[d],
+        x: years[i],
+        y: yPos[i],
         text: isOpen ? groupCardHtml(g, CARD_WRAP_CHARS) : groupCollapsedHtml(g),
         showarrow: false,
         bgcolor: "white",
@@ -1010,16 +1187,16 @@ export function TimelineView() {
         // keeps every expanded card the same size without clipping.
         ...(isOpen ? { width: CARD_WIDTH_EXPANDED } : {}),
       };
-      return { ann, idx: ci, isOpen };
+      return { ann, idx: i, isOpen };
     });
 
     // Year labels sit on the center line. Not clickable.
-    const yearLabels = ord.map((_, d) => {
+    const yearLabels = groups.map((_, i) => {
       const ann: Ann = {
-        x: xPos[d],
+        x: years[i],
         y: 0,
         yshift: 9,
-        text: `<b>${years[d]}</b>`,
+        text: `<b>${years[i]}</b>`,
         showarrow: false,
         bgcolor: "rgba(255,255,255,0.85)",
         borderpad: 1,
@@ -1046,27 +1223,31 @@ export function TimelineView() {
       {
         type: "scatter",
         mode: "markers",
-        x: xPos,
-        y: xPos.map(() => 0),
+        x: years,
+        y: years.map(() => 0),
         // Uniform black circles: dots no longer encode source or status.
         marker: { size: 9, color: "#000", symbol: "circle" },
-        text: ord.map((g) => `${g.year}: ${g.count} name${g.count === 1 ? "" : "s"}`),
+        text: groups.map((g) => `${g.year}: ${g.count} name${g.count === 1 ? "" : "s"}`),
         hoverinfo: "text",
       },
     ];
+
+    // Oldest-first keeps the natural axis; newest-first reverses it.
+    const xRange: [number, number] =
+      yearOrder === "asc" ? [axisMin, axisMax] : [axisMax, axisMin];
 
     const layout: Partial<Layout> = {
       height: plotHeight,
       margin: { l: 20, r: 20, t: 30, b: 20 },
       xaxis: {
         title: { text: "Year of Publication" },
-        range: [xMin, xMax],
+        range: xRange,
         showgrid: false,
         zeroline: false,
         showticklabels: false,
         fixedrange: true,
       },
-      yaxis: { visible: false, range: [-1.4, 1.4], fixedrange: true },
+      yaxis: { visible: false, range: [-1, 1], fixedrange: true },
       plot_bgcolor: "white",
       paper_bgcolor: "white",
       showlegend: false,
@@ -1076,11 +1257,16 @@ export function TimelineView() {
     };
 
     return { data, layout, annotationIndex, minWidth };
-  }, [groups, order, expanded]);
+  }, [groups, expanded, yearOrder]);
 
   if (records.length === 0) {
     return <Text c="dimmed">No results to plot.</Text>;
   }
+
+  // Natural (unscaled) width of the active view. Horizontal uses the computed
+  // timeline width; vertical uses a fixed width holding cards on both sides.
+  const contentWidth =
+    orientation === "horizontal" ? figure?.minWidth ?? 600 : VERTICAL_WIDTH;
 
   return (
     <>
@@ -1122,36 +1308,69 @@ export function TimelineView() {
             </Group>
           </Group>
 
-          {orientation === "horizontal" ? (
-            figure != null && (
-              <div style={{ overflowX: "auto" }}>
-                <PlotlyChart
-                  data={figure.data}
-                  layout={figure.layout}
-                  config={{ scrollZoom: false, displayModeBar: false }}
-                  style={{ width: "100%", minWidth: figure.minWidth }}
-                  useResizeHandler
-                  onClickAnnotation={(e) => {
-                    const idx = figure.annotationIndex[e.index];
-                    if (idx != null && idx >= 0) toggleCard(idx);
+          <div style={{ position: "relative" }}>
+            <div
+              style={{
+                height: CANVAS_HEIGHT,
+                overflow: "auto",
+                border: "1px solid #e9ecef",
+                borderRadius: 8,
+              }}
+            >
+              <div
+                style={{
+                  position: "relative",
+                  width: contentWidth * zoom,
+                  height: naturalHeight * zoom,
+                  margin: "0 auto",
+                }}
+              >
+                <div
+                  ref={zoomContentRef}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: contentWidth,
+                    transform: `scale(${zoom})`,
+                    transformOrigin: "top left",
                   }}
-                  onInitialized={(_, gd) =>
-                    styleCardBorders(gd, figure.annotationIndex, groups)
-                  }
-                  onUpdate={(_, gd) =>
-                    styleCardBorders(gd, figure.annotationIndex, groups)
-                  }
-                />
+                >
+                  {orientation === "horizontal" ? (
+                    figure != null && (
+                      <PlotlyChart
+                        data={figure.data}
+                        layout={figure.layout}
+                        config={{ scrollZoom: false, displayModeBar: false }}
+                        style={{ width: "100%" }}
+                        useResizeHandler
+                        onClickAnnotation={(e) => {
+                          const idx = figure.annotationIndex[e.index];
+                          if (idx != null && idx >= 0) toggleCard(idx);
+                        }}
+                        onInitialized={(_, gd) =>
+                          styleCardBorders(gd, figure.annotationIndex, groups)
+                        }
+                        onUpdate={(_, gd) =>
+                          styleCardBorders(gd, figure.annotationIndex, groups)
+                        }
+                      />
+                    )
+                  ) : (
+                    <VerticalTimeline
+                      groups={groups}
+                      order={order}
+                      expanded={expanded}
+                      onToggle={toggleCard}
+                    />
+                  )}
+                </div>
               </div>
-            )
-          ) : (
-            <VerticalTimeline
-              groups={groups}
-              order={order}
-              expanded={expanded}
-              onToggle={toggleCard}
-            />
-          )}
+            </div>
+            <div style={{ position: "absolute", left: 12, bottom: 12, zIndex: 5 }}>
+              <ZoomControls onZoomIn={zoomIn} onZoomOut={zoomOut} onReset={resetZoom} />
+            </div>
+          </div>
         </>
       ) : (
         <Alert variant="light" color="blue">
