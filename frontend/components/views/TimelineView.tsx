@@ -85,6 +85,10 @@ const TIMELINE_OVERSHOOT = 1.15;
 const END_PAD_PX = 20;
 /** Floor for pixels-per-year so sparse data keeps a sane axis. */
 const MIN_PX_PER_YEAR = 3;
+/** Estimated rendered height in pixels of a collapsed vertical card. */
+const COLLAPSED_VERTICAL_PX = 64;
+/** Minimum vertical gap in pixels between two same-side cards (vertical view). */
+const SAME_SIDE_GAP = 24;
 /**
  * Target text width in pixels of an expanded card box. Card text is wrapped to
  * fit this width so the box stays a predictable size and does not clip.
@@ -631,10 +635,12 @@ interface VerticalTimelineProps {
 /**
  * Vertical CSS timeline for year-grouped taxonomy entries.
  *
- * Lays out year cards top to bottom along a central vertical axis line, with
- * cards alternating on the left and right sides. Each year has a black dot and
- * year label on the axis. Accepted-only years use square cards, synonym-only
- * years rounded cards, and mixed years a split square-over-rounded card.
+ * Cards are positioned by their publication year along a central vertical axis
+ * (a proportional time scale, matching the horizontal view), alternating left
+ * and right. The axis grows so two same-side cards never overlap. Each year has
+ * a black dot and a year label. Accepted-only years use square cards,
+ * synonym-only years rounded cards, and mixed years a split square-over-rounded
+ * card.
  *
  * Parameters
  * ----------
@@ -649,9 +655,34 @@ interface VerticalTimelineProps {
  */
 function VerticalTimeline({ groups, order, expanded, onToggle }: VerticalTimelineProps) {
   const CENTER_WIDTH = 64;
+  const n = order.length;
+  const years = order.map((ci) => groups[ci].year);
+  const heights = order.map((ci) =>
+    expanded.has(ci) ? estimateExpandedCardPx(groups[ci], CARD_WRAP_CHARS) : COLLAPSED_VERTICAL_PX,
+  );
+
+  // Pixels per year, large enough that two same-side cards (two positions apart)
+  // never overlap at their real-year spacing. Adjacent cards sit on opposite
+  // sides of the axis, so they may be close without colliding.
+  let pxPerYear = MIN_PX_PER_YEAR;
+  for (let d = 0; d + 2 < n; d++) {
+    const gap = Math.abs(years[d + 2] - years[d]);
+    if (gap > 0) {
+      pxPerYear = Math.max(pxPerYear, (heights[d] / 2 + heights[d + 2] / 2 + SAME_SIDE_GAP) / gap);
+    }
+  }
+
+  // Vertical position of each card is proportional to its year, measured from
+  // the first displayed year. Padding reserves the end cards' half-heights so
+  // they do not clip past the container.
+  const topPad = Math.max(28, heights[0] / 2 + 8);
+  const bottomPad = Math.max(28, heights[n - 1] / 2 + 8);
+  const span = Math.abs(years[n - 1] - years[0]);
+  const totalHeight = topPad + span * pxPerYear + bottomPad;
+  const topOf = (d: number) => topPad + Math.abs(years[d] - years[0]) * pxPerYear;
 
   return (
-    <div style={{ position: "relative", paddingTop: 8, paddingBottom: 8 }}>
+    <div style={{ position: "relative", height: totalHeight }}>
       {/* Central vertical axis line */}
       <div
         aria-hidden
@@ -684,27 +715,21 @@ function VerticalTimeline({ groups, order, expanded, onToggle }: VerticalTimelin
         />
       ))}
 
-      {order.map((ci, displayIdx) => {
+      {order.map((ci, d) => {
         const group = groups[ci];
-        const isLeft = displayIdx % 2 === 0;
+        const isLeft = d % 2 === 0;
         const isOpen = expanded.has(ci);
+        const top = topOf(d);
+        const cardEdge = `calc(50% + ${CENTER_WIDTH}px)`;
 
         return (
-          <div
-            key={`year-${group.year}-${ci}`}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: 24,
-              position: "relative",
-            }}
-          >
+          <div key={`year-${group.year}-${ci}`}>
             {/* Dashed connector from the central axis to this card */}
             <div
               aria-hidden
               style={{
                 position: "absolute",
-                top: "50%",
+                top,
                 left: isLeft ? undefined : "50%",
                 right: isLeft ? "50%" : undefined,
                 width: CENTER_WIDTH,
@@ -713,70 +738,58 @@ function VerticalTimeline({ groups, order, expanded, onToggle }: VerticalTimelin
               }}
             />
 
-            {/* Left card slot */}
+            {/* Card, vertically centered on its year position */}
             <div
               style={{
-                flex: 1,
-                display: "flex",
-                justifyContent: "flex-end",
-                paddingRight: CENTER_WIDTH / 2,
-              }}
-            >
-              {isLeft && (
-                <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(ci)} />
-              )}
-            </div>
-
-            {/* Axis dot and year label */}
-            <div
-              style={{
-                width: CENTER_WIDTH,
-                flexShrink: 0,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                position: "relative",
+                position: "absolute",
+                top,
+                transform: "translateY(-50%)",
+                left: isLeft ? undefined : cardEdge,
+                right: isLeft ? cardEdge : undefined,
                 zIndex: 1,
               }}
             >
-              <div
-                style={{
-                  width: 10,
-                  height: 10,
-                  // Uniform black circle: dots no longer encode source or status.
-                  borderRadius: "50%",
-                  backgroundColor: "#000",
-                  boxShadow: "0 0 0 2px white",
-                  marginBottom: 2,
-                }}
-              />
-              <Text
-                size="xs"
-                style={{
-                  fontFamily: "Courier New, monospace",
-                  fontWeight: "bold",
-                  lineHeight: 1,
-                  backgroundColor: "rgba(255,255,255,0.85)",
-                  padding: "1px 2px",
-                }}
-              >
-                {group.year}
-              </Text>
+              <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(ci)} />
             </div>
 
-            {/* Right card slot */}
+            {/* Year label, on the card's side next to the dot */}
             <div
               style={{
-                flex: 1,
-                display: "flex",
-                justifyContent: "flex-start",
-                paddingLeft: CENTER_WIDTH / 2,
+                position: "absolute",
+                top,
+                transform: "translateY(-50%)",
+                left: isLeft ? undefined : "calc(50% + 10px)",
+                right: isLeft ? "calc(50% + 10px)" : undefined,
+                fontFamily: "Courier New, monospace",
+                fontWeight: "bold",
+                fontSize: 11,
+                lineHeight: 1,
+                color: "#333",
+                backgroundColor: "rgba(255,255,255,0.85)",
+                padding: "1px 3px",
+                whiteSpace: "nowrap",
+                zIndex: 2,
               }}
             >
-              {!isLeft && (
-                <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(ci)} />
-              )}
+              {group.year}
             </div>
+
+            {/* Axis dot at the year position */}
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                top,
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                backgroundColor: "#000",
+                boxShadow: "0 0 0 2px white",
+                zIndex: 3,
+              }}
+            />
           </div>
         );
       })}
