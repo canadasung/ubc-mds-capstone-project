@@ -16,7 +16,7 @@
  * collapsible table below either view.
  */
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import {
   Alert,
@@ -111,6 +111,8 @@ const ZOOM_MAX = 2.4;
 const ZOOM_STEP = 0.2;
 /** Fixed height in pixels of the zoomable timeline canvas. */
 const CANVAS_HEIGHT = 640;
+/** Natural content width in pixels of the vertical view (cards on both sides). */
+const VERTICAL_WIDTH = 760;
 
 /**
  * Word-wrap plain text to a maximum line length.
@@ -972,6 +974,22 @@ export function TimelineView() {
   );
   const resetZoom = useCallback(() => setZoom(1), []);
 
+  // The scaled content is measured at its natural (unscaled) size so the canvas
+  // can reserve the correct scrolled area at any zoom. A transform (not CSS
+  // zoom) is used to scale: it scales the rendered SVG faithfully, whereas CSS
+  // zoom re-lays-out and clips Plotly's multi-line annotation text.
+  const zoomContentRef = useRef<HTMLDivElement>(null);
+  const [naturalHeight, setNaturalHeight] = useState(CANVAS_HEIGHT);
+  useEffect(() => {
+    const el = zoomContentRef.current;
+    if (!el) return;
+    const measure = () => setNaturalHeight(el.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [orientation]);
+
   // Dated records grouped into one entry per year (oldest to newest), plus
   // colors, the undated set, and the total dated record count for the header.
   const { groups, undatedEntries, datedCount } = useMemo(() => {
@@ -1245,6 +1263,11 @@ export function TimelineView() {
     return <Text c="dimmed">No results to plot.</Text>;
   }
 
+  // Natural (unscaled) width of the active view. Horizontal uses the computed
+  // timeline width; vertical uses a fixed width holding cards on both sides.
+  const contentWidth =
+    orientation === "horizontal" ? figure?.minWidth ?? 600 : VERTICAL_WIDTH;
+
   return (
     <>
       {groups.length > 0 ? (
@@ -1294,15 +1317,32 @@ export function TimelineView() {
                 borderRadius: 8,
               }}
             >
-              <div style={{ zoom }}>
-                {orientation === "horizontal" ? (
-                  figure != null && (
-                    <div style={{ overflowX: "auto" }}>
+              <div
+                style={{
+                  position: "relative",
+                  width: contentWidth * zoom,
+                  height: naturalHeight * zoom,
+                  margin: "0 auto",
+                }}
+              >
+                <div
+                  ref={zoomContentRef}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: contentWidth,
+                    transform: `scale(${zoom})`,
+                    transformOrigin: "top left",
+                  }}
+                >
+                  {orientation === "horizontal" ? (
+                    figure != null && (
                       <PlotlyChart
                         data={figure.data}
                         layout={figure.layout}
                         config={{ scrollZoom: false, displayModeBar: false }}
-                        style={{ width: "100%", minWidth: figure.minWidth }}
+                        style={{ width: "100%" }}
                         useResizeHandler
                         onClickAnnotation={(e) => {
                           const idx = figure.annotationIndex[e.index];
@@ -1315,16 +1355,16 @@ export function TimelineView() {
                           styleCardBorders(gd, figure.annotationIndex, groups)
                         }
                       />
-                    </div>
-                  )
-                ) : (
-                  <VerticalTimeline
-                    groups={groups}
-                    order={order}
-                    expanded={expanded}
-                    onToggle={toggleCard}
-                  />
-                )}
+                    )
+                  ) : (
+                    <VerticalTimeline
+                      groups={groups}
+                      order={order}
+                      expanded={expanded}
+                      onToggle={toggleCard}
+                    />
+                  )}
+                </div>
               </div>
             </div>
             <div style={{ position: "absolute", left: 12, bottom: 12, zIndex: 5 }}>
