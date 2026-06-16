@@ -305,8 +305,9 @@ function groupCollapsedHtml(group: YearGroup): string {
  * Estimate the rendered pixel height of an expanded year card.
  *
  * Counts the header line plus, for each record, a separating blank line and its
- * labeled field lines. The estimate lets the horizontal view reserve enough
- * vertical room that expanded cards on opposite lanes do not overlap.
+ * labeled field lines. The estimate drives the lane and column spacing in both
+ * views (and the vertical view's end padding) so expanded cards neither overlap
+ * each other nor clip at the canvas edge.
  *
  * Parameters
  * ----------
@@ -677,6 +678,7 @@ function VerticalCard({ group, isOpen, onToggle }: VerticalCardProps) {
             border: `2px solid ${COLOR_ACCEPTED}`,
             borderRadius: 0,
             padding: "10px 14px",
+            backgroundColor: "white",
           }}
         >
           <div style={{ fontWeight: "bold", fontSize: 15, marginBottom: 4 }}>
@@ -693,6 +695,7 @@ function VerticalCard({ group, isOpen, onToggle }: VerticalCardProps) {
             borderBottom: `2px solid ${COLOR_SYNONYM}`,
             borderRadius: "0 0 10px 10px",
             padding: "10px 14px",
+            backgroundColor: "white",
           }}
         >
           {group.synonyms.map((e, i) => (
@@ -1185,8 +1188,9 @@ export function TimelineView() {
   const [orientation, setOrientation] = useState<"horizontal" | "vertical">("horizontal");
   const [yearOrder, setYearOrder] = useState<"asc" | "desc">("asc");
 
-  // Scale control for the timeline canvas. A CSS zoom is applied to the chart
-  // content; react-plotly only resizes on window resize, so it is unaffected.
+  // Scale control for the timeline canvas. The content is scaled with a CSS
+  // transform (applied below), not CSS zoom: a transform scales the rendered SVG
+  // faithfully, whereas CSS zoom re-lays-out and clips Plotly annotation text.
   const [zoom, setZoom] = useState(1);
   const zoomIn = useCallback(
     () => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 100) / 100)),
@@ -1311,8 +1315,9 @@ export function TimelineView() {
   //
   // Cards are placed at their real publication year (a proportional time axis)
   // whose total length is fixed to the canvas width, so the whole span fits the
-  // view at zoom 1; zoom in to separate clustered cards. Cards alternate between
-  // two lanes. The display order (oldest/newest first) reverses the x-axis.
+  // view at zoom 1. Cards alternate above and below the axis; a card that would
+  // overlap its same-side neighbour is pushed to a farther lane (the plot grows
+  // taller). The display order (oldest/newest first) reverses the x-axis.
   const figure = useMemo(() => {
     if (groups.length === 0) return null;
 
