@@ -16,7 +16,7 @@ import xml.etree.ElementTree as ET
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import INDEX_FUNGORUM_PORTAL
+from scripts.config import INDEX_FUNGORUM_PORTAL
 
 
 class IndexFungorumAPI(SpeciesAPI):

@@ -15,7 +15,7 @@ import json
 import pandas as pd
 import streamlit as st
 
-from scripts.utils.call_APIs import call_apis
+from deprecated.call_APIs import call_apis
 from scripts.utils.fuzzy_search import fuzzy_search
 
 st.title("Species Name Synonym Search")

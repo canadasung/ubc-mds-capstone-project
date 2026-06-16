@@ -23,7 +23,7 @@ import re
 from urllib.parse import unquote_plus
 
 from .base import SpeciesAPI
-from .config import FISHBASE_PORTAL
+from scripts.config import FISHBASE_PORTAL
 
 
 class FishBaseAPI(SpeciesAPI):

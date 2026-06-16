@@ -10,7 +10,7 @@ Run from the home directory:
 
 import pytest
 
-from scripts.APIs.GenBank import get_genbank_synonyms
+from deprecated.scripts_APIs.GenBank import get_genbank_synonyms
 from tests.APIs.template_ApiTests import ApiTests
 
 pytestmark = pytest.mark.usefixtures("require_entrez_email")

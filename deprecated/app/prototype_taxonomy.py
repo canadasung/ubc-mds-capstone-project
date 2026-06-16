@@ -12,9 +12,9 @@ To run:
 import pandas as pd
 import streamlit as st
 
-from scripts.APIs.gbif_taxonomy import get_gbif_taxonomy
-from scripts.APIs.COL_taxonomy import get_col_taxonomy
-from scripts.APIs.NCBI_taxonomy import get_ncbi_taxonomy
+from deprecated.scripts_APIs.COL_taxonomy import get_col_taxonomy
+from deprecated.scripts_APIs.gbif_taxonomy import get_gbif_taxonomy
+from deprecated.scripts_APIs.NCBI_taxonomy import get_ncbi_taxonomy
 
 st.title("Taxonomy Comparison")
 
@@ -32,8 +32,7 @@ query = st.text_input("Enter a species name", placeholder="e.g. Amanita muscaria
 with st.expander("Advanced filters"):
     st.write("Sources to query")
     selected_sources = [
-        key for key, (label, _) in SOURCES.items()
-        if st.checkbox(label, value=True)
+        key for key, (label, _) in SOURCES.items() if st.checkbox(label, value=True)
     ]
 
 if query:

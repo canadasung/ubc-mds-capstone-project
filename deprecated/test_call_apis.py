@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
-from scripts.utils.call_APIs import Source, call_apis
+from deprecated.call_APIs import Source, call_apis
 
 _PATCH_BASE = "scripts.utils.call_APIs"
 _MOCK_RESULT = {"Species name": [], "Synonym name": []}

@@ -2,7 +2,7 @@ import re
 
 import pandas as pd
 
-from scripts.apis_pipe.config import ALL_PORTALS
+from scripts.config import ALL_PORTALS
 
 # value to use when data is unavailable (i.e. never present) from a given API source. This is not the same as an empty string, which indicates that the data was not found for that particular query (e.g. no author for a given taxonomic name).
 UNAVAILABLE = "U"

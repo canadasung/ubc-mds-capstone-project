@@ -9,7 +9,7 @@ Run from the home directory:
 
 import pytest
 
-from scripts.APIs.MyCoPortal import get_mycoportal_synonyms
+from deprecated.scripts_APIs.MyCoPortal import get_mycoportal_synonyms
 from tests.APIs.template_ApiTests import ApiTests
 
 

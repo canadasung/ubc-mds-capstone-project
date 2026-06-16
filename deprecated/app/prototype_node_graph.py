@@ -20,7 +20,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from pyvis.network import Network
 
-from scripts.utils.call_APIs import call_apis
+from deprecated.call_APIs import call_apis
 
 # ---------------------------------------------------------------------------
 # Source configuration
@@ -60,8 +60,9 @@ def _source_color(index: int, total: int, lightness: float = 0.38) -> str:
 
 
 SOURCE_COLORS = {
-    #src: _source_color(i, len(SOURCE_LABELS)) for i, src in enumerate(SOURCE_LABELS)
-    src: "#333333" for i, src in enumerate(SOURCE_LABELS)
+    # src: _source_color(i, len(SOURCE_LABELS)) for i, src in enumerate(SOURCE_LABELS)
+    src: "#333333"
+    for i, src in enumerate(SOURCE_LABELS)
 }
 
 

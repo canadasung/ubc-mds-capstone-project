@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import GENBANK_PORTAL
+from scripts.config import GENBANK_PORTAL
 
 
 class GenBankAPI(SpeciesAPI):

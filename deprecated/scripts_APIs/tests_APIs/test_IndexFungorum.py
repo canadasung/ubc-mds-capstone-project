@@ -9,7 +9,7 @@ Run from the home directory:
 
 import pytest
 
-from scripts.APIs.IndexFungorum import get_indexfungorum_synonyms
+from deprecated.scripts_APIs.IndexFungorum import get_indexfungorum_synonyms
 from tests.APIs.template_ApiTests import ApiTests
 
 

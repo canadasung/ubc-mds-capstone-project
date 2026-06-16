@@ -7,7 +7,7 @@ SpeciesAPI implementation for the Catalogue of Life (COL), served via the Checkl
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import COL_PORTAL
+from scripts.config import COL_PORTAL
 
 
 class COLAPI(SpeciesAPI):

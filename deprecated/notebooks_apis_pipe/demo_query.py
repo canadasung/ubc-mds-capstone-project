@@ -9,12 +9,13 @@ import os
 
 from scripts.utils.aggregator import SpeciesAggregator
 
+from deprecated.synonyms import SynonymEngine
+
 # Import the centralized client builder
 from scripts.utils.call_apis_pipe import _make_clients
 
 # Core pipeline
 from scripts.utils.router import TaxonRouter
-from scripts.utils.synonyms import SynonymEngine
 
 # Search query string (should be normalised with utils/normalize_query_string.py)
 # `strictness` decides which databases to use. Setting to False means query all
@@ -23,6 +24,7 @@ from scripts.utils.synonyms import SynonymEngine
 # "universal"?)
 q_name = "Amanita muscaria"
 strictness = False
+
 
 # The "tidy" output of this demo
 # This emulates what an app with a UI might display/showcase to the user
@@ -78,6 +80,7 @@ def print_showcase(official_syns, gbif_occs, symbiota_syns):
         "  - Notice how the script DID NOT CRASH. It output safe empty lists [] to the JSON files."
     )
     print("=" * 60 + "\n")
+
 
 # Main demo loop
 # 1. First initialise all clients
@@ -227,6 +230,7 @@ def run_demo():
     print(
         "Success! Check the 'notebooks/APIs_pipe/demo_results/' folder to see the new data structures."
     )
+
 
 # The main function
 if __name__ == "__main__":

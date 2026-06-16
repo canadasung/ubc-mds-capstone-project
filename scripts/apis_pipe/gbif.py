@@ -9,7 +9,7 @@ import re
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import GBIF_PORTAL
+from scripts.config import GBIF_PORTAL
 
 
 class GBIFAPI(SpeciesAPI):
@@ -215,6 +215,7 @@ class GBIFAPI(SpeciesAPI):
         return [
             self._format_row(
                 api_name=GBIF_PORTAL.display_name,
+                kingdom=synonym_search_term_data.get("kingdom", ""),
                 genus=genus,
                 species=species,
                 api_internal_id=key,

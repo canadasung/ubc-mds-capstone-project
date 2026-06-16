@@ -31,9 +31,7 @@ MUSHROOM_OBSERVER_PORTAL = APIPortal(
     "Mushroom Observer", "https://mushroomobserver.org/api2"
 )
 FISHBASE_PORTAL = APIPortal("FishBase", "https://www.fishbase.se")
-ITIS_PORTAL = APIPortal(
-    "ITIS", "https://www.itis.gov/ITISWebService/jsonservice"
-)
+ITIS_PORTAL = APIPortal("ITIS", "https://www.itis.gov/ITISWebService/jsonservice")
 
 
 # Symbiota portal instances

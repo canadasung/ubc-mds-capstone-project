@@ -9,7 +9,7 @@ Run from the home directory:
 
 import pytest
 
-from scripts.APIs.BryophytePortal import get_bryophyteportal_synonyms
+from deprecated.scripts_APIs.BryophytePortal import get_bryophyteportal_synonyms
 from tests.APIs.template_ApiTests import ApiTests
 
 

@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from .config import SYMBIOTA_PORTAL_BY_NAME
+from scripts.config import SYMBIOTA_PORTAL_BY_NAME
 
 # Canonical column order for extended Symbiota synonym DataFrames.
 # Commented out: currently using the standard _format_synonym schema from SpeciesAPI.
