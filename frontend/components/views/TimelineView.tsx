@@ -77,18 +77,10 @@ function statusColor(status: string): string {
 
 /** Estimated rendered width in pixels of a collapsed year card. */
 const COLLAPSED_CARD_PX = 140;
-/** Minimum horizontal gap in pixels kept between two same-lane cards. */
-const SAME_LANE_GAP = 30;
-/** Factor by which the timeline length is kept longer than all cards combined. */
-const TIMELINE_OVERSHOOT = 1.15;
 /** Extra horizontal margin in pixels past the first/last card on the axis. */
 const END_PAD_PX = 20;
-/** Floor for pixels-per-year so sparse data keeps a sane axis. */
-const MIN_PX_PER_YEAR = 3;
 /** Estimated rendered height in pixels of a collapsed vertical card. */
 const COLLAPSED_VERTICAL_PX = 64;
-/** Minimum vertical gap in pixels between two same-side cards (vertical view). */
-const SAME_SIDE_GAP = 24;
 /**
  * Target text width in pixels of an expanded card box. Card text is wrapped to
  * fit this width so the box stays a predictable size and does not clip.
@@ -639,10 +631,10 @@ interface VerticalTimelineProps {
  *
  * Cards are positioned by their publication year along a central vertical axis
  * (a proportional time scale, matching the horizontal view), alternating left
- * and right. The axis grows so two same-side cards never overlap. Each year has
- * a black dot and a year label. Accepted-only years use square cards,
- * synonym-only years rounded cards, and mixed years a split square-over-rounded
- * card.
+ * and right. The axis length is fixed to the canvas height so the whole span
+ * fits the view; clustered cards may overlap until zoomed in. Each year has a
+ * black dot and a year label. Accepted-only years use square cards, synonym-only
+ * years rounded cards, and mixed years a split square-over-rounded card.
  *
  * Parameters
  * ----------
@@ -663,23 +655,15 @@ function VerticalTimeline({ groups, order, expanded, onToggle }: VerticalTimelin
     expanded.has(ci) ? estimateExpandedCardPx(groups[ci], CARD_WRAP_CHARS) : COLLAPSED_VERTICAL_PX,
   );
 
-  // Pixels per year, large enough that two same-side cards (two positions apart)
-  // never overlap at their real-year spacing. Adjacent cards sit on opposite
-  // sides of the axis, so they may be close without colliding.
-  let pxPerYear = MIN_PX_PER_YEAR;
-  for (let d = 0; d + 2 < n; d++) {
-    const gap = Math.abs(years[d + 2] - years[d]);
-    if (gap > 0) {
-      pxPerYear = Math.max(pxPerYear, (heights[d] / 2 + heights[d + 2] / 2 + SAME_SIDE_GAP) / gap);
-    }
-  }
-
-  // Vertical position of each card is proportional to its year, measured from
-  // the first displayed year. Padding reserves the end cards' half-heights so
-  // they do not clip past the container.
+  // Fixed-length axis: the whole span fits the canvas height, with positions
+  // still proportional to year. Padding reserves the end cards' half-heights so
+  // they do not clip. Clustered cards may overlap at base zoom; zoom in to
+  // separate them.
   const topPad = Math.max(28, heights[0] / 2 + 8);
   const bottomPad = Math.max(28, heights[n - 1] / 2 + 8);
-  const span = Math.abs(years[n - 1] - years[0]);
+  const span = Math.max(1, Math.abs(years[n - 1] - years[0]));
+  const usable = Math.max(40, CANVAS_HEIGHT - topPad - bottomPad);
+  const pxPerYear = usable / span;
   const totalHeight = topPad + span * pxPerYear + bottomPad;
   const topOf = (d: number) => topPad + Math.abs(years[d] - years[0]) * pxPerYear;
 
@@ -990,6 +974,21 @@ export function TimelineView() {
     return () => observer.disconnect();
   }, [orientation]);
 
+  // Width of the scrollable canvas, so the horizontal axis can be a fixed length
+  // that fits the view at zoom 1 (proportional spacing within it; zoom in for
+  // detail when years cluster).
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [canvasWidth, setCanvasWidth] = useState(800);
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const measure = () => setCanvasWidth(el.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   // Dated records grouped into one entry per year (oldest to newest), plus
   // colors, the undated set, and the total dated record count for the header.
   const { groups, undatedEntries, datedCount } = useMemo(() => {
@@ -1070,11 +1069,10 @@ export function TimelineView() {
 
   // Builds all Plotly figure data for the horizontal view.
   //
-  // Cards are placed at their real publication year (a proportional time axis),
-  // alternating between two lanes. The plot width is computed so the timeline is
-  // always longer than all the cards laid end to end and so no two same-lane
-  // cards overlap; the chart scrolls horizontally inside its container. The
-  // display order (oldest/newest first) is applied by reversing the x-axis.
+  // Cards are placed at their real publication year (a proportional time axis)
+  // whose total length is fixed to the canvas width, so the whole span fits the
+  // view at zoom 1; zoom in to separate clustered cards. Cards alternate between
+  // two lanes. The display order (oldest/newest first) reverses the x-axis.
   const figure = useMemo(() => {
     if (groups.length === 0) return null;
 
@@ -1083,40 +1081,27 @@ export function TimelineView() {
     const years = groups.map((g) => g.year);
     const yPos = groups.map((_, i) => (i % 2 === 0 ? 0.5 : -0.5));
 
-    // Estimated rendered width of each card, used to size the timeline.
+    // Estimated rendered width of each card, used to reserve room for the end
+    // cards so they sit fully inside the axis.
     const widths = groups.map((_, i) =>
       expanded.has(i) ? CARD_WIDTH_EXPANDED + 24 : COLLAPSED_CARD_PX,
     );
-    const sumWidths = widths.reduce((a, b) => a + b, 0);
 
     const yearMin = years[0];
     const yearMax = years[n - 1];
     const yearSpan = Math.max(1, yearMax - yearMin);
 
-    // Pixels per year. Large enough that (a) no two same-lane cards (two
-    // positions apart) overlap at their real-year spacing, and (b) the timeline
-    // is longer than all cards combined. The end padding below reserves each end
-    // card's half-width, so the (b) target is written in terms of yearSpan.
+    // Fixed-length axis: the whole span fits the canvas width at zoom 1, with
+    // positions still proportional to year. The usable length reserves the end
+    // cards' half-widths so they do not clip. Clustered cards may overlap at base
+    // zoom; zoom in with the scale control to separate them.
     const endHalf = widths[0] / 2 + widths[n - 1] / 2;
-    let pxPerYear =
-      (TIMELINE_OVERSHOOT * sumWidths - endHalf - 2 * END_PAD_PX) / yearSpan;
-    for (let i = 0; i + 2 < n; i++) {
-      const gapYears = years[i + 2] - years[i];
-      if (gapYears > 0) {
-        pxPerYear = Math.max(
-          pxPerYear,
-          (widths[i] / 2 + widths[i + 2] / 2 + SAME_LANE_GAP) / gapYears,
-        );
-      }
-    }
-    pxPerYear = Math.max(pxPerYear, MIN_PX_PER_YEAR);
+    const usable = Math.max(60, canvasWidth - 40 - endHalf - 2 * END_PAD_PX);
+    const pxPerYear = usable / yearSpan;
 
-    // Extend the axis past the first and last card by their half-widths (plus a
-    // small margin) so the end cards sit fully inside the timeline, not clipped.
     const axisMin = yearMin - (widths[0] / 2 + END_PAD_PX) / pxPerYear;
     const axisMax = yearMax + (widths[n - 1] / 2 + END_PAD_PX) / pxPerYear;
-    const axisSpan = axisMax - axisMin;
-    const minWidth = Math.min(16000, Math.max(Math.ceil(axisSpan * pxPerYear) + 40, 600));
+    const minWidth = canvasWidth;
 
     // Grow the plot height so the two lanes sit far enough apart that the
     // tallest expanded card cannot overlap a card on the opposite lane. Lanes
@@ -1257,7 +1242,7 @@ export function TimelineView() {
     };
 
     return { data, layout, annotationIndex, minWidth };
-  }, [groups, expanded, yearOrder]);
+  }, [groups, expanded, yearOrder, canvasWidth]);
 
   if (records.length === 0) {
     return <Text c="dimmed">No results to plot.</Text>;
@@ -1310,6 +1295,7 @@ export function TimelineView() {
 
           <div style={{ position: "relative" }}>
             <div
+              ref={canvasRef}
               style={{
                 height: CANVAS_HEIGHT,
                 overflow: "auto",
