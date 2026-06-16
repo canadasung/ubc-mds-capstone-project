@@ -213,9 +213,12 @@ class FishBaseAPI(SpeciesAPI):
         Returns
         -------
         str
-            Author name without the year (e.g. ``"Linnaeus"``), or the
-            original string if no year suffix is present.
+            Author name without the year (e.g. ``"Linnaeus"``), ``""`` if the
+            author is ``"Not given"``, or the original string if no year suffix
+            is present.
         """
+        if string.strip().lower() == "not given":
+            return ""
         return self._YEAR_SUFFIX_RE.sub("", string).rstrip(", ").strip()
 
     def _compile_synonyms(self, synonym_data: list) -> list[dict]:
@@ -251,17 +254,19 @@ class FishBaseAPI(SpeciesAPI):
             seen.add(name)
             author_raw = params.get("Author", "")
             spec_code = params.get("SpecCode", "")
-            candidates.append(
-                self._format_row(
-                    api_name=FISHBASE_PORTAL.display_name,
-                    genus=genus,
-                    species=species,
-                    api_internal_id=spec_code,
-                    author=self._extract_author(author_raw),
-                    publication_year=self._extract_publication_year(author_raw),
-                    api_link=f"{self.BASE_URL}/nomenclature/{spec_code}"
-                    if spec_code
-                    else "",  # TODO: note that the individual synonyms do have their own detail pages in fishbase, but with a different more complicated URL. This URL goes to a table showing all the synonyms for the accepted name
-                )
-            )
+            status = self._extract_status(params.get("Status", ""))
+            row_kwargs = {
+                "api_name": FISHBASE_PORTAL.display_name,
+                "genus": genus,
+                "species": species,
+                "api_internal_id": spec_code,
+                "author": self._extract_author(author_raw),
+                "publication_year": self._extract_publication_year(author_raw),
+                "api_link": f"{self.BASE_URL}/nomenclature/{spec_code}"
+                if spec_code
+                else "",  # TODO: note that the individual synonyms do have their own detail pages in fishbase, but with a different more complicated URL. This URL goes to a table showing all the synonyms for the accepted name
+            }
+            if status:
+                row_kwargs["status"] = status
+            candidates.append(self._format_row(**row_kwargs))
         return candidates
