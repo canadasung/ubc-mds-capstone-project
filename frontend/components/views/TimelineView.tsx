@@ -401,45 +401,48 @@ function assignLanes(
 }
 
 /**
- * Ensure the SVG holds the linear gradient used for mixed-status card borders.
+ * Create or update one stroked border path on a card's annotation group.
  *
- * The gradient is green over the top half and purple over the bottom half, in
- * object bounding-box units so it maps to each card's own box. It is created
- * once per SVG and reused.
+ * Each mixed card draws two of these: a green outline for the accepted section
+ * and a purple outline for the synonym section. Paths are tagged by ``key`` so
+ * they are reused (not duplicated) across Plotly's repeated render callbacks, and
+ * never capture pointer events so card clicks still register.
  *
  * Parameters
  * ----------
- * svg : SVGSVGElement or null
- *     The SVG that owns the card rectangles.
+ * group : SVGGElement
+ *     The annotation group element that owns the card.
+ * rect : SVGRectElement
+ *     The card's rectangle; the path is inserted just after it.
+ * key : string
+ *     Stable identifier for this path within the card (e.g. "g" or "p").
+ * d : string
+ *     The SVG path data.
+ * color : string
+ *     Stroke color.
  *
  * Returns
  * -------
  * void
  */
-function ensureMixedGradient(svg: SVGSVGElement | null): void {
-  if (!svg || svg.querySelector("#timelineMixedBorder")) return;
-  const ns = "http://www.w3.org/2000/svg";
-  let defs = svg.querySelector("defs");
-  if (!defs) {
-    defs = document.createElementNS(ns, "defs");
-    svg.insertBefore(defs, svg.firstChild);
+function upsertBorderPath(
+  group: SVGGElement,
+  rect: SVGRectElement,
+  key: string,
+  d: string,
+  color: string,
+): void {
+  let path = group.querySelector<SVGPathElement>(`path[data-card-border="${key}"]`);
+  if (!path) {
+    path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("data-card-border", key);
+    path.style.pointerEvents = "none"; // never block clicks on the card
+    rect.parentNode?.insertBefore(path, rect.nextSibling);
   }
-  const gradient = document.createElementNS(ns, "linearGradient");
-  gradient.setAttribute("id", "timelineMixedBorder");
-  gradient.setAttribute("x1", "0");
-  gradient.setAttribute("y1", "0");
-  gradient.setAttribute("x2", "0");
-  gradient.setAttribute("y2", "1");
-  for (const [offset, color] of [
-    ["50%", COLOR_ACCEPTED],
-    ["50%", COLOR_SYNONYM],
-  ] as const) {
-    const stop = document.createElementNS(ns, "stop");
-    stop.setAttribute("offset", offset);
-    stop.setAttribute("stop-color", color);
-    gradient.appendChild(stop);
-  }
-  defs.appendChild(gradient);
+  path.setAttribute("d", d);
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", color);
+  path.setAttribute("stroke-width", "2");
 }
 
 /**
@@ -447,11 +450,13 @@ function ensureMixedGradient(svg: SVGSVGElement | null): void {
  *
  * Plotly annotation boxes are a single SVG rectangle, styled after each draw.
  * An accepted-only year gets square corners; a synonym-only year gets rounded
- * corners. A year holding both is split like the vertical card: because a
- * rectangle cannot mix corner radii per side, its border is drawn as a separate
- * path with square top corners and rounded bottom corners, stroked with the
- * green-over-purple gradient. The rectangle is kept for its white fill and click
- * target, but its own border is hidden.
+ * corners. A year holding both is split like the vertical card: its border is
+ * drawn as two paths, a green outline over the accepted records (square top) and
+ * a purple outline over the synonyms (rounded bottom). They meet at a separator
+ * estimated from the record line counts, so the green border (and the green
+ * separator line) stops at the accepted/synonym boundary rather than half-way.
+ * The rectangle is kept for its white fill and click target, but its own border
+ * is hidden.
  *
  * Parameters
  * ----------
@@ -482,33 +487,42 @@ function styleCardBorders(
     const rect = el.querySelector<SVGRectElement>("rect");
     if (!rect) return;
     const mixed = group.accepted.length > 0 && group.synonyms.length > 0;
-    const existing = el.querySelector<SVGPathElement>("path[data-card-border]");
 
     if (mixed) {
-      ensureMixedGradient(rect.ownerSVGElement);
       // Hide the rect's own border; keep its (square) white fill and clicks.
       rect.style.stroke = "none";
       rect.removeAttribute("rx");
       rect.removeAttribute("ry");
       const { x, y, width: w, height: h } = rect.getBBox();
       const r = Math.min(radius, w / 2, h / 2);
-      const d =
-        `M${x},${y} L${x + w},${y} L${x + w},${y + h - r} ` +
-        `Q${x + w},${y + h} ${x + w - r},${y + h} ` +
-        `L${x + r},${y + h} Q${x},${y + h} ${x},${y + h - r} Z`;
-      const path =
-        existing ?? document.createElementNS("http://www.w3.org/2000/svg", "path");
-      if (!existing) {
-        path.setAttribute("data-card-border", "1");
-        path.style.pointerEvents = "none"; // never block clicks on the card
-        rect.parentNode?.insertBefore(path, rect.nextSibling);
+
+      // Estimate the accepted/synonym boundary from the rendered line counts so
+      // the separator falls where the synonyms start. The header counts as one
+      // line and each record adds a blank gap line plus its own lines; the +0.5
+      // centers the separator within the gap before the first synonym.
+      const pad = 10; // expanded-card border padding
+      let topLines = 1; // header
+      for (const e of group.accepted) topLines += 1 + recordHtml(e, CARD_WRAP_CHARS).lines;
+      let totalLines = 1;
+      for (const e of [...group.accepted, ...group.synonyms]) {
+        totalLines += 1 + recordHtml(e, CARD_WRAP_CHARS).lines;
       }
-      path.setAttribute("d", d);
-      path.setAttribute("fill", "none");
-      path.setAttribute("stroke", "url(#timelineMixedBorder)");
-      path.setAttribute("stroke-width", "2");
+      const inner = Math.max(0, h - 2 * pad);
+      const sepY = y + pad + (Math.min(topLines + 0.5, totalLines) / totalLines) * inner;
+
+      // Green: closed outline of the accepted section; its bottom edge is the
+      // separator line. Purple: open outline of the synonym section with rounded
+      // bottom corners and no top edge, so the separator stays green only.
+      const greenD = `M${x},${y} L${x + w},${y} L${x + w},${sepY} L${x},${sepY} Z`;
+      const purpleD =
+        `M${x},${sepY} L${x},${y + h - r} ` +
+        `Q${x},${y + h} ${x + r},${y + h} ` +
+        `L${x + w - r},${y + h} Q${x + w},${y + h} ${x + w},${y + h - r} ` +
+        `L${x + w},${sepY}`;
+      upsertBorderPath(el, rect, "g", greenD, COLOR_ACCEPTED);
+      upsertBorderPath(el, rect, "p", purpleD, COLOR_SYNONYM);
     } else {
-      existing?.remove();
+      el.querySelectorAll("path[data-card-border]").forEach((p) => p.remove());
       rect.style.stroke = group.isAccepted ? COLOR_ACCEPTED : COLOR_SYNONYM;
       if (group.isAccepted) {
         rect.removeAttribute("rx");
@@ -565,11 +579,14 @@ function ExternalLinkIcon() {
  * ----------
  * entry : TimelineEntry
  *     The record to render.
+ * first : boolean, optional
+ *     When true, drops the top margin so the block sits flush with the top of
+ *     its section (used for the first record after a section separator).
  */
-function RecordBlock({ entry }: { entry: TimelineEntry }) {
+function RecordBlock({ entry, first }: { entry: TimelineEntry; first?: boolean }) {
   const label = (text: string) => <span style={{ color: "#888" }}>{text}</span>;
   return (
-    <div style={{ marginTop: 8 }}>
+    <div style={{ marginTop: first ? 0 : 8 }}>
       <div>
         {label("API:")}{" "}
         {entry.url ? (
@@ -613,11 +630,13 @@ interface VerticalCardProps {
  * Clickable year card for the vertical timeline view.
  *
  * An accepted-only year gets a square green border; a synonym-only year gets a
- * rounded purple border. A year holding both is split: a green square-cornered
- * top half over a purple rounded-cornered bottom half. Clicking toggles
- * between a compact representative-name display and an expanded view with a
- * "Name, Year" header followed by one labeled block per record (API, status,
- * author, source).
+ * rounded purple border. A year holding both is split into a green square-topped
+ * accepted section over a purple rounded-bottom synonym section: when expanded,
+ * the split (a green separator line) falls at the real accepted/synonym
+ * boundary, so the green border stops there rather than half-way; when collapsed
+ * it falls back to a half-and-half gradient border. Clicking toggles between a
+ * compact representative-name display and an expanded view with a "Name, Year"
+ * header followed by one labeled block per record (API, status, author, source).
  *
  * Parameters
  * ----------
@@ -633,6 +652,56 @@ function VerticalCard({ group, isOpen, onToggle }: VerticalCardProps) {
   const hasSynonym = group.synonyms.length > 0;
   const representative = group.accepted[0] ?? group.synonyms[0];
   const nameParts = representative.name.trim().split(/\s+/);
+
+  const baseStyle: CSSProperties = {
+    cursor: "pointer",
+    fontFamily: "Courier New, monospace",
+    fontSize: 13,
+    color: "#333",
+    maxWidth: isOpen ? 300 : 260,
+    minWidth: 120,
+    textAlign: isOpen ? "left" : "center",
+    userSelect: "none",
+    lineHeight: 1.5,
+  };
+
+  // Mixed and expanded: render two bordered sections, accepted (green, square
+  // top) over synonyms (purple, rounded bottom). The green section's bottom
+  // border is the separator, so the green border stops exactly at the
+  // accepted/synonym boundary instead of a fixed half-way split.
+  if (hasAccepted && hasSynonym && isOpen) {
+    return (
+      <div onClick={onToggle} style={baseStyle}>
+        <div
+          style={{
+            border: `2px solid ${COLOR_ACCEPTED}`,
+            borderRadius: 0,
+            padding: "10px 14px",
+          }}
+        >
+          <div style={{ fontWeight: "bold", fontSize: 15, marginBottom: 4 }}>
+            {representative.name}, {group.year}
+          </div>
+          {group.accepted.map((e, i) => (
+            <RecordBlock key={`a-${e.source}-${i}`} entry={e} />
+          ))}
+        </div>
+        <div
+          style={{
+            borderLeft: `2px solid ${COLOR_SYNONYM}`,
+            borderRight: `2px solid ${COLOR_SYNONYM}`,
+            borderBottom: `2px solid ${COLOR_SYNONYM}`,
+            borderRadius: "0 0 10px 10px",
+            padding: "10px 14px",
+          }}
+        >
+          {group.synonyms.map((e, i) => (
+            <RecordBlock key={`s-${e.source}-${i}`} entry={e} first={i === 0} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   // Border reflects the record statuses. A mixed year uses a gradient border
   // (green top, purple bottom) with square top corners and rounded bottom
@@ -656,17 +725,9 @@ function VerticalCard({ group, isOpen, onToggle }: VerticalCardProps) {
     <div
       onClick={onToggle}
       style={{
+        ...baseStyle,
         ...borderStyle,
         padding: isOpen ? "10px 14px" : "6px 10px",
-        cursor: "pointer",
-        fontFamily: "Courier New, monospace",
-        fontSize: 13,
-        color: "#333",
-        maxWidth: isOpen ? 300 : 260,
-        minWidth: 120,
-        textAlign: isOpen ? "left" : "center",
-        userSelect: "none",
-        lineHeight: 1.5,
       }}
     >
       {isOpen ? (
