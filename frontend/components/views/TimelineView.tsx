@@ -787,11 +787,13 @@ interface VerticalLayout {
 /**
  * Compute the absolute layout for the vertical timeline.
  *
- * Cards sit at their publication year along a fixed-length proportional axis and
- * alternate left and right. When two same-side cards would overlap vertically,
- * the later one is pushed to a farther column (greedy lane packing) so clustered
- * cards spread sideways instead of overlapping. The total width grows only when
- * extra columns are needed.
+ * Cards sit at their publication year along a proportional axis and alternate
+ * left and right. When two same-side cards would overlap vertically, the later
+ * one is pushed to a farther column (greedy lane packing) so clustered cards
+ * spread sideways instead of overlapping. The total width grows only when extra
+ * columns are needed. The top and bottom padding grow to cover any expanded
+ * card that reaches past the first or last dot, so the axis lengthens (and the
+ * canvas scrolls) on expand rather than clipping a card at the canvas edge.
  *
  * Parameters
  * ----------
@@ -825,16 +827,28 @@ function computeVerticalLayout(
     expanded.has(ci) ? estimateExpandedCardPx(groups[ci], CARD_WRAP_CHARS) : COLLAPSED_VERTICAL_PX,
   );
 
-  // Fixed-length axis: the whole span fits VERTICAL_AXIS_HEIGHT, with positions
-  // still proportional to year. Padding reserves the end cards' half-heights so
-  // they do not clip.
-  const topPad = Math.max(28, heights[0] / 2 + 8);
-  const bottomPad = Math.max(28, heights[n - 1] / 2 + 8);
+  // Proportional axis: years keep their spacing, set so the span fills
+  // VERTICAL_AXIS_HEIGHT at the base padding.
   const span = Math.max(1, Math.abs(years[n - 1] - years[0]));
-  const usable = Math.max(40, VERTICAL_AXIS_HEIGHT - topPad - bottomPad);
+  const baseTopPad = Math.max(28, heights[0] / 2 + 8);
+  const baseBottomPad = Math.max(28, heights[n - 1] / 2 + 8);
+  const usable = Math.max(40, VERTICAL_AXIS_HEIGHT - baseTopPad - baseBottomPad);
   const pxPerYear = usable / span;
-  const totalHeight = topPad + span * pxPerYear + bottomPad;
-  const tops = years.map((y) => topPad + Math.abs(y - years[0]) * pxPerYear);
+  const off = years.map((y) => Math.abs(y - years[0]) * pxPerYear);
+
+  // Cards are centered on their year dot, so a tall expanded card can reach past
+  // the first/last dot. Grow the end padding to cover each card's overhang
+  // beyond its dot, which lengthens the axis (and scrolls) when cards expand
+  // instead of clipping a card against the top or bottom of the canvas.
+  const OVERHANG_MARGIN = 8;
+  let topPad = baseTopPad;
+  let bottomPad = baseBottomPad;
+  for (let d = 0; d < n; d++) {
+    topPad = Math.max(topPad, OVERHANG_MARGIN + heights[d] / 2 - off[d]);
+    bottomPad = Math.max(bottomPad, OVERHANG_MARGIN + heights[d] / 2 - (off[n - 1] - off[d]));
+  }
+  const totalHeight = topPad + off[n - 1] + bottomPad;
+  const tops = off.map((o) => topPad + o);
 
   // Column packing: same-side cards that would overlap vertically move to a
   // farther column (lane) instead of overlapping.
