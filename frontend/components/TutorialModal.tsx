@@ -82,10 +82,10 @@ const STEPS: { label: string; title: string; body: React.ReactNode }[] = [
             <strong>Relations</strong>: an interactive graph of synonyms grouped by genus name
           </List.Item>
           <List.Item>
-            <strong>Timeline</strong>: a chronological view of when names were published
+            <strong>Timeline</strong>: a chronological view of when names were published and by whom
           </List.Item>
           <List.Item>
-            <strong>Taxonomy</strong>: a hierarchical tree view of the taxonomic classification
+            <strong>Taxonomy</strong>: a table view to compare taxonomic classification
           </List.Item>
         </List>
       </Stack>
