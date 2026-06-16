@@ -102,7 +102,7 @@ const ZOOM_MAX = 2.4;
 /** Zoom increment per click of the scale control. */
 const ZOOM_STEP = 0.2;
 /** Fixed height in pixels of the zoomable timeline canvas. */
-const CANVAS_HEIGHT = 640;
+const CANVAS_HEIGHT = 720;
 /**
  * Length in pixels of the vertical-view axis (how far the years are spread out).
  * Increase to make the axis longer; the canvas scrolls when this exceeds
@@ -111,6 +111,14 @@ const CANVAS_HEIGHT = 640;
 const VERTICAL_AXIS_HEIGHT = 1000;
 /** Natural content width in pixels of the vertical view (cards on both sides). */
 const VERTICAL_WIDTH = 760;
+/** Vertical pixel gap between stacked lanes in the horizontal view. */
+const LANE_GAP_PX = 18;
+/** Minimum horizontal gap (pixels) between two cards sharing a lane (horizontal). */
+const LANE_X_GAP_PX = 12;
+/** Horizontal pixel gap between stacked card columns in the vertical view. */
+const COLUMN_GAP_PX = 16;
+/** Minimum vertical gap (pixels) between two cards sharing a column (vertical). */
+const COLUMN_Y_GAP_PX = 12;
 
 /**
  * Word-wrap plain text to a maximum line length.
@@ -319,6 +327,77 @@ function estimateExpandedCardPx(group: YearGroup, maxChars: number): number {
     lines += 1 + recordHtml(e, maxChars).lines; // separating gap + the record
   }
   return lines * LINE_PX + 24;
+}
+
+/**
+ * Estimate the rendered pixel height of a collapsed year card.
+ *
+ * A collapsed card shows the representative name (one line, or two when the name
+ * has a genus and epithet) plus an optional "+N more" line. The estimate feeds
+ * the lane spacing so collapsed cards in adjacent lanes do not overlap.
+ *
+ * Parameters
+ * ----------
+ * group : YearGroup
+ *     The year group whose collapsed card height is estimated.
+ *
+ * Returns
+ * -------
+ * number
+ *     Estimated card height in pixels.
+ */
+function estimateCollapsedCardPx(group: YearGroup): number {
+  const representative = group.accepted[0] ?? group.synonyms[0];
+  const nameLines = representative.name.trim().includes(" ") ? 2 : 1;
+  const moreLine = group.count > 1 ? 1 : 0;
+  return (nameLines + moreLine) * 18 + 24;
+}
+
+/**
+ * Greedily assign each item to a lane on its side so items sharing a lane never
+ * overlap along the axis.
+ *
+ * Each item keeps the side given by its index parity (even -> side 0, odd ->
+ * side 1). Within a side, an item that would overlap the previous item in lane 0
+ * is pushed out to lane 1, then lane 2, and so on, so only clustered items move
+ * away from the axis while spread-out items stay close. Items must be ordered by
+ * ascending center.
+ *
+ * Parameters
+ * ----------
+ * centers : number[]
+ *     Center of each item along the axis (years for horizontal, top pixels for
+ *     vertical).
+ * halves : number[]
+ *     Half-size of each item along the axis (half width in years, or half height
+ *     in pixels).
+ * gap : number
+ *     Minimum empty space, in the same units as ``centers``, between two items
+ *     sharing a lane.
+ *
+ * Returns
+ * -------
+ * { side: number; lane: number }[]
+ *     The side (0 or 1) and lane index (0 = closest to the axis) for each item.
+ */
+function assignLanes(
+  centers: number[],
+  halves: number[],
+  gap: number,
+): { side: number; lane: number }[] {
+  const laneEnds: [number[], number[]] = [[], []];
+  return centers.map((center, i) => {
+    const side = i % 2;
+    const lanes = laneEnds[side];
+    const start = center - halves[i];
+    let lane = lanes.findIndex((end) => end + gap <= start);
+    if (lane === -1) {
+      lane = lanes.length;
+      lanes.push(0);
+    }
+    lanes[lane] = center + halves[i];
+    return { side, lane };
+  });
 }
 
 /**
@@ -621,26 +700,37 @@ function VerticalCard({ group, isOpen, onToggle }: VerticalCardProps) {
   );
 }
 
-interface VerticalTimelineProps {
-  /** Year groups, oldest to newest. */
-  groups: YearGroup[];
-  /** Canonical group indices in display order (top to bottom). */
-  order: number[];
-  /** Indices (into groups) of currently expanded cards. */
-  expanded: Set<number>;
-  /** Callback to toggle the expanded state of the card at the given index. */
-  onToggle: (i: number) => void;
+/** A single laid-out vertical card with its axis position and side/column. */
+interface VerticalItem {
+  /** Canonical group index. */
+  ci: number;
+  /** Publication year (for keys and the dot label). */
+  year: number;
+  /** Pixel offset from the top of the axis to the card's center. */
+  top: number;
+  /** True when the card sits on the left of the axis. */
+  isLeft: boolean;
+  /** Horizontal distance in pixels from the axis to the card's near edge. */
+  dist: number;
+}
+
+/** The computed vertical-view layout: laid-out items and the canvas extent. */
+interface VerticalLayout {
+  items: VerticalItem[];
+  /** Total height of the axis area in pixels. */
+  totalHeight: number;
+  /** Total width needed to hold the farthest columns on both sides. */
+  totalWidth: number;
 }
 
 /**
- * Vertical CSS timeline for year-grouped taxonomy entries.
+ * Compute the absolute layout for the vertical timeline.
  *
- * Cards are positioned by their publication year along a central vertical axis
- * (a proportional time scale, matching the horizontal view), alternating left
- * and right. The axis length is fixed to the canvas height so the whole span
- * fits the view; clustered cards may overlap until zoomed in. Each year has a
- * black dot and a year label. Accepted-only years use square cards, synonym-only
- * years rounded cards, and mixed years a split square-over-rounded card.
+ * Cards sit at their publication year along a fixed-length proportional axis and
+ * alternate left and right. When two same-side cards would overlap vertically,
+ * the later one is pushed to a farther column (greedy lane packing) so clustered
+ * cards spread sideways instead of overlapping. The total width grows only when
+ * extra columns are needed.
  *
  * Parameters
  * ----------
@@ -650,28 +740,96 @@ interface VerticalTimelineProps {
  *     Canonical group indices in display order (top to bottom).
  * expanded : Set<number>
  *     Set of group indices whose cards are in the expanded state.
- * onToggle : (i: number) => void
- *     Callback invoked with the card index to toggle its expanded state.
+ *
+ * Returns
+ * -------
+ * VerticalLayout
+ *     The laid-out items plus the total height and width of the canvas.
  */
-function VerticalTimeline({ groups, order, expanded, onToggle }: VerticalTimelineProps) {
+function computeVerticalLayout(
+  groups: YearGroup[],
+  order: number[],
+  expanded: Set<number>,
+): VerticalLayout {
   const CENTER_WIDTH = 64;
+  const CARD_W = 300;
+  const columnStep = CARD_W + COLUMN_GAP_PX;
   const n = order.length;
+  if (n === 0) {
+    return { items: [], totalHeight: 0, totalWidth: VERTICAL_WIDTH };
+  }
+
   const years = order.map((ci) => groups[ci].year);
   const heights = order.map((ci) =>
     expanded.has(ci) ? estimateExpandedCardPx(groups[ci], CARD_WRAP_CHARS) : COLLAPSED_VERTICAL_PX,
   );
 
-  // Fixed-length axis: the whole span fits the canvas height, with positions
+  // Fixed-length axis: the whole span fits VERTICAL_AXIS_HEIGHT, with positions
   // still proportional to year. Padding reserves the end cards' half-heights so
-  // they do not clip. Clustered cards may overlap at base zoom; zoom in to
-  // separate them.
+  // they do not clip.
   const topPad = Math.max(28, heights[0] / 2 + 8);
   const bottomPad = Math.max(28, heights[n - 1] / 2 + 8);
   const span = Math.max(1, Math.abs(years[n - 1] - years[0]));
   const usable = Math.max(40, VERTICAL_AXIS_HEIGHT - topPad - bottomPad);
   const pxPerYear = usable / span;
   const totalHeight = topPad + span * pxPerYear + bottomPad;
-  const topOf = (d: number) => topPad + Math.abs(years[d] - years[0]) * pxPerYear;
+  const tops = years.map((y) => topPad + Math.abs(y - years[0]) * pxPerYear);
+
+  // Column packing: same-side cards that would overlap vertically move to a
+  // farther column (lane) instead of overlapping.
+  const laneOf = assignLanes(
+    tops,
+    heights.map((h) => h / 2),
+    COLUMN_Y_GAP_PX,
+  );
+  const maxLane = Math.max(0, ...laneOf.map((l) => l.lane));
+
+  const items: VerticalItem[] = order.map((ci, d) => ({
+    ci,
+    year: years[d],
+    top: tops[d],
+    isLeft: laneOf[d].side === 0,
+    dist: CENTER_WIDTH + laneOf[d].lane * columnStep,
+  }));
+  const totalWidth = 2 * (CENTER_WIDTH + maxLane * columnStep + CARD_W) + 24;
+
+  return { items, totalHeight, totalWidth };
+}
+
+interface VerticalTimelineProps {
+  /** Precomputed layout (positions, sides, columns, canvas extent). */
+  layout: VerticalLayout;
+  /** Year groups (indexed by the items' canonical indices). */
+  groups: YearGroup[];
+  /** Indices (into groups) of currently expanded cards. */
+  expanded: Set<number>;
+  /** Callback to toggle the expanded state of the card at the given index. */
+  onToggle: (i: number) => void;
+}
+
+/**
+ * Vertical CSS timeline for year-grouped taxonomy entries.
+ *
+ * Renders the cards from a precomputed layout. Cards sit by publication year
+ * along a central vertical axis (a proportional time scale, matching the
+ * horizontal view), alternating left and right, with clustered cards spread into
+ * farther columns so they do not overlap. Each year has a black dot and a year
+ * label. Accepted-only years use square cards, synonym-only years rounded cards,
+ * and mixed years a split square-over-rounded card.
+ *
+ * Parameters
+ * ----------
+ * layout : VerticalLayout
+ *     Precomputed item positions and canvas extent from computeVerticalLayout.
+ * groups : YearGroup[]
+ *     Year groups, indexed by each item's canonical index.
+ * expanded : Set<number>
+ *     Set of group indices whose cards are in the expanded state.
+ * onToggle : (i: number) => void
+ *     Callback invoked with the card index to toggle its expanded state.
+ */
+function VerticalTimeline({ layout, groups, expanded, onToggle }: VerticalTimelineProps) {
+  const { items, totalHeight } = layout;
 
   return (
     <div style={{ position: "relative", height: totalHeight }}>
@@ -707,16 +865,17 @@ function VerticalTimeline({ groups, order, expanded, onToggle }: VerticalTimelin
         />
       ))}
 
-      {order.map((ci, d) => {
+      {items.map((item) => {
+        const { ci } = item;
         const group = groups[ci];
-        const isLeft = d % 2 === 0;
+        const isLeft = item.isLeft;
         const isOpen = expanded.has(ci);
-        const top = topOf(d);
-        const cardEdge = `calc(50% + ${CENTER_WIDTH}px)`;
+        const top = item.top;
+        const cardEdge = `calc(50% + ${item.dist}px)`;
 
         return (
           <div key={`year-${group.year}-${ci}`}>
-            {/* Dashed connector from the central axis to this card */}
+            {/* Dashed connector from the central axis to this card's near edge */}
             <div
               aria-hidden
               style={{
@@ -724,7 +883,7 @@ function VerticalTimeline({ groups, order, expanded, onToggle }: VerticalTimelin
                 top,
                 left: isLeft ? undefined : "50%",
                 right: isLeft ? "50%" : undefined,
-                width: CENTER_WIDTH,
+                width: item.dist,
                 borderTop: "1px dashed #bdc3c7",
                 zIndex: 0,
               }}
@@ -1085,7 +1244,6 @@ export function TimelineView() {
     // groups is sorted ascending by year, with one (distinct) year per group.
     const n = groups.length;
     const years = groups.map((g) => g.year);
-    const yPos = groups.map((_, i) => (i % 2 === 0 ? 0.5 : -0.5));
 
     // Estimated rendered width of each card, used to reserve room for the end
     // cards so they sit fully inside the axis.
@@ -1109,17 +1267,27 @@ export function TimelineView() {
     const axisMax = yearMax + (widths[n - 1] / 2 + END_PAD_PX) / pxPerYear;
     const minWidth = canvasWidth;
 
-    // Grow the plot height so the two lanes sit far enough apart that the
-    // tallest expanded card cannot overlap a card on the opposite lane. Lanes
-    // are at y = ±0.5 within a 2.0-unit range (see the yaxis below), so the
-    // pixel gap between them is height / 2; keep that above the tallest card.
-    // The range hugs the lanes (±1.0) so there is little empty margin top/bottom.
-    const tallestCard = groups.reduce(
-      (max, g, i) =>
-        expanded.has(i) ? Math.max(max, estimateExpandedCardPx(g, CARD_WRAP_CHARS)) : max,
-      0,
+    // Lane packing: cards alternate top/bottom by year order, but a card that
+    // would overlap its same-side neighbour is pushed to a further lane instead
+    // of overlapping. Only clustered cards move out; spread-out cards stay close
+    // to the axis. The plot grows taller as more lanes are needed.
+    const cardHeights = groups.map((g, i) =>
+      expanded.has(i) ? estimateExpandedCardPx(g, CARD_WRAP_CHARS) : estimateCollapsedCardPx(g),
     );
-    const plotHeight = Math.min(1600, Math.max(480, Math.ceil(2.3 * tallestCard)));
+    const tallestCard = Math.max(60, ...cardHeights);
+    const halfYears = widths.map((w) => w / 2 / pxPerYear);
+    const laneOf = assignLanes(years, halfYears, LANE_X_GAP_PX / pxPerYear);
+    const maxLane = Math.max(0, ...laneOf.map((l) => l.lane));
+
+    // One lane step is the tallest card plus a gap; lane k centers sit at
+    // ±(k + 0.5) steps from the axis, so neighbours clear by a full step and the
+    // two innermost lanes leave a gap around the year labels. The y unit is one
+    // lane step, so the axis range is ±(maxLane + 1) and the pixel height makes
+    // one unit equal one lane step (plus the 50px top/bottom margins).
+    const laneStepPx = tallestCard + LANE_GAP_PX;
+    const yRange = maxLane + 1;
+    const yPos = laneOf.map((l) => (l.side === 0 ? 1 : -1) * (l.lane + 0.5));
+    const plotHeight = Math.min(8000, Math.max(360, Math.round(2 * yRange * laneStepPx + 50)));
 
     const shapes: Partial<Layout>["shapes"] = [
       {
@@ -1238,7 +1406,7 @@ export function TimelineView() {
         showticklabels: false,
         fixedrange: true,
       },
-      yaxis: { visible: false, range: [-1, 1], fixedrange: true },
+      yaxis: { visible: false, range: [-yRange, yRange], fixedrange: true },
       plot_bgcolor: "white",
       paper_bgcolor: "white",
       showlegend: false,
@@ -1250,14 +1418,39 @@ export function TimelineView() {
     return { data, layout, annotationIndex, minWidth };
   }, [groups, expanded, yearOrder, canvasWidth]);
 
+  // Absolute layout for the vertical view (positions, sides, columns, and the
+  // canvas width, which grows when clustered cards spill into extra columns).
+  const verticalLayout = useMemo(
+    () => computeVerticalLayout(groups, order, expanded),
+    [groups, order, expanded],
+  );
+
+  // Natural (unscaled) width of the active view. Horizontal uses the computed
+  // timeline width; vertical uses the width its columns need on both sides.
+  const contentWidth =
+    orientation === "horizontal" ? figure?.minWidth ?? 600 : verticalLayout.totalWidth;
+
+  // Keep the axis centered in the scrollable canvas: horizontally for the
+  // vertical view (its columns can be wider than the viewport) and vertically
+  // for the horizontal view (its lanes can be taller than the viewport). Runs on
+  // a layout change so both sides of the axis are equally visible on load.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    if (orientation === "vertical") {
+      // Center the axis horizontally; start at the top (oldest year).
+      el.scrollLeft = Math.max(0, (el.scrollWidth - el.clientWidth) / 2);
+      el.scrollTop = 0;
+    } else {
+      // Center the axis vertically; start at the left (oldest year).
+      el.scrollTop = Math.max(0, (el.scrollHeight - el.clientHeight) / 2);
+      el.scrollLeft = 0;
+    }
+  }, [orientation, contentWidth, naturalHeight]);
+
   if (records.length === 0) {
     return <Text c="dimmed">No results to plot.</Text>;
   }
-
-  // Natural (unscaled) width of the active view. Horizontal uses the computed
-  // timeline width; vertical uses a fixed width holding cards on both sides.
-  const contentWidth =
-    orientation === "horizontal" ? figure?.minWidth ?? 600 : VERTICAL_WIDTH;
 
   return (
     <>
@@ -1350,8 +1543,8 @@ export function TimelineView() {
                     )
                   ) : (
                     <VerticalTimeline
+                      layout={verticalLayout}
                       groups={groups}
-                      order={order}
                       expanded={expanded}
                       onToggle={toggleCard}
                     />
