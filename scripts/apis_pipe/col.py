@@ -147,26 +147,36 @@ class COLAPI(SpeciesAPI):
         if accepted is not None:
             return accepted
 
-        # Slow path: query was a synonym — fetch accepted taxon by ID
+        # Slow path: query was a synonym — fetch accepted taxon by ID.
+        # The /taxon/{id} response does not include classification, so we fetch
+        # it separately and attach it so _extract_taxonomy can find it.
         try:
             accepted_id = self._extract_internal_accepted_id(results)
             taxon = self._fetch_JSON(
                 f"{self.BASE_URL}/dataset/{self.DATASET_KEY}/taxon/{accepted_id}",
             )
-            return taxon if taxon else {}  # TODO: add error handling for empty taxon
+            if not taxon:  # TODO: add error handling for empty taxon
+                return {}
+            # Get and append classification information separately, as it is not returned by taxon/accepted_id
+            classification = self._fetch_JSON(
+                f"{self.BASE_URL}/dataset/{self.DATASET_KEY}/taxon/{accepted_id}/classification",
+            )
+            taxon["classification"] = (
+                classification if isinstance(classification, list) else []
+            )
+            return taxon
         except LookupError:
             # TODO: add error handling for this case
             return {}
 
-    def _extract_classification(self, data: dict) -> dict[str, str]:
+    def _extract_taxonomy(self, data: dict) -> dict[str, str]:
         """
-        Extract a rank-to-name mapping from classification data embedded in a
-        COL name-usage record.
+        Extract kingdom, phylum, class, family, and subfamily from a COL
+        name-usage record.
 
-        Searches for a ``"classification"`` list under the ``"usage"`` wrapper
-        (nameusage/search results) and at the top level (direct /taxon/{id}
-        records). Each entry is expected to have ``"rank"`` and ``"name"`` keys,
-        e.g. ``{"name": "Fagales", "rank": "order", "authorship": "Engl."}``.
+        Locates the ``"classification"`` list under the ``"usage"`` wrapper
+        (nameusage/search results) or at the top level (direct /taxon/{id}
+        records), then delegates to the base ``_extract_taxonomy`` helper.
 
         Parameters
         ----------
@@ -176,16 +186,12 @@ class COLAPI(SpeciesAPI):
         Returns
         -------
         dict[str, str]
-            Mapping of lowercase rank name to taxon name, e.g.
-            ``{"kingdom": "Plantae", "family": "Fagaceae"}``.
+            Keys are ``"kingdom"``, ``"phylum"``, ``"class_"``, ``"family"``,
+            and ``"subfamily"``.
         """
         usage = data.get("usage") or data
         classification = usage.get("classification") or data.get("classification", [])
-        return {
-            item.get("rank", "").lower(): item.get("name", "")
-            for item in classification
-            if item.get("rank") and item.get("name")
-        }
+        return super()._extract_taxonomy(classification)
 
     def _compile_synonym_search_term(
         self, synonym_search_term_data: dict
@@ -214,14 +220,10 @@ class COLAPI(SpeciesAPI):
             return []
         taxon_id = synonym_search_term_data.get("id", "")
         genus, species = self._extract_genus_species(sci_name)
-        classification = self._extract_classification(synonym_search_term_data)
+        classification = self._extract_taxonomy(synonym_search_term_data)
         row_kwargs = {
             "api_name": COL_PORTAL.display_name,
-            "kingdom": classification.get("kingdom", ""),
-            "phylum": classification.get("phylum", ""),
-            "class_": classification.get("class", ""),
-            "family": classification.get("family", ""),
-            "subfamily": classification.get("subfamily", ""),
+            **classification,
             "genus": genus,
             "species": species,
             "api_internal_id": str(taxon_id),
@@ -233,7 +235,7 @@ class COLAPI(SpeciesAPI):
                 else ""
             ),
         }
-        status = usage.get("status", "").lower().capitalize()
+        status = self._extract_status(usage.get("status", ""))
         if status:
             row_kwargs["status"] = status
         return [self._format_row(**row_kwargs)]
@@ -275,7 +277,7 @@ class COLAPI(SpeciesAPI):
                     else ""
                 ),
             }
-            status = s.get("status", "").lower().capitalize()
+            status = self._extract_status(s.get("status", ""))
             if status:
                 row_kwargs["status"] = status
             candidates.append(self._format_row(**row_kwargs))

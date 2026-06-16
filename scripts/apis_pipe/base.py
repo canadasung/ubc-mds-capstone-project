@@ -239,7 +239,9 @@ class SpeciesAPI(ABC):
         str
             Four-digit year string, or ``""`` if not found.
         """
-        return "Not yet implemented"
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement _extract_publication_year()."
+        )
 
     def _extract_author(self, string: str) -> str:
         """
@@ -255,28 +257,9 @@ class SpeciesAPI(ABC):
         str
             The authorship string (e.g. ``"(L.) Lam."``), or ``""`` if not found.
         """
-        return "Not yet implemented"
-
-    def _extract_original_author(self, string: str) -> str:
-        """
-        Extract the original authorship string from a scientific name.
-
-        The original author is the taxonomist who first formally described the
-        taxon, typically shown in parentheses when the name has been subsequently
-        combined (e.g. the ``"L."`` in ``"(L.) Lam."``).
-
-        Parameters
-        ----------
-        string : str
-            A scientific name string that may include a basionym authorship
-            component.
-
-        Returns
-        -------
-        str
-            The original authorship string, or ``""`` if not found.
-        """
-        return "Not yet implemented"
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement _extract_author()."
+        )
 
     def _extract_publication_name(self, string: str) -> str:
         """
@@ -292,7 +275,66 @@ class SpeciesAPI(ABC):
         str
             The publication name string, or ``""`` if not found.
         """
-        return "Not yet implemented"
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement _extract_publication_name()."
+        )
+
+    def _extract_status(self, string: str) -> str:
+        """
+        Map a raw status string to the schema's ``"Accepted"`` or ``"Synonym"``
+        values by checking for those substrings.
+
+        Parameters
+        ----------
+        string : str
+            A raw status string from an API response, e.g. ``"accepted"``,
+            ``"accepted name"``, ``"ambiguous synonym"``.
+
+        Returns
+        -------
+        str
+            ``"Accepted"``, ``"Synonym"``, or ``""`` if neither substring is found.
+        """
+        lower = string.lower()
+        if "accepted" in lower:
+            return "Accepted"
+        if "synonym" in lower:
+            return "Synonym"
+        return ""
+
+    def _extract_taxonomy(self, classification: list[dict]) -> dict[str, str]:
+        """
+        Extract kingdom, phylum, class, family, and subfamily from a list of
+        rank-tagged classification entries.
+
+        Each entry is expected to have ``"rank"`` and ``"name"`` keys,
+        e.g. ``{"name": "Fagales", "rank": "order", "authorship": "Engl."}``.
+        Rank matching is case-insensitive.
+
+        Parameters
+        ----------
+        classification : list of dict
+            List of rank-tagged entries from an API classification response.
+
+        Returns
+        -------
+        dict[str, str]
+            Keys are ``"kingdom"``, ``"phylum"``, ``"class_"``, ``"family"``,
+            and ``"subfamily"``, with values from the classification list or
+            ``""`` when a rank is absent.
+        """
+        rank_map = {
+            item.get("rank", "").lower(): item.get("name", "")
+            for item in classification
+            if item.get("rank") and item.get("name")
+        }
+        return {
+            "kingdom": rank_map.get("kingdom", ""),
+            "phylum": rank_map.get("phylum", ""),
+            "class_": rank_map.get("class", ""),
+            "family": rank_map.get("family", ""),
+            "subfamily": rank_map.get("subfamily", ""),
+        }
 
     def _extract_genus_species(self, name: str) -> tuple[str, str]:
         """
@@ -455,9 +497,9 @@ class SpeciesAPI(ABC):
         NotImplementedError
             When the child class has not provided an implementation.
         """
-        # update print statement
+        # TODO: update print statement
         raise NotImplementedError(
-            f"{type(self).__name__} does not implement _get_accepted_id()."
+            f"{type(self).__name__} does not implement _extract_internal_accepted_id()."
         )
 
     # ------------------------------------------------------------------
