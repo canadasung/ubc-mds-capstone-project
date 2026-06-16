@@ -615,13 +615,19 @@ class SpeciesAPI(ABC):
         raw_data = self._fetch_query_data(name)
         if self._is_empty(raw_data):
             return empty_synonym_table()
+        print("raw_data")
+        print(raw_data)
 
         synonym_data = self._fetch_synonym_data(raw_data)
+        print("synonym_data")
+        print(synonym_data)
 
         # `synonym_search_term_data` is the data for the search term of `_fetch_synonym_data`, either the accepted ID or the original query ID, depending on the API. For APIs that must resolve to the accepted name to access synonyms, this will be the accepted ID, but for those that do not need to resolve, this will be the original query ID. While some APIs may include the search term's data in the synonym search response, others may not, so this step ensures that we have the search term's data regardless of the API's structure.
         synonym_search_term_data = self._fetch_synonym_search_term_data(
             raw_data, synonym_data
         )
+        print("synonym_search_term_data")
+        print(synonym_search_term_data)
 
         search_term = []
         synonyms = []

@@ -4,10 +4,10 @@ Catalogue of Life API client.
 SpeciesAPI implementation for the Catalogue of Life (COL), served via the ChecklistBank API. COL is a global taxonomic checklist that provides accepted names and synonymies.
 """
 
+from scripts.config import COL_PORTAL
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from scripts.config import COL_PORTAL
 
 
 class COLAPI(SpeciesAPI):
@@ -158,6 +158,35 @@ class COLAPI(SpeciesAPI):
             # TODO: add error handling for this case
             return {}
 
+    def _extract_classification(self, data: dict) -> dict[str, str]:
+        """
+        Extract a rank-to-name mapping from classification data embedded in a
+        COL name-usage record.
+
+        Searches for a ``"classification"`` list under the ``"usage"`` wrapper
+        (nameusage/search results) and at the top level (direct /taxon/{id}
+        records). Each entry is expected to have ``"rank"`` and ``"name"`` keys,
+        e.g. ``{"name": "Fagales", "rank": "order", "authorship": "Engl."}``.
+
+        Parameters
+        ----------
+        data : dict
+            A COL name-usage record (either search result or direct taxon record).
+
+        Returns
+        -------
+        dict[str, str]
+            Mapping of lowercase rank name to taxon name, e.g.
+            ``{"kingdom": "Plantae", "family": "Fagaceae"}``.
+        """
+        usage = data.get("usage") or data
+        classification = usage.get("classification") or data.get("classification", [])
+        return {
+            item.get("rank", "").lower(): item.get("name", "")
+            for item in classification
+            if item.get("rank") and item.get("name")
+        }
+
     def _compile_synonym_search_term(
         self, synonym_search_term_data: dict
     ) -> list[dict]:
@@ -185,21 +214,29 @@ class COLAPI(SpeciesAPI):
             return []
         taxon_id = synonym_search_term_data.get("id", "")
         genus, species = self._extract_genus_species(sci_name)
-        return [
-            self._format_row(
-                api_name=COL_PORTAL.display_name,
-                genus=genus,
-                species=species,
-                api_internal_id=str(taxon_id),
-                author=name_obj.get("authorship", ""),
-                # source_name=name_obj.get("link", ""),
-                api_link=(
-                    f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"
-                    if taxon_id
-                    else ""
-                ),
-            )
-        ]
+        classification = self._extract_classification(synonym_search_term_data)
+        row_kwargs = {
+            "api_name": COL_PORTAL.display_name,
+            "kingdom": classification.get("kingdom", ""),
+            "phylum": classification.get("phylum", ""),
+            "class_": classification.get("class", ""),
+            "family": classification.get("family", ""),
+            "subfamily": classification.get("subfamily", ""),
+            "genus": genus,
+            "species": species,
+            "api_internal_id": str(taxon_id),
+            "author": name_obj.get("authorship", ""),
+            "source_name": name_obj.get("link", ""),
+            "api_link": (
+                f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"
+                if taxon_id
+                else ""
+            ),
+        }
+        status = usage.get("status", "").lower().capitalize()
+        if status:
+            row_kwargs["status"] = status
+        return [self._format_row(**row_kwargs)]
 
     def _compile_synonyms(self, synonym_data: list) -> list[dict]:
         """
@@ -225,20 +262,22 @@ class COLAPI(SpeciesAPI):
             seen.add(syn_name)
             taxon_id = s.get("id", "")
             genus, species = self._extract_genus_species(syn_name)
-            candidates.append(
-                self._format_row(
-                    api_name=COL_PORTAL.display_name,
-                    genus=genus,
-                    species=species,
-                    api_internal_id=str(taxon_id),
-                    author=name_obj.get("authorship", ""),
-                    # source_name=name_obj.get("link", ""),
-                    api_link=(
-                        f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"  # TODO: while we do have unique taxon_id for each synonym, they all route to the same page for "accepted" name. Likely desired behavior, but double check against API documentation to confirm that this is expected.
-                        if taxon_id
-                        else ""
-                    ),
-                )
-            )
+            row_kwargs = {
+                "api_name": COL_PORTAL.display_name,
+                "genus": genus,
+                "species": species,
+                "api_internal_id": str(taxon_id),
+                "author": name_obj.get("authorship", ""),
+                "source_name": name_obj.get("link", ""),
+                "api_link": (
+                    f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"  # TODO: while we do have unique taxon_id for each synonym, they all route to the same page for "accepted" name. Likely desired behavior, but double check against API documentation to confirm that this is expected.
+                    if taxon_id
+                    else ""
+                ),
+            }
+            status = s.get("status", "").lower().capitalize()
+            if status:
+                row_kwargs["status"] = status
+            candidates.append(self._format_row(**row_kwargs))
 
         return candidates
