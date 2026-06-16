@@ -19,6 +19,7 @@ import {
   Anchor,
   Group,
   Loader,
+  Select,
   Stack,
   Switch,
   Table,
@@ -33,7 +34,9 @@ import { fullLabelForKey, keyForApiName, labelForKey } from "@/lib/sources";
 import {
   cellValue,
   computeShading,
-  SHADE_PALETTE,
+  DEFAULT_BACKBONE,
+  DIFF_PALETTE,
+  MATCH_SHADE,
   type CellShade,
 } from "@/lib/taxonomyShading";
 import type { TaxonomyRow } from "@/lib/types";
@@ -46,6 +49,10 @@ export function TaxonomyView() {
 
   // Whether to shade cells by disagreement. Resets to on when the view remounts.
   const [highlight, setHighlight] = useState(true);
+
+  // Source treated as the taxonomic "truth" backbone — the reference every
+  // shaded cell is compared against. GBIF by default, user-selectable below.
+  const [backbone, setBackbone] = useState(DEFAULT_BACKBONE);
 
   // Outbound link per source, taken from the search records (the taxonomy
   // endpoint carries no URLs). Prefer the "Accepted" row's link so it points at
@@ -63,13 +70,15 @@ export function TaxonomyView() {
 
   // Filter sources to the active set, drop now-empty ranks, then shade each cell
   // by edit distance from its column reference.
-  const { sources, ranks, shading, disagreements } = useMemo(() => {
+  const { sources, ranks, shading, disagreements, effectiveBackbone } =
+    useMemo(() => {
     if (!data) {
       return {
         sources: [] as TaxonomyRow[],
         ranks: [] as string[],
         shading: new Map<string, Map<string, CellShade | null>>(),
         disagreements: [] as string[],
+        effectiveBackbone: backbone,
       };
     }
 
@@ -87,8 +96,17 @@ export function TaxonomyView() {
       filtered.some((row) => cellValue(row, r) !== ""),
     );
 
-    // reference for Genus/Species is the (normalised) query the backend echoed
-    const shading = computeShading(filtered, presentRanks, data.query);
+    // Resolve the backbone to a source that's actually visible. If the chosen
+    // one was filtered out, fall back to GBIF, then the first visible source.
+    const visibleKeys = filtered.map((row) => keyForApiName(row.source));
+    const effectiveBackbone = visibleKeys.includes(backbone)
+      ? backbone
+      : visibleKeys.includes(DEFAULT_BACKBONE)
+        ? DEFAULT_BACKBONE
+        : visibleKeys[0] ?? backbone;
+
+    // shade the higher ranks against the chosen backbone source
+    const shading = computeShading(filtered, presentRanks, effectiveBackbone);
 
     // A rank is a disagreement when the displayed sources hold 2+ distinct
     // (case-insensitive, non-empty) values for it. Recomputed here rather than
@@ -102,8 +120,24 @@ export function TaxonomyView() {
       return distinct.size > 1;
     });
 
-    return { sources: filtered, ranks: presentRanks, shading, disagreements };
-  }, [data, keys, queriedSources]);
+    return {
+      sources: filtered,
+      ranks: presentRanks,
+      shading,
+      disagreements,
+      effectiveBackbone,
+    };
+  }, [data, keys, queriedSources, backbone]);
+
+  // Options for the backbone picker: every visible source, keyed by source key.
+  const backboneOptions = useMemo(
+    () =>
+      sources.map((row) => {
+        const key = keyForApiName(row.source);
+        return { value: key, label: labelForKey(key) };
+      }),
+    [sources],
+  );
 
   if (isLoading) return <Loader />;
   if (isError || !data) {
@@ -195,6 +229,17 @@ export function TaxonomyView() {
         </Table>
       </Table.ScrollContainer>
 
+      <Select
+        label="Truth backbone"
+        description="Source treated as the reference for Kingdom, Phylum, Class & Family."
+        data={backboneOptions}
+        value={effectiveBackbone}
+        onChange={(v) => v && setBackbone(v)}
+        allowDeselect={false}
+        maw={260}
+        mt="md"
+      />
+
       {highlight && <ShadingLegend />}
     </>
   );
@@ -229,7 +274,7 @@ function DisagreementSummary({
   );
 }
 
-/** Explains the white → blue gradient under the table. */
+/** Explains the backbone-relative blue shading under the table. */
 function ShadingLegend() {
   const levels: Array<{ level: 1 | 2 | 3 | 4; label: string }> = [
     { level: 1, label: "1" },
@@ -238,31 +283,38 @@ function ShadingLegend() {
     { level: 4, label: "8+" },
   ];
 
+  const chip = (style: CellShade, label: string) => (
+    <span
+      style={{
+        ...style,
+        fontSize: 13,
+        padding: "1px 6px",
+        borderRadius: 3,
+        border: "1px solid rgba(0,0,0,0.1)",
+      }}
+    >
+      {label}
+    </span>
+  );
+
   return (
     <Stack gap={6} mt="md">
       <Text size="sm" c="dimmed">
-        Cell colour = character edit distance from the reference (Genus &amp;
-        Species: your search query; other ranks: GBIF). White = matches the
-        reference.
+        Only Kingdom, Phylum, Class &amp; Family are shaded. The backbone source
+        and any source matching it are very light blue; cells that differ are a
+        darker blue by character edit distance from the backbone.
       </Text>
 
       <Group gap={6} wrap="nowrap">
         <Text size="sm" fw={600}>
+          Match:
+        </Text>
+        {chip(MATCH_SHADE, "backbone / same")}
+        <Text size="sm" fw={600} ml="md">
           Edit distance:
         </Text>
         {levels.map(({ level, label }) => (
-          <span
-            key={level}
-            style={{
-              ...SHADE_PALETTE[level],
-              fontSize: 13,
-              padding: "1px 6px",
-              borderRadius: 3,
-              border: "1px solid rgba(0,0,0,0.1)",
-            }}
-          >
-            {label}
-          </span>
+          <span key={level}>{chip(DIFF_PALETTE[level], label)}</span>
         ))}
       </Group>
     </Stack>

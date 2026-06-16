@@ -1,19 +1,18 @@
 /**
  * Per-cell shading for the Taxonomic view.
  *
- * Instead of turning a whole rank column red when sources disagree, each cell is
- * shaded by how far its value is (character edit distance) from that column's
- * reference value:
+ * Only the higher ranks — Kingdom, Phylum, Class, Family — are shaded. Genus and
+ * Species are never shaded (they're shown as plain text).
  *
- *   - Genus / Species → the SEARCH QUERY is the reference (these are the only
- *     ranks the query names). The query "Amanita muscaria" → genus "Amanita",
- *     species "muscaria".
- *   - every other rank → GBIF's value is the reference (the taxonomic backbone).
- *     If GBIF is not in the visible set, the first visible source is used.
+ * For the shaded ranks a single source is treated as the "truth" backbone
+ * (GBIF by default, but user-selectable). Each cell is coloured by how far its
+ * value is (character edit distance) from the backbone's value for that rank:
  *
- * A cell that matches the reference stays white. Cells that differ are shaded on
- * a single blue gradient by their edit distance from the reference — the further
- * the value, the darker the blue.
+ *   - the backbone's own cell, and any source whose value MATCHES it, are shown
+ *     in a very light blue.
+ *   - cells that DIFFER are shown in a darker shade of blue, the further the
+ *     value the darker the blue.
+ *   - empty cells, and every cell in an unshaded rank, stay white.
  *
  * All logic here is pure so it can be unit-tested without React.
  */
@@ -25,6 +24,17 @@ export interface CellShade {
   backgroundColor: string;
   color: string;
 }
+
+/** Ranks that get shaded. Genus/Species are intentionally excluded. */
+export const SHADED_RANKS: ReadonlySet<string> = new Set([
+  "Kingdom",
+  "Phylum",
+  "Class",
+  "Family",
+]);
+
+/** Default backbone source key (the taxonomic "truth" value). */
+export const DEFAULT_BACKBONE = "gbif";
 
 /** Levenshtein edit distance between two strings (insert/delete/substitute). */
 export function levenshtein(a: string, b: string): number {
@@ -52,24 +62,33 @@ export function levenshtein(a: string, b: string): number {
 }
 
 /**
- * Bucket an edit distance into a shade level 0–4:
- *   0 → white, 1 → lightest, 2–5 → mid, 6–7 → dark, 8+ → darkest.
+ * Bucket a (non-zero) edit distance into a difference level 1–4:
+ *   1 → 1, 2 → 2–5, 3 → 6–7, 4 → 8+.
  */
-export function distanceLevel(d: number): 0 | 1 | 2 | 3 | 4 {
-  if (d <= 0) return 0;
-  if (d === 1) return 1;
+export function distanceLevel(d: number): 1 | 2 | 3 | 4 {
+  if (d <= 1) return 1;
   if (d <= 5) return 2;
   if (d <= 7) return 3;
   return 4;
 }
 
 /**
- * Blue palette indexed by shade level 1–4 (level 0 is white = no shade).
- * Text colour is chosen for contrast against each background.
+ * The very light blue used for the backbone cell and for any source that
+ * matches it (edit distance 0).
  */
-export const SHADE_PALETTE: Record<1 | 2 | 3 | 4, CellShade> = {
-  1: { backgroundColor: "#d7e9fb", color: "#1a1a1a" },
-  2: { backgroundColor: "#6aa6e0", color: "#ffffff" },
+export const MATCH_SHADE: CellShade = {
+  backgroundColor: "#eef5fd",
+  color: "#1a1a1a",
+};
+
+/**
+ * Blue palette for cells that DIFFER from the backbone, indexed by difference
+ * level 1–4. All shades are darker than MATCH_SHADE so a distance-1 difference
+ * is still distinguishable from a match. Text colour is chosen for contrast.
+ */
+export const DIFF_PALETTE: Record<1 | 2 | 3 | 4, CellShade> = {
+  1: { backgroundColor: "#9dc3ee", color: "#1a1a1a" },
+  2: { backgroundColor: "#5d9add", color: "#ffffff" },
   3: { backgroundColor: "#2f64ad", color: "#ffffff" },
   4: { backgroundColor: "#15356e", color: "#ffffff" },
 };
@@ -82,28 +101,21 @@ export function cellValue(row: TaxonomyRow, rank: string): string {
   return v == null || v === "" ? "" : String(v);
 }
 
-/** Split a normalised query ("Amanita muscaria") into genus + species epithet. */
-function queryParts(query: string): { genus: string; species: string } {
-  const [genus = "", species = ""] = query.trim().split(/\s+/);
-  return { genus, species };
-}
-
 /**
- * The reference value a column is compared against (already trimmed, original
- * case). Genus/Species come from the query; other ranks come from GBIF, falling
- * back to the first visible source, then the first non-empty cell.
+ * The reference value a shaded column is compared against (trimmed, original
+ * case): the backbone source's value, falling back to the first visible source
+ * with a non-empty value when the backbone has none.
  */
 export function columnReference(
   rank: string,
   rows: TaxonomyRow[],
-  query: string,
+  backbone: string,
 ): string {
-  if (rank === "Genus") return queryParts(query).genus;
-  if (rank === "Species") return queryParts(query).species;
+  if (!SHADED_RANKS.has(rank)) return "";
 
-  const gbif = rows.find((r) => keyForApiName(r.source) === "gbif");
-  const fromGbif = gbif ? cellValue(gbif, rank) : "";
-  if (fromGbif) return fromGbif;
+  const backboneRow = rows.find((r) => keyForApiName(r.source) === backbone);
+  const fromBackbone = backboneRow ? cellValue(backboneRow, rank) : "";
+  if (fromBackbone) return fromBackbone;
 
   for (const r of rows) {
     const v = cellValue(r, rank);
@@ -114,8 +126,9 @@ export function columnReference(
 
 /**
  * Compute the shade for every cell in one rank column, keyed by row source.
- * Returns null for a cell when it should stay white (matches the reference, is
- * empty, or there is no usable reference).
+ * Returns null for a cell when it should stay white (unshaded rank, empty cell,
+ * or no usable reference). A cell that matches the reference gets MATCH_SHADE;
+ * a cell that differs gets DIFF_PALETTE keyed by its edit distance.
  */
 export function shadeColumn(
   rows: TaxonomyRow[],
@@ -124,31 +137,37 @@ export function shadeColumn(
 ): Map<string, CellShade | null> {
   const result = new Map<string, CellShade | null>();
   const refNorm = norm(reference);
+  const shaded = SHADED_RANKS.has(rank) && refNorm !== "";
 
   for (const row of rows) {
     const raw = cellValue(row, rank);
-    const v = norm(raw);
-    if (!raw || !refNorm || v === refNorm) {
+    if (!shaded || !raw) {
       result.set(row.source, null); // white
       continue;
     }
-    const level = distanceLevel(levenshtein(v, refNorm));
-    result.set(row.source, level === 0 ? null : SHADE_PALETTE[level]);
+    const v = norm(raw);
+    if (v === refNorm) {
+      result.set(row.source, MATCH_SHADE); // backbone + matches → light blue
+      continue;
+    }
+    result.set(row.source, DIFF_PALETTE[distanceLevel(levenshtein(v, refNorm))]);
   }
   return result;
 }
 
 /**
  * Shade an entire taxonomy table: rank → (source → shade|null).
+ *
+ * @param backbone source key treated as the truth value (default GBIF).
  */
 export function computeShading(
   rows: TaxonomyRow[],
   ranks: string[],
-  query: string,
+  backbone: string = DEFAULT_BACKBONE,
 ): Map<string, Map<string, CellShade | null>> {
   const byRank = new Map<string, Map<string, CellShade | null>>();
   for (const rank of ranks) {
-    const reference = columnReference(rank, rows, query);
+    const reference = columnReference(rank, rows, backbone);
     byRank.set(rank, shadeColumn(rows, rank, reference));
   }
   return byRank;
