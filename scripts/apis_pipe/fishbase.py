@@ -22,8 +22,9 @@ Subspecific names (SpeciesName containing a space) and misspellings
 import re
 from urllib.parse import unquote_plus
 
-from .base import SpeciesAPI
 from scripts.config import FISHBASE_PORTAL
+
+from .base import SpeciesAPI
 
 
 class FishBaseAPI(SpeciesAPI):
@@ -254,19 +255,20 @@ class FishBaseAPI(SpeciesAPI):
             seen.add(name)
             author_raw = params.get("Author", "")
             spec_code = params.get("SpecCode", "")
-            status = self._extract_status(params.get("Status", ""))
-            row_kwargs = {
-                "api_name": FISHBASE_PORTAL.display_name,
-                "genus": genus,
-                "species": species,
-                "api_internal_id": spec_code,
-                "author": self._extract_author(author_raw),
-                "publication_year": self._extract_publication_year(author_raw),
-                "api_link": f"{self.BASE_URL}/nomenclature/{spec_code}"
-                if spec_code
-                else "",  # TODO: note that the individual synonyms do have their own detail pages in fishbase, but with a different more complicated URL. This URL goes to a table showing all the synonyms for the accepted name
-            }
-            if status:
-                row_kwargs["status"] = status
-            candidates.append(self._format_row(**row_kwargs))
+            candidates.append(
+                self._format_row(
+                    **{
+                        "api_name": FISHBASE_PORTAL.display_name,
+                        "genus": genus,
+                        "species": species,
+                        "api_internal_id": spec_code,
+                        "author": self._extract_author(author_raw),
+                        "publication_year": self._extract_publication_year(author_raw),
+                        "status": self._extract_status(params.get("Status", "")),
+                        "api_link": f"{self.BASE_URL}/nomenclature/{spec_code}"
+                        if spec_code
+                        else "",  # TODO: note that the individual synonyms do have their own detail pages in fishbase, but with a different more complicated URL. This URL goes to a table showing all the synonyms for the accepted name
+                    }
+                )
+            )
         return candidates

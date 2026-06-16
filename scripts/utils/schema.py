@@ -29,6 +29,7 @@ SYNONYM_COLUMNS = [
 _STATUS_VALUES = {
     "Accepted",
     "Synonym",
+    "",
     UNAVAILABLE,
 }
 
@@ -161,7 +162,7 @@ def _validate_api_link(v: str) -> None:
     ValueError
         If ``v`` does not start with ``http://`` or ``https://`` and is not equal to ``UNAVAILABLE``.
     """
-    if v != UNAVAILABLE and not re.match(r"https?://", v):
+    if v != UNAVAILABLE and v != "" and not re.match(r"https?://", v):
         raise ValueError(
             f"'api_link' must start with 'http://' or 'https://', or be {UNAVAILABLE!r}, got {v!r}"
         )
