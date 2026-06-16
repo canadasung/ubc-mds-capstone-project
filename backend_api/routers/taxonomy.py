@@ -16,11 +16,10 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from scripts.utils.normalize_query_string import normalize_query_string
 from scripts.utils.router import ANIMALIA_APIS, PLANTAE_APIS, FUNGI_APIS, TaxonRouter
-from scripts.apis_pipe.gbif import GBIFAPI
 
 router = APIRouter()
 
-_taxon_router = TaxonRouter(gbif_client=GBIFAPI())
+_taxon_router = TaxonRouter()
 _SAMPLE_DIR = _PROJECT_ROOT / "data" / "sample"
 _ALL_APIS: list[str] = list(dict.fromkeys(ANIMALIA_APIS + PLANTAE_APIS + FUNGI_APIS))
 
