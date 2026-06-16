@@ -103,6 +103,12 @@ const ZOOM_MAX = 2.4;
 const ZOOM_STEP = 0.2;
 /** Fixed height in pixels of the zoomable timeline canvas. */
 const CANVAS_HEIGHT = 640;
+/**
+ * Length in pixels of the vertical-view axis (how far the years are spread out).
+ * Increase to make the axis longer; the canvas scrolls when this exceeds
+ * CANVAS_HEIGHT. Adjust this value to taste.
+ */
+const VERTICAL_AXIS_HEIGHT = 1000;
 /** Natural content width in pixels of the vertical view (cards on both sides). */
 const VERTICAL_WIDTH = 760;
 
@@ -662,7 +668,7 @@ function VerticalTimeline({ groups, order, expanded, onToggle }: VerticalTimelin
   const topPad = Math.max(28, heights[0] / 2 + 8);
   const bottomPad = Math.max(28, heights[n - 1] / 2 + 8);
   const span = Math.max(1, Math.abs(years[n - 1] - years[0]));
-  const usable = Math.max(40, CANVAS_HEIGHT - topPad - bottomPad);
+  const usable = Math.max(40, VERTICAL_AXIS_HEIGHT - topPad - bottomPad);
   const pxPerYear = usable / span;
   const totalHeight = topPad + span * pxPerYear + bottomPad;
   const topOf = (d: number) => topPad + Math.abs(years[d] - years[0]) * pxPerYear;
