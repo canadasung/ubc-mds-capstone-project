@@ -101,9 +101,13 @@ export function useLiveSearchEffect() {
       (source, done, total) => setSearchProgress({ source, done, total }),
       (data: SearchResponse) => {
         if (isIncremental && cachedData) {
+          const addedSourceKeys = new Set(addedSources);
+          const newRecords = data.results.filter(
+            (rec) => addedSourceKeys.has(keyForApiName(rec.api_name)),
+          );
           const merged: SearchResponse = {
             ...data,
-            results: [...cachedData.results, ...data.results],
+            results: [...cachedData.results, ...newRecords],
             sources: [...new Set([...cachedData.sources, ...data.sources])],
           };
           setCachedSearch(submittedQuery, submittedSources, merged);
