@@ -14,7 +14,7 @@
  * column has a single differing value, orange when it has several.
  */
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Anchor,
   Group,
@@ -25,6 +25,7 @@ import {
   Table,
   Text,
   Tooltip,
+  UnstyledButton,
 } from "@mantine/core";
 
 import { useActiveSourceKeys, useSearch, useTaxonomy } from "@/lib/hooks";
@@ -40,6 +41,7 @@ import {
   type CellShade,
 } from "@/lib/taxonomyShading";
 import type { TaxonomyRow } from "@/lib/types";
+import { SortCaret, SORT_BTN_STYLE, nextSortState } from "@/components/SortCaret";
 
 export function TaxonomyView() {
   const query = useSearchStore((s) => s.submittedQuery);
@@ -141,6 +143,22 @@ export function TaxonomyView() {
 
   const disagreementSet = new Set(disagreements);
 
+  const [taxSort, setTaxSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
+  const toggleTaxSort = useCallback(
+    (key: string) => setTaxSort((prev) => nextSortState(prev, key)),
+    [],
+  );
+  const sortedSources = useMemo(() => {
+    if (!taxSort) return sources;
+    const { key, dir } = taxSort;
+    return [...sources].sort((a, b) => {
+      const valA = key === "__source__" ? a.source : cellValue(a, key);
+      const valB = key === "__source__" ? b.source : cellValue(b, key);
+      const cmp = valA.localeCompare(valB, undefined, { sensitivity: "base" });
+      return dir === "asc" ? cmp : -cmp;
+    });
+  }, [sources, taxSort]);
+
   // Options for the backbone picker: every visible source, keyed by source key.
   const backboneOptions = useMemo(
     () =>
@@ -185,14 +203,24 @@ export function TaxonomyView() {
         <Table withTableBorder withColumnBorders striped fz="md">
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Source</Table.Th>
+              <Table.Th>
+                <UnstyledButton onClick={() => toggleTaxSort("__source__")} style={SORT_BTN_STYLE}>
+                  Source
+                  <SortCaret dir={taxSort?.key === "__source__" ? taxSort.dir : null} />
+                </UnstyledButton>
+              </Table.Th>
               {ranks.map((r) => (
-                <Table.Th key={r}>{r}</Table.Th>
+                <Table.Th key={r}>
+                  <UnstyledButton onClick={() => toggleTaxSort(r)} style={SORT_BTN_STYLE}>
+                    {r}
+                    <SortCaret dir={taxSort?.key === r ? taxSort.dir : null} />
+                  </UnstyledButton>
+                </Table.Th>
               ))}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {sources.map((row) => {
+            {sortedSources.map((row) => {
               const sourceKey = keyForApiName(row.source);
               const shortLabel = labelForKey(sourceKey);
               const fullLabel = fullLabelForKey(sourceKey);

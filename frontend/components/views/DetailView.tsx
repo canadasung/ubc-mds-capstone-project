@@ -11,12 +11,13 @@
  * query (e.g. "amanita_muscaria.csv").
  */
 
-import { useMemo } from "react";
-import { Anchor, Button, Group, Table, Text } from "@mantine/core";
+import { useCallback, useMemo, useState } from "react";
+import { Anchor, Button, Group, Table, Text, UnstyledButton } from "@mantine/core";
 
 import { useFilteredRecords, useSearch } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
 import type { SpeciesRecord } from "@/lib/types";
+import { SortCaret, SORT_BTN_STYLE, nextSortState } from "@/components/SortCaret";
 
 const formatHeader = (col: string) =>
   col
@@ -58,8 +59,25 @@ export function DetailView() {
   const query = useSearchStore((s) => s.submittedQuery);
   const { data: searchData } = useSearch();
   const unavailMarker = searchData?.unavailable_marker ?? "N/A";
+  const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
 
   const columns = useMemo(() => columnsOf(records), [records]);
+
+  const toggle = useCallback(
+    (key: string) => setSort((prev) => nextSortState(prev, key)),
+    [],
+  );
+
+  const sortedRecords = useMemo(() => {
+    if (!sort) return records;
+    const { key, dir } = sort;
+    return [...records].sort((a, b) => {
+      const valA = a[key] == null ? "" : String(a[key]);
+      const valB = b[key] == null ? "" : String(b[key]);
+      const cmp = valA.localeCompare(valB, undefined, { sensitivity: "base" });
+      return dir === "asc" ? cmp : -cmp;
+    });
+  }, [records, sort]);
 
   const handleDownload = () => {
     const csv = toCsv(records, columns);
@@ -95,12 +113,17 @@ export function DetailView() {
           <Table.Thead>
             <Table.Tr>
               {columns.map((c) => (
-                <Table.Th key={c}>{formatHeader(c)}</Table.Th>
+                <Table.Th key={c}>
+                  <UnstyledButton onClick={() => toggle(c)} style={SORT_BTN_STYLE}>
+                    {formatHeader(c)}
+                    <SortCaret dir={sort?.key === c ? sort.dir : null} />
+                  </UnstyledButton>
+                </Table.Th>
               ))}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {records.map((rec, i) => (
+            {sortedRecords.map((rec, i) => (
               <Table.Tr key={i}>
                 {columns.map((c) => {
                   const v = rec[c];
