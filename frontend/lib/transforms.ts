@@ -96,7 +96,7 @@ export function buildPresenceTable(
 
 export interface GraphNode {
   id: string;
-  kind: "source" | "genus" | "name";
+  kind: "source" | "genus" | "species";
   label: string;
   /** Official long name for source nodes, shown on hover. */
   full?: string;
@@ -174,7 +174,7 @@ export function buildRelationsGraph(records: SpeciesRecord[]): NodeGraph {
 
       species.forEach((s, j) => {
         const nodeId = `${genusId}|${j}`;
-        nodes.push({ id: nodeId, kind: "name", label: s.epithet, full: s.full, url: s.url, x: REL_NAME_X, y: currentY + j * REL_ROW_HEIGHT });
+        nodes.push({ id: nodeId, kind: "species", label: s.epithet, full: s.full, url: s.url, x: REL_NAME_X, y: currentY + j * REL_ROW_HEIGHT });
         edges.push({ id: `e:${genusId}-${j}`, source: genusId, target: nodeId });
       });
 

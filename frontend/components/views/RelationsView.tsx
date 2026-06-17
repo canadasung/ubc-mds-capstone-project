@@ -35,11 +35,13 @@ type RelNodeData = {
   full?: string;
   url: string | null;
   kind: GraphNode["kind"];
+  nodeWidth?: number;
 };
 
-const HoverContext = createContext<string | null>(null);
+type HoverState = { label: string; kind: "species" | "genus" } | null;
+const HoverContext = createContext<HoverState>(null);
 
-const KIND_STYLE: Record<"source" | "genus" | "name", React.CSSProperties> = {
+const KIND_STYLE: Record<"source" | "genus" | "species", React.CSSProperties> = {
   source: {
     background: "#e8f4fd",
     border: "2px solid #228be6",
@@ -55,7 +57,7 @@ const KIND_STYLE: Record<"source" | "genus" | "name", React.CSSProperties> = {
     minWidth: 140,
     textAlign: "center",
   },
-  name: {
+  species: {
     background: "#ffffff",
     border: "1px solid #adb5bd",
     fontStyle: "italic",
@@ -66,9 +68,14 @@ const KIND_STYLE: Record<"source" | "genus" | "name", React.CSSProperties> = {
 
 function RelNode({ data }: NodeProps) {
   const d = data as RelNodeData;
-  const hoveredLabel = useContext(HoverContext);
-  const highlighted = d.kind === "name" && hoveredLabel !== null && d.label === hoveredLabel;
-  const style = KIND_STYLE[d.kind as "source" | "genus" | "name"] ?? KIND_STYLE.name;
+  const hovered = useContext(HoverContext);
+  const highlighted =
+    hovered !== null &&
+    (d.kind === "species" || d.kind === "genus") &&
+    d.kind === hovered.kind &&
+    d.label === hovered.label;
+  const style = KIND_STYLE[d.kind as "source" | "genus" | "species"] ?? KIND_STYLE.species;
+  const widthOverride = d.nodeWidth !== undefined ? { minWidth: d.nodeWidth, width: d.nodeWidth } : {};
   const highlightOverride = highlighted
     ? { background: "#d0ebff", border: "2px solid #228be6" }
     : {};
@@ -83,6 +90,7 @@ function RelNode({ data }: NodeProps) {
         cursor: d.url ? "pointer" : "default",
         boxShadow: "1px 2px 4px rgba(0,0,0,0.1)",
         ...style,
+        ...widthOverride,
         ...highlightOverride,
       }}
       title={d.kind === "genus" ? undefined : (d.full ?? d.label)}
@@ -94,52 +102,78 @@ function RelNode({ data }: NodeProps) {
   );
 }
 
-// X coordinate where all genus→name edges make their vertical turn.
+// X coordinate where all genus→species edges make their vertical turn.
 // Genus nodes sit at x=280 with minWidth=140, so their right handle is ~420.
-// 490 puts the elbow between that right edge and the base name column at 560.
+// 490 puts the elbow between that right edge and the base species column at 560.
 const GENUS_ELBOW_X = 490;
+const GenusElbowContext = createContext<number>(GENUS_ELBOW_X);
 
-function GenusToNameEdge({ sourceX, sourceY, targetX, targetY }: EdgeProps) {
-  const ex = Math.max(sourceX + 8, GENUS_ELBOW_X);
+// X coordinate where all source→genus edges make their vertical turn (when genus is aligned).
+// Source nodes sit at x=0 with minWidth=160, so their right handle is ~160.
+// 220 puts the elbow between that right edge and the base genus column at 280.
+const SOURCE_GENUS_ELBOW_X = 220;
+
+function GenusToSpeciesEdge({ sourceX, sourceY, targetX, targetY }: EdgeProps) {
+  const elbowX = useContext(GenusElbowContext);
+  const ex = Math.max(sourceX + 8, elbowX);
+  const d = `M${sourceX},${sourceY} H${ex} V${targetY} H${targetX}`;
+  return <path d={d} stroke="#adb5bd" strokeWidth={1} fill="none" className="react-flow__edge-path" />;
+}
+
+function SourceToGenusEdge({ sourceX, sourceY, targetX, targetY }: EdgeProps) {
+  const ex = Math.max(sourceX + 8, SOURCE_GENUS_ELBOW_X);
   const d = `M${sourceX},${sourceY} H${ex} V${targetY} H${targetX}`;
   return <path d={d} stroke="#adb5bd" strokeWidth={1} fill="none" className="react-flow__edge-path" />;
 }
 
 const nodeTypes = { rel: RelNode };
-const edgeTypes = { gnedge: GenusToNameEdge };
+const edgeTypes = { gnedge: GenusToSpeciesEdge, sgnedge: SourceToGenusEdge };
 
-// Width reserved per unique species-name column when alignment is active.
 const NAME_COLUMN_WIDTH = 200;
+const GENUS_COLUMN_WIDTH = 160;
 
 export function RelationsView() {
   const { records } = useFilteredRecords();
-  const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
+  const [hoveredLabel, setHoveredLabel] = useState<HoverState>(null);
   const [alignByName, setAlignByName] = useState(false);
+  const [alignByGenus, setAlignByGenus] = useState(false);
 
   const baseGraph = useMemo(() => buildRelationsGraph(records), [records]);
 
-  const { nodes, edges } = useMemo(() => {
-    // When alignment is on: assign each unique name label its own X column,
-    // ordered by descending frequency (most-shared name on the left).
-    let labelToX: Map<string, number> | null = null;
-    if (alignByName) {
-      const nameNodes = baseGraph.nodes.filter((n) => n.kind === "name");
+  const { nodes, edges, genusElbowX } = useMemo(() => {
+    function buildLabelToX(kind: "species" | "genus", colWidth: number, fallbackX: number) {
+      const kindNodes = baseGraph.nodes.filter((n) => n.kind === kind);
       const freq = new Map<string, number>();
-      for (const n of nameNodes) freq.set(n.label, (freq.get(n.label) ?? 0) + 1);
-      const sortedLabels = [...freq.keys()].sort(
-        (a, b) => (freq.get(b) ?? 0) - (freq.get(a) ?? 0)
-      );
-      const baseX = nameNodes[0]?.x ?? 560;
-      labelToX = new Map(
-        sortedLabels.map((label, i) => [label, baseX + i * NAME_COLUMN_WIDTH])
-      );
+      for (const n of kindNodes) freq.set(n.label, (freq.get(n.label) ?? 0) + 1);
+      const sortedLabels = [...freq.keys()].sort((a, b) => (freq.get(b) ?? 0) - (freq.get(a) ?? 0));
+      const baseX = kindNodes[0]?.x ?? fallbackX;
+      return new Map(sortedLabels.map((label, i) => [label, baseX + i * colWidth]));
     }
+
+    const nameLabelToX = alignByName ? buildLabelToX("species", NAME_COLUMN_WIDTH, 560) : null;
+    const genusLabelToX = alignByGenus ? buildLabelToX("genus", GENUS_COLUMN_WIDTH, 280) : null;
+    const genusOffset = genusLabelToX ? (genusLabelToX.size - 1) * GENUS_COLUMN_WIDTH : 0;
+
+    // ~7.2px per char in monospace 12px + 24px horizontal padding (12px each side)
+    const CHAR_PX = 7.2;
+    const H_PAD = 24;
+    const maxLabelWidth = (kind: "genus" | "species") => {
+      const labels = baseGraph.nodes.filter((n) => n.kind === kind).map((n) => n.label.length);
+      return labels.length > 0 ? Math.max(...labels) * CHAR_PX + H_PAD : undefined;
+    };
+    const genusNodeWidth = maxLabelWidth("genus");
+    const nameNodeWidth = maxLabelWidth("species");
 
     const rfNodes: Node[] = baseGraph.nodes.map((n) => ({
       id: n.id,
       type: "rel",
       position: {
-        x: labelToX && n.kind === "name" ? (labelToX.get(n.label) ?? n.x) : n.x,
+        x:
+          n.kind === "genus" && genusLabelToX
+            ? (genusLabelToX.get(n.label) ?? n.x)
+            : n.kind === "species"
+            ? (nameLabelToX ? (nameLabelToX.get(n.label) ?? n.x) : n.x) + genusOffset
+            : n.x,
         y: n.y,
       },
       data: {
@@ -147,20 +181,28 @@ export function RelationsView() {
         full: n.full,
         url: n.url,
         kind: n.kind,
+        nodeWidth: n.kind === "genus" ? genusNodeWidth : n.kind === "species" ? nameNodeWidth : undefined,
       } satisfies RelNodeData,
       draggable: false,
     }));
-    const nameNodeIds = new Set(baseGraph.nodes.filter((n) => n.kind === "name").map((n) => n.id));
+    const speciesNodeIds = new Set(baseGraph.nodes.filter((n) => n.kind === "species").map((n) => n.id));
+    const genusNodeIds = new Set(baseGraph.nodes.filter((n) => n.kind === "genus").map((n) => n.id));
 
     const rfEdges: Edge[] = baseGraph.edges.map((e) => ({
       id: e.id,
       source: e.source,
       target: e.target,
-      type: nameNodeIds.has(e.target) ? "gnedge" : "smoothstep",
+      type: speciesNodeIds.has(e.target)
+        ? "gnedge"
+        : alignByGenus && genusNodeIds.has(e.target)
+        ? "sgnedge"
+        : "smoothstep",
       style: { stroke: "#adb5bd" },
     }));
-    return { nodes: rfNodes, edges: rfEdges };
-  }, [baseGraph, alignByName]);
+    const genusElbowX = GENUS_ELBOW_X + genusOffset;
+
+    return { nodes: rfNodes, edges: rfEdges, genusElbowX };
+  }, [baseGraph, alignByName, alignByGenus]);
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     const url = (node.data as RelNodeData).url;
@@ -169,17 +211,25 @@ export function RelationsView() {
 
   const onNodeMouseEnter = useCallback((_: React.MouseEvent, node: Node) => {
     const d = node.data as RelNodeData;
-    if (d.kind === "name") setHoveredLabel(d.label);
+    if (d.kind === "species" || d.kind === "genus")
+      setHoveredLabel({ label: d.label, kind: d.kind });
   }, []);
 
   const onNodeMouseLeave = useCallback(() => setHoveredLabel(null), []);
 
   return (
+    <GenusElbowContext.Provider value={genusElbowX}>
     <HoverContext.Provider value={hoveredLabel}>
     <Stack gap="xs">
       <Group>
         <Switch
-          label="Align species by name"
+          label="Align genus"
+          size="sm"
+          checked={alignByGenus}
+          onChange={(e) => setAlignByGenus(e.currentTarget.checked)}
+        />
+        <Switch
+          label="Align species"
           size="sm"
           checked={alignByName}
           onChange={(e) => setAlignByName(e.currentTarget.checked)}
@@ -206,5 +256,6 @@ export function RelationsView() {
     </div>
     </Stack>
     </HoverContext.Provider>
+    </GenusElbowContext.Provider>
   );
 }
