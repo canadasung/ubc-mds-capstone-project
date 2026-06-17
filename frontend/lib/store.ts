@@ -34,6 +34,7 @@ interface SearchState {
   searchError: string | null;
   searchSuggestions: string[] | null;
   _cancelStream: (() => void) | null; // close the active EventSource
+  _wasCancelled: boolean; // consumed by useLiveSearchEffect to skip the filtering flash on rollback
 
   // ── Layout ────────────────────────────────────────────────────
   panelOpen: boolean;
@@ -60,6 +61,7 @@ interface SearchState {
   forceResubmit: () => void;
   _hasHydrated: boolean; // true once sessionStorage has been read; not persisted
   _setHasHydrated: (v: boolean) => void;
+  _clearWasCancelled: () => void;
 }
 
 export const useSearchStore = create<SearchState>()(
@@ -80,6 +82,7 @@ export const useSearchStore = create<SearchState>()(
       searchError: null,
       searchSuggestions: null,
       _cancelStream: null,
+      _wasCancelled: false,
       submitVersion: 0,
       _hasHydrated: false,
 
@@ -125,10 +128,26 @@ export const useSearchStore = create<SearchState>()(
 
       cancelSearch: () => {
         get()._cancelStream?.();
-        set({ _cancelStream: null, isSearching: false, searchProgress: null });
+        const { cachedQuery, cachedSources } = get();
+        set({
+          _cancelStream: null,
+          isSearching: false,
+          searchProgress: null,
+          searchError: null,
+          searchSuggestions: null,
+          // Roll back submitted state to the last completed search so that
+          // previous results reappear (or the start page if nothing was ever cached).
+          // cachedQuery/cachedSources/cachedData are intentionally left intact so
+          // the effect sees a cache-hit and doesn't auto-restart the old search.
+          // _wasCancelled tells the effect to skip the filtering flash on rollback.
+          submittedQuery: cachedQuery,
+          submittedSources: cachedSources,
+          _wasCancelled: true,
+        });
       },
 
       _setHasHydrated: (v) => set({ _hasHydrated: v }),
+      _clearWasCancelled: () => set({ _wasCancelled: false }),
 
       forceResubmit: () => {
         const q = get().query.trim();

@@ -8,7 +8,7 @@
  * The numbers are rendered bold + blue.
  */
 
-import { Group, Text } from "@mantine/core";
+import { Text } from "@mantine/core";
 
 import { nameOf, sourceOf } from "@/lib/fields";
 import { useFilteredRecords, useSearch } from "@/lib/hooks";
@@ -29,19 +29,15 @@ export function ResultsSummary() {
   const sourceCount = new Set(records.map((r) => sourceOf(r))).size;
 
   return (
-    <Group gap="lg" wrap="nowrap">
-      <Text size="lg">
-        Name count:{" "}
-        <Text span fw={700} c="blue">
-          {nameCount}
-        </Text>
+    <Text size="lg">
+      Found{" "}
+      <Text span fw={700} c="blue">
+        {nameCount} {nameCount === 1 ? "name" : "names"}
+      </Text>{" "}
+      from{" "}
+      <Text span fw={700} c="blue">
+        {sourceCount} API {sourceCount === 1 ? "source" : "sources"}
       </Text>
-      <Text size="lg">
-        Source count:{" "}
-        <Text span fw={700} c="blue">
-          {sourceCount}
-        </Text>
-      </Text>
-    </Group>
+    </Text>
   );
 }
