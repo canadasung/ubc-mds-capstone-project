@@ -1,0 +1,88 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  test-apis:
+    name: API Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: mds-project
+          environment-file: environment.yml
+          auto-activate-base: false
+
+      - name: Install package in editable mode
+        shell: bash -el {0}
+        run: pip install -e .
+
+      - name: Run API tests
+        shell: bash -el {0}
+        env:
+          ENTREZ_EMAIL: ${{ secrets.ENTREZ_EMAIL }}
+        run: pytest -v -m "not integration" tests/APIs/ # pytest will automatically discover all test files (i.e. test_*.py) in this directory and skip any non-test files (e.g. template_*.py); integration tests that make real HTTP calls are excluded from CI
+
+  test-utils:
+    name: Utils Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: mds-project
+          environment-file: environment.yml
+          auto-activate-base: false
+
+      - name: Install package in editable mode
+        shell: bash -el {0}
+        run: pip install -e .
+
+      - name: Run utils tests
+        shell: bash -el {0}
+        run: pytest -v tests/utils/ # pytest will automatically discover all test files (i.e. test_*.py) in this directory and skip any non-test files (e.g. template_*.py)
+
+  test-app:
+    name: App Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: mds-project
+          environment-file: environment.yml
+          auto-activate-base: false
+
+      - name: Install package in editable mode
+        shell: bash -el {0}
+        run: pip install -e .
+
+      - name: Run app tests
+        shell: bash -el {0}
+        env:
+          ENTREZ_EMAIL: ${{ secrets.ENTREZ_EMAIL }}
+        run: pytest -v tests/app/ # pytest will automatically discover all test files (i.e. test_*.py) in this directory and skip any non-test files (e.g. template_*.py)
