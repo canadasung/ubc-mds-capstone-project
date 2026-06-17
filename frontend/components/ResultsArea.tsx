@@ -20,6 +20,8 @@ export function ResultsArea() {
   const activeView = useSearchStore((s) => s.activeView);
   const submittedQuery = useSearchStore((s) => s.submittedQuery);
   const submittedSources = useSearchStore((s) => s.submittedSources);
+  const cachedQuery = useSearchStore((s) => s.cachedQuery);
+  const cachedSources = useSearchStore((s) => s.cachedSources);
   const searchProgress = useSearchStore((s) => s.searchProgress);
   const isFiltering = useSearchStore((s) => s.isFiltering);
   const hasHydrated = useSearchStore((s) => s._hasHydrated);
@@ -62,6 +64,13 @@ export function ResultsArea() {
     const done = searchProgress?.done ?? 0;
     const activeBackendName = searchProgress?.source ?? null;
 
+    // For incremental searches (same query, new source added), sources that
+    // were already cached should appear immediately as completed.
+    const isIncremental = cachedQuery === submittedQuery && cachedSources.length > 0;
+    const fetchingKeys = isIncremental
+      ? submittedSources.filter((k) => !cachedSources.includes(k))
+      : submittedSources;
+
     return (
       <Center mih={200}>
         <Stack gap="md" align="center">
@@ -71,9 +80,11 @@ export function ResultsArea() {
               : "Starting search…"}
           </Text>
           <SimpleGrid cols={2} spacing="xs" verticalSpacing="xs">
-            {submittedSources.map((key, i) => {
+            {submittedSources.map((key) => {
               const backendName = backendNameForKey(key);
-              const isCompleted = i < done;
+              const alreadyCached = isIncremental && cachedSources.includes(key);
+              const fetchIndex = fetchingKeys.indexOf(key);
+              const isCompleted = alreadyCached || (fetchIndex >= 0 && fetchIndex < done);
               const isActive = !isCompleted && backendName === activeBackendName;
 
               return (

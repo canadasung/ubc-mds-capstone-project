@@ -49,9 +49,9 @@ export const SOURCES: SourceDef[] = [
 export const SOURCE_KEYS: string[] = SOURCES.map((s) => s.key);
 
 export const GROUP_LABELS: Record<SourceGroup, string> = {
-  backbone: "🌍 Global Backbone",
-  symbiota: "🌿 Symbiota Portals",
-  independent: "🔬 Independent APIs",
+  backbone: "Global Backbone",
+  symbiota: "Symbiota Portals",
+  independent: "Independent APIs",
 };
 
 const KEY_TO_DEF = new Map(SOURCES.map((s) => [s.key, s]));
