@@ -10,15 +10,14 @@
 
 import { Group, Text } from "@mantine/core";
 
-import { nameOf } from "@/lib/fields";
-import { useActiveSourceKeys, useFilteredRecords, useSearch } from "@/lib/hooks";
+import { nameOf, sourceOf } from "@/lib/fields";
+import { useFilteredRecords, useSearch } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
 
 export function ResultsSummary() {
   const submittedQuery = useSearchStore((s) => s.submittedQuery);
   const search = useSearch();
   const { records } = useFilteredRecords();
-  const { keys } = useActiveSourceKeys();
 
   if (!submittedQuery || !search.data) return null;
 
@@ -27,7 +26,7 @@ export function ResultsSummary() {
       .map((r) => nameOf(r).trim().replace(/\s+/g, " ").toLowerCase())
       .filter((n) => n !== ""),
   ).size;
-  const sourceCount = keys.length;
+  const sourceCount = new Set(records.map((r) => sourceOf(r))).size;
 
   return (
     <Group gap="lg" wrap="nowrap">
