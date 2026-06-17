@@ -127,7 +127,7 @@ provides are marked `N/A` (unavailable), which is distinct from an empty string
 | `publication_name` | no | Publication where the name appeared. |
 | `publication_year` | no | Four-digit year of publication. |
 | `status` | no | `Accepted` or `Synonym` in the source's database. |
-| `source_name` | no | Citation of the source's own data source, if provided. |
+| `original_source` | no | Citation of the source's own data source, if provided. |
 | `api_link` | no | Link to the record on the source's website. |
 | `api_internal_id` | yes | Unique identifier for the record in the source's database. |
 
