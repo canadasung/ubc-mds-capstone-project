@@ -243,7 +243,7 @@ The API is then available at <http://localhost:8000>.
 
 ### Frontend
 
-In a second terminal:
+In a second terminal, with the environment active from the repository root:
 
 ```bash
 cd frontend
