@@ -294,9 +294,18 @@ consistently while keeping the source-specific parsing isolated:
 The two outputs are combined and returned as a DataFrame in the schema format.
 The base class also provides optional helpers (for example, extracting a
 publication year from a citation string) that a source can use or override.
-To add a new source, implement the five required methods and register it in
-[scripts/config.py](scripts/config.py) and
-[scripts/utils/call_apis_pipe.py](scripts/utils/call_apis_pipe.py).
+To add a new source, implement the five required methods, then register it in two
+places that must be kept in sync:
+
+- Backend: [scripts/config.py](scripts/config.py) and
+  [scripts/utils/call_apis_pipe.py](scripts/utils/call_apis_pipe.py), so the
+  pipeline can query the source.
+- Frontend: [frontend/lib/sources.ts](frontend/lib/sources.ts), so the source
+  appears in the source filter in the app.
+
+The source list is currently maintained separately in the backend and the
+frontend, so both must be updated until they are consolidated into a single
+source of truth.
 
 ---
 
