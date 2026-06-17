@@ -18,6 +18,7 @@ import {
   Collapse,
   Divider,
   Group,
+  Modal,
   Stack,
   Text,
   TextInput,
@@ -42,10 +43,15 @@ export function SearchPanel() {
   const setAllSources = useSearchStore((s) => s.setAllSources);
   const setSources = useSearchStore((s) => s.setSources);
   const isSearching = useSearchStore((s) => s.isSearching);
+  const submittedQuery = useSearchStore((s) => s.submittedQuery);
+  const submittedSources = useSearchStore((s) => s.submittedSources);
+  const cachedData = useSearchStore((s) => s.cachedData);
+  const forceResubmit = useSearchStore((s) => s.forceResubmit);
 
   const [advancedOpen, advanced] = useDisclosure(true);
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const handleSuggest = async () => {
     if (!query.trim()) {
       setSuggestError(
@@ -75,6 +81,19 @@ export function SearchPanel() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSuggestError(null);
+
+    const q = query.trim();
+    if (!q) return;
+
+    const sourcesUnchanged =
+      selectedSources.length === submittedSources.length &&
+      selectedSources.every((s) => submittedSources.includes(s));
+
+    if (cachedData && q === submittedQuery && sourcesUnchanged) {
+      setConfirmOpen(true);
+      return;
+    }
+
     submit();
   };
 
@@ -180,6 +199,31 @@ export function SearchPanel() {
           </Stack>
         </Collapse>
       </Box>
+
+      <Modal
+        opened={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title="No changes detected"
+        size="sm"
+      >
+        <Text size="sm">
+          The query and selected sources haven't changed. Do you want to re-query
+          all selected sources and refresh the results?
+        </Text>
+        <Group mt="lg" justify="flex-end">
+          <Button variant="default" onClick={() => setConfirmOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              setConfirmOpen(false);
+              forceResubmit();
+            }}
+          >
+            Re-query all sources
+          </Button>
+        </Group>
+      </Modal>
     </Stack>
   );
 }

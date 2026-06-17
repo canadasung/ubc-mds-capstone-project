@@ -53,10 +53,6 @@ export function DetailView() {
 
   const columns = useMemo(() => columnsOf(records), [records]);
 
-  if (records.length === 0) {
-    return <Text c="dimmed">No records for the selected sources.</Text>;
-  }
-
   const handleDownload = () => {
     const csv = toCsv(records, columns);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });

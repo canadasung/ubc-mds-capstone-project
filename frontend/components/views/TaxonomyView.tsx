@@ -40,7 +40,7 @@ import type { TaxonomyRow } from "@/lib/types";
 
 export function TaxonomyView() {
   const query = useSearchStore((s) => s.submittedQuery);
-  const { data, isLoading, isError } = useTaxonomy();
+  const { data, isLoading } = useTaxonomy();
   const { keys, queriedSources } = useActiveSourceKeys();
   const search = useSearch();
 
@@ -82,22 +82,25 @@ export function TaxonomyView() {
       return allowed.has(k) || !queriedSources.includes(k);
     });
 
+    const unavailMarker = data.unavailable_marker;
+    const isReal = (v: string) => v !== "" && v !== unavailMarker;
+
     // keep only ranks that still have at least one non-empty value
     const presentRanks = data.ranks.filter((r) =>
       filtered.some((row) => cellValue(row, r) !== ""),
     );
 
     // reference for Genus/Species is the (normalised) query the backend echoed
-    const shading = computeShading(filtered, presentRanks, data.query);
+    const shading = computeShading(filtered, presentRanks, data.query, unavailMarker);
 
     // A rank is a disagreement when the displayed sources hold 2+ distinct
-    // (case-insensitive, non-empty) values for it. Recomputed here rather than
-    // using data.disagreements so it reflects the filtered source set.
+    // real values. Blank and unavailable cells are excluded so they don't
+    // inflate the disagreement count.
     const disagreements = presentRanks.filter((rank) => {
       const distinct = new Set(
         filtered
           .map((row) => cellValue(row, rank).toLowerCase())
-          .filter((v) => v !== ""),
+          .filter((v) => isReal(v)),
       );
       return distinct.size > 1;
     });
@@ -106,13 +109,6 @@ export function TaxonomyView() {
   }, [data, keys, queriedSources]);
 
   if (isLoading) return <Loader />;
-  if (isError || !data) {
-    return (
-      <Text c="dimmed" size="lg">
-        No taxonomy found for &ldquo;{query}&rdquo;.
-      </Text>
-    );
-  }
 
   if (sources.length === 0) {
     return (

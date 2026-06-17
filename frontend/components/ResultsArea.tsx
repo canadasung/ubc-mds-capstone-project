@@ -5,7 +5,7 @@
 import { Alert, Button, Center, Group, Loader, SimpleGrid, Stack, Text, ThemeIcon } from "@mantine/core";
 import { IconCheck, IconInfoCircle } from "@tabler/icons-react";
 
-import { useSearch } from "@/lib/hooks";
+import { useSearch, useFilteredRecords } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
 import { backendNameForKey, labelForKey } from "@/lib/sources";
 import { ApiError } from "@/lib/types";
@@ -22,10 +22,20 @@ export function ResultsArea() {
   const submittedSources = useSearchStore((s) => s.submittedSources);
   const searchProgress = useSearchStore((s) => s.searchProgress);
   const isFiltering = useSearchStore((s) => s.isFiltering);
+  const hasHydrated = useSearchStore((s) => s._hasHydrated);
   const cancelSearch = useSearchStore((s) => s.cancelSearch);
   const setQuery = useSearchStore((s) => s.setQuery);
   const submit = useSearchStore((s) => s.submit);
   const search = useSearch();
+  const { records } = useFilteredRecords();
+
+  if (!hasHydrated) {
+    return (
+      <Center mih={200}>
+        <Text c="dimmed" size="sm">Reloading…</Text>
+      </Center>
+    );
+  }
 
   if (!submittedQuery) {
     return (
@@ -101,12 +111,21 @@ export function ResultsArea() {
   if (search.error) {
     const err = search.error as ApiError;
     const suggestions = err.available ?? [];
+    const isExactMatch =
+      suggestions.length === 1 &&
+      suggestions[0].toLowerCase() === submittedQuery.toLowerCase();
     return (
       <Stack gap="md">
         <Alert variant="light" color="gray" title="No results">
           {err.message}
         </Alert>
-        {suggestions.length > 0 && (
+        {isExactMatch ? (
+          <Text size="sm" c="dimmed">
+            This species exists but was not found in your selected sources. Try
+            selecting additional sources, or use the <strong>Suggest</strong>{" "}
+            button to find sources by kingdom.
+          </Text>
+        ) : suggestions.length > 0 ? (
           <Stack gap="xs">
             <Text size="sm">Did you mean:</Text>
             <Group gap="xs">
@@ -125,7 +144,22 @@ export function ResultsArea() {
               ))}
             </Group>
           </Stack>
-        )}
+        ) : null}
+      </Stack>
+    );
+  }
+
+  if (search.data && records.length === 0) {
+    return (
+      <Stack gap="md">
+        <Alert variant="light" color="gray" title="No results">
+          No results found in your selected sources.
+        </Alert>
+        <Text size="sm" c="dimmed">
+          This species exists but was not found in your selected sources. Try
+          selecting additional sources, or use the <strong>Suggest</strong>{" "}
+          button to find sources by kingdom.
+        </Text>
       </Stack>
     );
   }

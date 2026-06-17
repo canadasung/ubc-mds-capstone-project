@@ -17,6 +17,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 from scripts.utils.normalize_query_string import normalize_query_string
 from scripts.utils.router import ANIMALIA_APIS, PLANTAE_APIS, FUNGI_APIS, TaxonRouter
 from scripts.apis_pipe.gbif import GBIFAPI
+from scripts.utils.schema import UNAVAILABLE
 
 router = APIRouter()
 
@@ -216,4 +217,5 @@ def taxonomy(
         "ranks": present_ranks,
         "sources": rows,
         "disagreements": disagreements,
+        "unavailable_marker": UNAVAILABLE,
     }

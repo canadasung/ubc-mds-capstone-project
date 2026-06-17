@@ -49,6 +49,7 @@ export interface TaxonomyResponse {
   ranks: string[];
   sources: TaxonomyRow[];
   disagreements: string[];
+  unavailable_marker?: string;
 }
 
 /** GET /api/suggest */

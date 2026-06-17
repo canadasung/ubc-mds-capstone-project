@@ -174,10 +174,6 @@ export function RelationsView() {
 
   const onNodeMouseLeave = useCallback(() => setHoveredLabel(null), []);
 
-  if (records.length === 0) {
-    return <Text c="dimmed">No results to display.</Text>;
-  }
-
   return (
     <HoverContext.Provider value={hoveredLabel}>
     <Stack gap="xs">

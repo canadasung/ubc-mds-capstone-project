@@ -8,7 +8,7 @@
  * on incremental additions) can inspect and update cached state directly.
  */
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { getSources, openSearchStream } from "./api";
@@ -49,20 +49,31 @@ export function useLiveSearchEffect() {
   const setSearchError = useSearchStore((s) => s.setSearchError);
   const setSearchSuggestions = useSearchStore((s) => s.setSearchSuggestions);
   const setStreamCancel = useSearchStore((s) => s.setStreamCancel);
+  const submitVersion = useSearchStore((s) => s.submitVersion);
 
   // submittedSources.join is stable as long as the array contents don't change
   const submittedSourcesKey = submittedSources.join(",");
 
+  // Tracks whether this is the very first effect run after mount/HMR. On first
+  // run the store may already have values rehydrated from sessionStorage, so we
+  // must not trigger the "filtering" flash — just let the cached results render.
+  const isFirstMountRef = useRef(true);
+
   useEffect(() => {
+    // Guard before consuming the ref so hydration's empty-query run doesn't
+    // mark the "first meaningful mount" as done prematurely.
     if (!submittedQuery) return;
+
+    const isFirstMount = isFirstMountRef.current;
+    isFirstMountRef.current = false;
 
     const addedSources = submittedSources.filter((s) => !cachedSources.includes(s));
 
     // Same query, no new sources — client-side filtering is sufficient.
-    // Only flash the "filtering" indicator when there's cached data to show
-    // (i.e. not on an initial search where cachedData is null).
+    // Skip the flash on first mount (sessionStorage hydration); only show it
+    // when the user actively pressed Search and removed sources.
     if (submittedQuery === cachedQuery && addedSources.length === 0) {
-      if (cachedData) {
+      if (cachedData && !isFirstMount) {
         setIsFiltering(true);
         const t = setTimeout(() => setIsFiltering(false), 800);
         return () => clearTimeout(t);
@@ -121,7 +132,7 @@ export function useLiveSearchEffect() {
       setStreamCancel(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submittedQuery, submittedSourcesKey]);
+  }, [submittedQuery, submittedSourcesKey, submitVersion]);
 }
 
 /** Store-backed replacement for the old TanStack Query useSearch(). */

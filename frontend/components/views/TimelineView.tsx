@@ -1259,10 +1259,6 @@ export function TimelineView() {
     return { data, layout, annotationIndex, minWidth };
   }, [groups, expanded, yearOrder]);
 
-  if (records.length === 0) {
-    return <Text c="dimmed">No results to plot.</Text>;
-  }
-
   // Natural (unscaled) width of the active view. Horizontal uses the computed
   // timeline width; vertical uses a fixed width holding cards on both sides.
   const contentWidth =

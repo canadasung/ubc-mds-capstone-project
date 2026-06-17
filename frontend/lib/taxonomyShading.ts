@@ -92,22 +92,28 @@ function queryParts(query: string): { genus: string; species: string } {
  * The reference value a column is compared against (already trimmed, original
  * case). Genus/Species come from the query; other ranks come from GBIF, falling
  * back to the first visible source, then the first non-empty cell.
+ *
+ * Cells holding the unavailableMarker are skipped so an "unavailable" entry
+ * from GBIF does not become the reference that real values are shaded against.
  */
 export function columnReference(
   rank: string,
   rows: TaxonomyRow[],
   query: string,
+  unavailableMarker?: string,
 ): string {
   if (rank === "Genus") return queryParts(query).genus;
   if (rank === "Species") return queryParts(query).species;
 
+  const isAvailable = (v: string) => v !== "" && v !== unavailableMarker;
+
   const gbif = rows.find((r) => keyForApiName(r.source) === "gbif");
   const fromGbif = gbif ? cellValue(gbif, rank) : "";
-  if (fromGbif) return fromGbif;
+  if (isAvailable(fromGbif)) return fromGbif;
 
   for (const r of rows) {
     const v = cellValue(r, rank);
-    if (v) return v;
+    if (isAvailable(v)) return v;
   }
   return "";
 }
@@ -115,12 +121,13 @@ export function columnReference(
 /**
  * Compute the shade for every cell in one rank column, keyed by row source.
  * Returns null for a cell when it should stay white (matches the reference, is
- * empty, or there is no usable reference).
+ * empty, holds the unavailableMarker, or there is no usable reference).
  */
 export function shadeColumn(
   rows: TaxonomyRow[],
   rank: string,
   reference: string,
+  unavailableMarker?: string,
 ): Map<string, CellShade | null> {
   const result = new Map<string, CellShade | null>();
   const refNorm = norm(reference);
@@ -128,7 +135,7 @@ export function shadeColumn(
   for (const row of rows) {
     const raw = cellValue(row, rank);
     const v = norm(raw);
-    if (!raw || !refNorm || v === refNorm) {
+    if (!raw || raw === unavailableMarker || !refNorm || v === refNorm) {
       result.set(row.source, null); // white
       continue;
     }
@@ -145,11 +152,12 @@ export function computeShading(
   rows: TaxonomyRow[],
   ranks: string[],
   query: string,
+  unavailableMarker?: string,
 ): Map<string, Map<string, CellShade | null>> {
   const byRank = new Map<string, Map<string, CellShade | null>>();
   for (const rank of ranks) {
-    const reference = columnReference(rank, rows, query);
-    byRank.set(rank, shadeColumn(rows, rank, reference));
+    const reference = columnReference(rank, rows, query, unavailableMarker);
+    byRank.set(rank, shadeColumn(rows, rank, reference, unavailableMarker));
   }
   return byRank;
 }
