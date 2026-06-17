@@ -11,12 +11,19 @@
  * query (e.g. "amanita_muscaria.csv").
  */
 
-import { useMemo } from "react";
-import { Anchor, Button, Group, Table, Text } from "@mantine/core";
+import { useCallback, useMemo, useState } from "react";
+import { Anchor, Button, Group, Table, Text, UnstyledButton } from "@mantine/core";
 
-import { useFilteredRecords } from "@/lib/hooks";
+import { useFilteredRecords, useSearch } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
 import type { SpeciesRecord } from "@/lib/types";
+import { SortCaret, SORT_BTN_STYLE, nextSortState } from "@/components/SortCaret";
+
+const formatHeader = (col: string) =>
+  col
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\bApi\b/g, "API");
 
 /** Column order: union of keys across records, first-seen order. */
 function columnsOf(records: SpeciesRecord[]): string[] {
@@ -50,8 +57,27 @@ function fileStem(query: string): string {
 export function DetailView() {
   const { records } = useFilteredRecords();
   const query = useSearchStore((s) => s.submittedQuery);
+  const { data: searchData } = useSearch();
+  const unavailMarker = searchData?.unavailable_marker ?? "N/A";
+  const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
 
   const columns = useMemo(() => columnsOf(records), [records]);
+
+  const toggle = useCallback(
+    (key: string) => setSort((prev) => nextSortState(prev, key)),
+    [],
+  );
+
+  const sortedRecords = useMemo(() => {
+    if (!sort) return records;
+    const { key, dir } = sort;
+    return [...records].sort((a, b) => {
+      const valA = a[key] == null ? "" : String(a[key]);
+      const valB = b[key] == null ? "" : String(b[key]);
+      const cmp = valA.localeCompare(valB, undefined, { sensitivity: "base" });
+      return dir === "asc" ? cmp : -cmp;
+    });
+  }, [records, sort]);
 
   const handleDownload = () => {
     const csv = toCsv(records, columns);
@@ -66,7 +92,7 @@ export function DetailView() {
 
   return (
     <>
-      <Group justify="space-between" align="center" mb="sm" wrap="nowrap">
+      <Group justify="space-between" align="center" mb="xs" wrap="nowrap">
         <Text c="dimmed" size="sm">
           {records.length} row{records.length === 1 ? "" : "s"} × {columns.length} columns
         </Text>
@@ -75,28 +101,42 @@ export function DetailView() {
         </Button>
       </Group>
 
+      <Text c="dimmed" size="xs" mb="sm">
+        A blank cell means the source was queried but returned no value for that field.{" "}
+        <span style={{ color: "var(--mantine-color-gray-5)" }}>{unavailMarker}</span>{" "}
+        means the source does not provide that field at all. (For sources with status available,
+        taxonomy fields are attached to Accepted names only.)
+      </Text>
+
       <Table.ScrollContainer minWidth={800}>
         <Table withTableBorder withColumnBorders striped fz="xs">
           <Table.Thead>
             <Table.Tr>
               {columns.map((c) => (
-                <Table.Th key={c}>{c}</Table.Th>
+                <Table.Th key={c}>
+                  <UnstyledButton onClick={() => toggle(c)} style={SORT_BTN_STYLE}>
+                    {formatHeader(c)}
+                    <SortCaret dir={sort?.key === c ? sort.dir : null} />
+                  </UnstyledButton>
+                </Table.Th>
               ))}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {records.map((rec, i) => (
+            {sortedRecords.map((rec, i) => (
               <Table.Tr key={i}>
                 {columns.map((c) => {
                   const v = rec[c];
                   const str = v == null ? "" : String(v);
-                  const isLink = /^https?:\/\//.test(str);
+                  const isLink = c !== "original_source" && /^https?:\/\//.test(str);
                   return (
                     <Table.Td key={c}>
                       {isLink ? (
                         <Anchor href={str} target="_blank" rel="noopener noreferrer">
                           {str}
                         </Anchor>
+                      ) : str === unavailMarker ? (
+                        <span style={{ color: "var(--mantine-color-gray-5)" }}>{str}</span>
                       ) : (
                         str
                       )}

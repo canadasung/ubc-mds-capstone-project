@@ -5,27 +5,61 @@ prototypes in `../app/` and talks to the FastAPI backend in `../backend_api/`.
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the design and the
 Streamlit→React mapping.
 
-## Prerequisites
+## Running locally
 
-- Node.js ≥ 18.18 (Next.js 14)
-- The FastAPI backend running locally:
-  ```bash
-  # from the repo root, with the conda env active
-  uvicorn backend_api.main:app --reload --port 8000
-  ```
+You need **two terminal windows** open at the same time — one for the backend, one for the frontend.
 
-## Setup
+### 1. Activate the conda environment (both terminals)
+
+Run this first in each terminal before doing anything else:
+
+```bash
+conda activate mds-project
+```
+
+### 2. Terminal 1 — start the FastAPI backend
+
+From the repo root:
+
+```bash
+uvicorn backend_api.main:app --reload --port 8000
+```
+
+Leave this running. You should see `Uvicorn running on http://127.0.0.1:8000`.
+
+### 3. Terminal 2 — start the Next.js frontend
+
+From the repo root:
+
+```bash
+cd frontend
+npm install          # only needed the first time, or after pulling new changes
+npm run dev
+```
+
+Leave this running too. You should see `Ready - started server on http://localhost:3000`.
+
+### 4. Open the app in your browser
+
+Navigate to **[http://localhost:3000](http://localhost:3000)**.
+
+> The app will not finish compiling until you actually visit this URL — Next.js defers compilation until the first page load, so the terminal may look idle until you open the browser.
+
+### First-time setup only
+
+If you haven't set up `.env.local` yet:
 
 ```bash
 cd frontend
 cp .env.local.example .env.local   # points at http://localhost:8000 by default
-npm install
-npm run dev                        # http://localhost:3000
 ```
 
-The backend already allows CORS from `http://localhost:3000` (see
-`backend_api/main.py`). If you host the API elsewhere, set `NEXT_PUBLIC_API_BASE_URL`
-in `.env.local` and add that frontend origin to the CORS `allow_origins` list.
+If you host the API elsewhere, set `NEXT_PUBLIC_API_BASE_URL` in `.env.local` and add that frontend origin to the CORS `allow_origins` list in `backend_api/main.py`.
+
+## Prerequisites
+
+- Node.js ≥ 18.18 (Next.js 14)
+- The `mds-project` conda environment (contains all Python dependencies)
 
 ## Scripts
 
@@ -33,23 +67,6 @@ in `.env.local` and add that frontend origin to the CORS `allow_origins` list.
 - `npm run build` / `npm run start` — production build / serve
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run lint` — Next.js ESLint
-
-## What it does
-
-Mirrors `app/prototype_master.py`: a collapsible search panel (left) and a
-switchable set of views (right) sharing one search.
-
-- **Table** — cross-source presence matrix; ✓ links to each source's page.
-- **Timeline** — Plotly timeline of synonyms by publication year.
-- **Node** — React Flow graph: query → source → synonyms (click to open links).
-- **Taxonomic** — per-source classification with disagreements highlighted red.
-- **Debug** — raw record table (toggle "Debug" in the header).
-
-Live search streams results source-by-source via `/api/search/stream`, with a
-progress bar showing which source is currently being queried. If all sources
-return empty, fuzzy suggestions appear as "Did you mean?" chips. The Suggest
-button calls `/api/suggest` to auto-select the right sources for the species'
-kingdom. The taxonomy view still uses pre-computed sample CSVs (`mock=true`).
 
 ## Layout
 
@@ -82,10 +99,3 @@ frontend/
 ├── types/shims.d.ts
 └── ARCHITECTURE.md
 ```
-
-## Next steps
-
-1. Wire `/api/taxonomy` to live data (currently mock-only; depends on the same
-   `call_apis` pipeline that search now uses).
-2. Regenerate sample CSVs to include the new `order` column so mock mode and
-   the Taxonomy view stay in sync.

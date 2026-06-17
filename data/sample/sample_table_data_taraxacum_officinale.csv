@@ -1,4 +1,4 @@
-api_name,kingdom,phylum,class,family,subfamily,genus,species,api_internal_id,author,publication_name,publication_year,api_link,status,source_name
+api_name,kingdom,phylum,class,family,subfamily,genus,species,api_internal_id,author,publication_name,publication_year,api_link,status,original_source
 GBIF,Plantae,Tracheophyta,Magnoliopsida,Asteraceae,Cichorioideae,Taraxacum,officinale,5394163,,,,https://www.gbif.org/species/5394163,Accepted,
 GBIF,Plantae,Tracheophyta,Magnoliopsida,Asteraceae,Cichorioideae,Chondrilla,taraxacum,5700866,(L.) Stokes,In: Bot. Mat. Med. 4: 122.,1812,https://www.gbif.org/species/5700866,Synonym,
 GBIF,Plantae,Tracheophyta,Magnoliopsida,Asteraceae,Cichorioideae,Crepis,taraxacum,5394165,(L.) Stokes,"In: W. Withering, Bot. Arr. Brit. Pl. Ed. 2. 2: 853.",1787,https://www.gbif.org/species/5394165,Synonym,

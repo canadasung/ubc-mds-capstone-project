@@ -50,6 +50,8 @@ export function useLiveSearchEffect() {
   const setSearchSuggestions = useSearchStore((s) => s.setSearchSuggestions);
   const setStreamCancel = useSearchStore((s) => s.setStreamCancel);
   const submitVersion = useSearchStore((s) => s.submitVersion);
+  const wasCancelled = useSearchStore((s) => s._wasCancelled);
+  const clearWasCancelled = useSearchStore((s) => s._clearWasCancelled);
 
   // submittedSources.join is stable as long as the array contents don't change
   const submittedSourcesKey = submittedSources.join(",");
@@ -70,9 +72,13 @@ export function useLiveSearchEffect() {
     const addedSources = submittedSources.filter((s) => !cachedSources.includes(s));
 
     // Same query, no new sources — client-side filtering is sufficient.
-    // Skip the flash on first mount (sessionStorage hydration); only show it
-    // when the user actively pressed Search and removed sources.
+    // Skip the flash on first mount (sessionStorage hydration) or right after a
+    // cancel (submittedQuery was just rolled back to match cachedQuery).
     if (submittedQuery === cachedQuery && addedSources.length === 0) {
+      if (wasCancelled) {
+        clearWasCancelled();
+        return;
+      }
       if (cachedData && !isFirstMount) {
         setIsFiltering(true);
         const t = setTimeout(() => setIsFiltering(false), 800);
@@ -95,9 +101,13 @@ export function useLiveSearchEffect() {
       (source, done, total) => setSearchProgress({ source, done, total }),
       (data: SearchResponse) => {
         if (isIncremental && cachedData) {
+          const addedSourceKeys = new Set(addedSources);
+          const newRecords = data.results.filter(
+            (rec) => addedSourceKeys.has(keyForApiName(rec.api_name)),
+          );
           const merged: SearchResponse = {
             ...data,
-            results: [...cachedData.results, ...data.results],
+            results: [...cachedData.results, ...newRecords],
             sources: [...new Set([...cachedData.sources, ...data.sources])],
           };
           setCachedSearch(submittedQuery, submittedSources, merged);
@@ -132,7 +142,7 @@ export function useLiveSearchEffect() {
       setStreamCancel(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submittedQuery, submittedSourcesKey, submitVersion]);
+  }, [submittedQuery, submittedSourcesKey, submitVersion, wasCancelled]);
 }
 
 /** Store-backed replacement for the old TanStack Query useSearch(). */

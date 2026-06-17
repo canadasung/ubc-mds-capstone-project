@@ -1,4 +1,4 @@
-api_name,kingdom,phylum,class,family,subfamily,genus,species,author,publication_name,publication_year,status,source_name,api_link,api_internal_id
+api_name,kingdom,phylum,class,family,subfamily,genus,species,author,publication_name,publication_year,status,original_source,api_link,api_internal_id
 COL,Fungi,Ascomycota,Sordariomycetes,Podosporaceae,,Triangularia,anserina,(Rabenh.) X. Wei Wang & Houbraken,"(2019). In Wang, Bai, Bensch, Meijer, Sun, Han, Crous, Samson, Yang & Houbraken, Stud. Mycol. 93: 231.",2019,Accepted,Species Fungorum,https://www.catalogueoflife.org/data/taxon/585FN,585FN
 COL,,,,,,Malinvernia,anserina,Rabenh.,(1857). Hedwigia 1: 116.,1857,Synonym,,https://www.catalogueoflife.org/data/taxon/3XMYB,3XMYB
 COL,,,,,,Pleurage,anserina,(Rabenh.) Kuntze,(1898). Revis. Gen. Pl. (Leipzig) 3(3): 504.,1898,Synonym,,https://www.catalogueoflife.org/data/taxon/77Q6W,77Q6W

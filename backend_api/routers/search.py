@@ -24,6 +24,7 @@ from scripts.utils.normalize_query_string import normalize_query_string
 from scripts.utils.router import ANIMALIA_APIS, PLANTAE_APIS, FUNGI_APIS, TaxonRouter
 from scripts.utils.fuzzy_search import fuzzy_search as _fuzzy_search
 from scripts.utils.call_apis_pipe import _PORTAL_REGISTRY
+from scripts.utils.schema import UNAVAILABLE
 
 router = APIRouter()
 
@@ -179,6 +180,7 @@ async def search_stream(
                 "query": q,
                 "sources": display_names,
                 "results": combined.astype(object).where(pd.notna(combined), other=None).to_dict(orient="records"),
+                "unavailable_marker": UNAVAILABLE,
             }
             yield f"data: {json.dumps({'type': 'result', 'data': result})}\n\n"
 
@@ -242,4 +244,5 @@ def search(
         "query": query,
         "sources": selected_sources,
         "results": df.astype(object).where(pd.notna(df), other=None).to_dict(orient="records"),
+        "unavailable_marker": UNAVAILABLE,
     }

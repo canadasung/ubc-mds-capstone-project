@@ -109,6 +109,7 @@ export function SearchPanel() {
             onChange={(e) => setQuery(e.currentTarget.value)}
             leftSection={<IconSearch size={16} />}
             aria-label="Search query"
+            autoComplete="off"
           />
           <Button type="submit" fullWidth loading={isSearching} disabled={isSearching}>
             Search

@@ -359,7 +359,7 @@ class SpeciesAPI(ABC):
         publication_name: str = _UNSET,  # type: ignore[assignment]
         publication_year: str = _UNSET,  # type: ignore[assignment]
         status: str = _UNSET,  # type: ignore[assignment]
-        source_name: str = _UNSET,  # type: ignore[assignment]
+        original_source: str = _UNSET,  # type: ignore[assignment]
         api_link: str = _UNSET,  # type: ignore[assignment]
     ) -> dict:
         """
@@ -388,7 +388,7 @@ class SpeciesAPI(ABC):
         status : str, optional
             Taxonomic status — ``"Accepted"``, ``"Synonym"``, or omit to
             leave as ``UNAVAILABLE``.
-        source_name : str, optional
+        original_source : str, optional
             Name of the original data source cited by the API.
         api_link : str, optional
             Direct URL to the taxon record in the source database.
@@ -410,7 +410,7 @@ class SpeciesAPI(ABC):
             "publication_name": publication_name,
             "publication_year": publication_year,
             "status": status,
-            "source_name": source_name,
+            "original_source": original_source,
             "api_link": api_link,
         }
         provided = {k: v for k, v in optional.items() if not isinstance(v, _Unset)}
