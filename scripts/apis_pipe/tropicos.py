@@ -5,13 +5,14 @@ SpeciesAPI implementation for Tropicos, a botanical database maintained by the M
 """
 
 import os
+import re
 
 from dotenv import load_dotenv
 
+from scripts.config import TROPICOS_API_KEY_PLACEHOLDER, TROPICOS_PORTAL
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from scripts.config import TROPICOS_API_KEY_PLACEHOLDER, TROPICOS_PORTAL
 
 load_dotenv()
 
@@ -63,11 +64,10 @@ class TropicosAPI(SpeciesAPI):
             },
         )
 
-        # Check for list without error
         if (
             not isinstance(results, list)
             or len(results) == 0
-            or results["Error"] == "No names were found"
+            or results[0].get("Error") == "No names were found"
         ):
             return []
         else:
@@ -131,7 +131,7 @@ class TropicosAPI(SpeciesAPI):
             accepted_id = accepted[0].get("AcceptedName", {}).get("NameId")
             if accepted_id is not None:
                 return str(accepted_id)
-        return name_id
+        return name_id  # TODO: double check error logic here. Does .../AcceptedNames always return list?
 
     def _fetch_synonym_data(self, raw_data: list) -> list:
         """
@@ -159,7 +159,7 @@ class TropicosAPI(SpeciesAPI):
         if (
             not isinstance(results, list)
             or len(results) == 0
-            or results["Error"] == "No names were found"
+            or results[0].get("Error") == "No names were found"
         ):
             return []
         else:
@@ -198,14 +198,10 @@ class TropicosAPI(SpeciesAPI):
                 params={"apikey": self.key, "format": "json"},
             )
 
-            if (
-                not isinstance(result, list)
-                or len(result) == 0
-                or result["Error"] == "No names were found"
-            ):
-                return []
-            else:
-                return [result]  # TODO: double check this error handling
+            # /Name/{id} returns a single dict
+            if isinstance(result, dict) and not result.get("Error"):
+                return [result]
+            return []
         else:
             return raw_data
 
@@ -238,16 +234,26 @@ class TropicosAPI(SpeciesAPI):
             return []
         name_id = self._extract_internal_id(synonym_search_term_data)
         genus, species = self._extract_genus_species(name)
+        nomenclature_status = item.get("NomenclatureStatusName", "")
+        status = "Accepted" if "Legitimate" in nomenclature_status else ""
+        display_date = item.get("DisplayDate", "")
+        year_match = re.search(r"\d{4}", display_date)
         return [
             self._format_row(
-                api_name=TROPICOS_PORTAL.display_name,
-                genus=genus,
-                species=species,
-                api_internal_id=name_id,
-                author=item.get("Author", ""),
-                api_link=(
-                    f"https://www.tropicos.org/name/{name_id}" if name_id else ""
-                ),
+                **{
+                    "api_name": TROPICOS_PORTAL.display_name,
+                    "family": item.get("Family", ""),
+                    "genus": genus,
+                    "species": species,
+                    "api_internal_id": name_id,
+                    "author": item.get("Author", ""),
+                    "publication_name": item.get("DisplayReference", ""),
+                    "publication_year": year_match.group(0) if year_match else "",
+                    "status": status,
+                    "api_link": (
+                        f"https://www.tropicos.org/name/{name_id}" if name_id else ""
+                    ),
+                }
             )
         ]
 
@@ -282,16 +288,27 @@ class TropicosAPI(SpeciesAPI):
             # TODO: look into the raw data formats; why is it a list and we also get the first item? do we need anything else from the other items, or can we just normalize to the first item at fetch time?
             # TODO: not sure if this is the correct synonym ID, since it appears that all results are getting the accepted name's NameId. Need to investigate further and check against the API documentation.
             genus, species = self._extract_genus_species(syn_name)
+            sci_name_raw = syn_info.get("ScientificName", "")
+            sci_name_with_authors = syn_info.get("ScientificNameWithAuthors", "")
+            author = (
+                sci_name_with_authors[len(sci_name_raw) :].strip()
+                if sci_name_raw and sci_name_with_authors.startswith(sci_name_raw)
+                else ""
+            )
             candidates.append(
                 self._format_row(
-                    api_name=TROPICOS_PORTAL.display_name,
-                    genus=genus,
-                    species=species,
-                    api_internal_id=syn_id,
-                    author=syn_info.get("Author", ""),
-                    api_link=(
-                        f"https://www.tropicos.org/name/{syn_id}" if syn_id else ""
-                    ),
+                    **{
+                        "api_name": TROPICOS_PORTAL.display_name,
+                        "family": syn_info.get("Family", ""),
+                        "genus": genus,
+                        "species": species,
+                        "api_internal_id": syn_id,
+                        "author": author,
+                        "status": "Synonym",
+                        "api_link": (
+                            f"https://www.tropicos.org/name/{syn_id}" if syn_id else ""
+                        ),
+                    }
                 )
             )
         return candidates

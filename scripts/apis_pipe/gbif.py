@@ -6,10 +6,10 @@ SpeciesAPI implementation for GBIF. GBIF is an international open-data infrastru
 
 import re
 
+from scripts.config import GBIF_PORTAL
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from scripts.config import GBIF_PORTAL
 
 
 class GBIFAPI(SpeciesAPI):
@@ -179,13 +179,12 @@ class GBIFAPI(SpeciesAPI):
         dict
             The accepted taxon's species record.
         """
-        if "acceptedUsageKey" not in raw_data:
-            # If the match was already the accepted name, we can skip the extra request and just return raw_data.
-            return raw_data
-        else:
-            # If the match was a synonym, fetch the accepted taxon's record to get the metadata.
-            accepted = self._fetch_JSON(f"{self.BASE_URL}/species/{self.accepted_id}")
-            return accepted  # TODO: add error handling for failed request
+        # Always fetch the full /species/{id} record for consistent authorship,
+        # publishedIn, and taxonomicStatus regardless of whether the query matched
+        # the accepted name directly or via a synonym.
+        return self._fetch_JSON(
+            f"{self.BASE_URL}/species/{self.accepted_id}"
+        )  # TODO: add error handling for failed request
 
     def _compile_synonym_search_term(
         self, synonym_search_term_data: dict
@@ -214,15 +213,24 @@ class GBIFAPI(SpeciesAPI):
         genus, species = self._extract_genus_species(name)
         return [
             self._format_row(
-                api_name=GBIF_PORTAL.display_name,
-                kingdom=synonym_search_term_data.get("kingdom", ""),
-                genus=genus,
-                species=species,
-                api_internal_id=key,
-                author=synonym_search_term_data.get("authorship", ""),
-                publication_year=self._extract_publication_year(published_in),
-                publication_name=self._extract_publication_name(published_in),
-                api_link=f"https://www.gbif.org/species/{key}",
+                **{
+                    "api_name": GBIF_PORTAL.display_name,
+                    "kingdom": synonym_search_term_data.get("kingdom", ""),
+                    "phylum": synonym_search_term_data.get("phylum", ""),
+                    "class_": synonym_search_term_data.get("class", ""),
+                    "order": synonym_search_term_data.get("order", ""),
+                    "family": synonym_search_term_data.get("family", ""),
+                    "genus": genus,
+                    "species": species,
+                    "api_internal_id": key,
+                    "author": synonym_search_term_data.get("authorship", ""),
+                    "publication_year": self._extract_publication_year(published_in),
+                    "publication_name": self._extract_publication_name(published_in),
+                    "api_link": f"https://www.gbif.org/species/{key}",
+                    "status": self._extract_status(
+                        synonym_search_term_data.get("taxonomicStatus", "")
+                    ),
+                }
             )
         ]
 
@@ -254,18 +262,23 @@ class GBIFAPI(SpeciesAPI):
                     genus, species = self._extract_genus_species(canonical_name)
                     candidates.append(
                         self._format_row(
-                            api_name=GBIF_PORTAL.display_name,
-                            genus=genus,
-                            species=species,
-                            api_internal_id=item_id,
-                            author=item.get("authorship", ""),
-                            publication_year=self._extract_publication_year(
-                                published_in
-                            ),
-                            publication_name=self._extract_publication_name(
-                                published_in
-                            ),
-                            api_link=f"https://www.gbif.org/species/{item_id}",
+                            **{
+                                "api_name": GBIF_PORTAL.display_name,
+                                "genus": genus,
+                                "species": species,
+                                "api_internal_id": item_id,
+                                "author": item.get("authorship", ""),
+                                "publication_year": self._extract_publication_year(
+                                    published_in
+                                ),
+                                "publication_name": self._extract_publication_name(
+                                    published_in
+                                ),
+                                "api_link": f"https://www.gbif.org/species/{item_id}",
+                                "status": self._extract_status(
+                                    item.get("taxonomicStatus", "")
+                                ),
+                            }
                         )
                     )
                     # TODO: bubble up as much as possible in terms of hardcoded strings/magic numbers

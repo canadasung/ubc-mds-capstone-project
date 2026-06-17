@@ -4,10 +4,10 @@ Catalogue of Life API client.
 SpeciesAPI implementation for the Catalogue of Life (COL), served via the ChecklistBank API. COL is a global taxonomic checklist that provides accepted names and synonymies.
 """
 
+from scripts.config import COL_PORTAL
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from scripts.config import COL_PORTAL
 
 
 class COLAPI(SpeciesAPI):
@@ -147,16 +147,63 @@ class COLAPI(SpeciesAPI):
         if accepted is not None:
             return accepted
 
-        # Slow path: query was a synonym — fetch accepted taxon by ID
+        # Slow path: query was a synonym — fetch accepted taxon by ID.
+        # The /taxon/{id} response does not include classification, so we fetch
+        # it separately and attach it so _extract_taxonomy can find it.
         try:
             accepted_id = self._extract_internal_accepted_id(results)
             taxon = self._fetch_JSON(
                 f"{self.BASE_URL}/dataset/{self.DATASET_KEY}/taxon/{accepted_id}",
             )
-            return taxon if taxon else {}  # TODO: add error handling for empty taxon
+            if not taxon:  # TODO: add error handling for empty taxon
+                return {}
+            # Get and append classification information separately, as it is not returned by taxon/accepted_id
+            classification = self._fetch_JSON(
+                f"{self.BASE_URL}/dataset/{self.DATASET_KEY}/taxon/{accepted_id}/classification",
+            )
+            taxon["classification"] = (
+                classification if isinstance(classification, list) else []
+            )
+            return taxon
         except LookupError:
             # TODO: add error handling for this case
             return {}
+
+    def _extract_taxonomy(self, data: dict) -> dict[str, str]:
+        """
+        Extract kingdom, phylum, class, order, family, and subfamily from a COL
+        name-usage record.
+
+        Locates the ``"classification"`` list under the ``"usage"`` wrapper
+        (nameusage/search results) or at the top level (direct /taxon/{id}
+        records).
+
+        Parameters
+        ----------
+        data : dict
+            A COL name-usage record (either search result or direct taxon record).
+
+        Returns
+        -------
+        dict[str, str]
+            Keys are ``"kingdom"``, ``"phylum"``, ``"class_"``, ``"order"``,
+            ``"family"``, and ``"subfamily"``.
+        """
+        usage = data.get("usage") or data
+        classification = usage.get("classification") or data.get("classification", [])
+        rank_map = {
+            item.get("rank", "").lower(): item.get("name", "")
+            for item in classification
+            if item.get("rank") and item.get("name")
+        }
+        return {
+            "kingdom": rank_map.get("kingdom", ""),
+            "phylum": rank_map.get("phylum", ""),
+            "class_": rank_map.get("class", ""),
+            "order": rank_map.get("order", ""),
+            "family": rank_map.get("family", ""),
+            "subfamily": rank_map.get("subfamily", ""),
+        }
 
     def _compile_synonym_search_term(
         self, synonym_search_term_data: dict
@@ -185,19 +232,24 @@ class COLAPI(SpeciesAPI):
             return []
         taxon_id = synonym_search_term_data.get("id", "")
         genus, species = self._extract_genus_species(sci_name)
+        classification = self._extract_taxonomy(synonym_search_term_data)
         return [
             self._format_row(
-                api_name=COL_PORTAL.display_name,
-                genus=genus,
-                species=species,
-                api_internal_id=str(taxon_id),
-                author=name_obj.get("authorship", ""),
-                # source_name=name_obj.get("link", ""),
-                api_link=(
-                    f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"
-                    if taxon_id
-                    else ""
-                ),
+                **{
+                    "api_name": COL_PORTAL.display_name,
+                    **classification,
+                    "genus": genus,
+                    "species": species,
+                    "api_internal_id": str(taxon_id),
+                    "author": name_obj.get("authorship", ""),
+                    "source_name": name_obj.get("link", ""),
+                    "status": self._extract_status(usage.get("status", "")),
+                    "api_link": (
+                        f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"
+                        if taxon_id
+                        else ""
+                    ),
+                }
             )
         ]
 
@@ -227,17 +279,20 @@ class COLAPI(SpeciesAPI):
             genus, species = self._extract_genus_species(syn_name)
             candidates.append(
                 self._format_row(
-                    api_name=COL_PORTAL.display_name,
-                    genus=genus,
-                    species=species,
-                    api_internal_id=str(taxon_id),
-                    author=name_obj.get("authorship", ""),
-                    # source_name=name_obj.get("link", ""),
-                    api_link=(
-                        f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"  # TODO: while we do have unique taxon_id for each synonym, they all route to the same page for "accepted" name. Likely desired behavior, but double check against API documentation to confirm that this is expected.
-                        if taxon_id
-                        else ""
-                    ),
+                    **{
+                        "api_name": COL_PORTAL.display_name,
+                        "genus": genus,
+                        "species": species,
+                        "api_internal_id": str(taxon_id),
+                        "author": name_obj.get("authorship", ""),
+                        "source_name": name_obj.get("link", ""),
+                        "status": self._extract_status(s.get("status", "")),
+                        "api_link": (
+                            f"https://www.catalogueoflife.org/data/taxon/{taxon_id}"  # TODO: while we do have unique taxon_id for each synonym, they all route to the same page for "accepted" name. Likely desired behavior, but double check against API documentation to confirm that this is expected.
+                            if taxon_id
+                            else ""
+                        ),
+                    }
                 )
             )
 

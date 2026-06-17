@@ -239,7 +239,9 @@ class SpeciesAPI(ABC):
         str
             Four-digit year string, or ``""`` if not found.
         """
-        return "Not yet implemented"
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement _extract_publication_year()."
+        )
 
     def _extract_author(self, string: str) -> str:
         """
@@ -255,28 +257,9 @@ class SpeciesAPI(ABC):
         str
             The authorship string (e.g. ``"(L.) Lam."``), or ``""`` if not found.
         """
-        return "Not yet implemented"
-
-    def _extract_original_author(self, string: str) -> str:
-        """
-        Extract the original authorship string from a scientific name.
-
-        The original author is the taxonomist who first formally described the
-        taxon, typically shown in parentheses when the name has been subsequently
-        combined (e.g. the ``"L."`` in ``"(L.) Lam."``).
-
-        Parameters
-        ----------
-        string : str
-            A scientific name string that may include a basionym authorship
-            component.
-
-        Returns
-        -------
-        str
-            The original authorship string, or ``""`` if not found.
-        """
-        return "Not yet implemented"
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement _extract_author()."
+        )
 
     def _extract_publication_name(self, string: str) -> str:
         """
@@ -292,7 +275,45 @@ class SpeciesAPI(ABC):
         str
             The publication name string, or ``""`` if not found.
         """
-        return "Not yet implemented"
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement _extract_publication_name()."
+        )
+
+    def _extract_status(self, string: str) -> str:
+        """
+        Map a raw status string to the schema's ``"Accepted"`` or ``"Synonym"``
+        values by checking for those substrings.
+
+        Parameters
+        ----------
+        string : str
+            A raw status string from an API response, e.g. ``"accepted"``,
+            ``"accepted name"``, ``"ambiguous synonym"``.
+
+        Returns
+        -------
+        str
+            ``"Accepted"``, ``"Synonym"``, or ``""`` if neither substring is found.
+        """
+        lower = string.lower()
+        if "accepted" in lower:
+            return "Accepted"
+        if "synonym" in lower:
+            return "Synonym"
+        return ""
+
+    def _extract_taxonomy(self, data) -> dict[str, str]:
+        """
+        Extract taxonomy fields from a raw API response.
+
+        Raises
+        ------
+        NotImplementedError
+            When the child class has not provided an implementation.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement _extract_taxonomy()."
+        )
 
     def _extract_genus_species(self, name: str) -> tuple[str, str]:
         """
@@ -331,6 +352,7 @@ class SpeciesAPI(ABC):
         kingdom: str = _UNSET,  # type: ignore[assignment]
         phylum: str = _UNSET,  # type: ignore[assignment]
         class_: str = _UNSET,  # type: ignore[assignment]
+        order: str = _UNSET,  # type: ignore[assignment]
         family: str = _UNSET,  # type: ignore[assignment]
         subfamily: str = _UNSET,  # type: ignore[assignment]
         author: str = _UNSET,  # type: ignore[assignment]
@@ -381,6 +403,7 @@ class SpeciesAPI(ABC):
             "kingdom": kingdom,
             "phylum": phylum,
             "class": class_,
+            "order": order,
             "family": family,
             "subfamily": subfamily,
             "author": author,
@@ -455,9 +478,9 @@ class SpeciesAPI(ABC):
         NotImplementedError
             When the child class has not provided an implementation.
         """
-        # update print statement
+        # TODO: update print statement
         raise NotImplementedError(
-            f"{type(self).__name__} does not implement _get_accepted_id()."
+            f"{type(self).__name__} does not implement _extract_internal_accepted_id()."
         )
 
     # ------------------------------------------------------------------
@@ -615,13 +638,25 @@ class SpeciesAPI(ABC):
         raw_data = self._fetch_query_data(name)
         if self._is_empty(raw_data):
             return empty_synonym_table()
+        print("raw_data")
+        print(raw_data)
 
         synonym_data = self._fetch_synonym_data(raw_data)
+        print("synonym_data")
+        if isinstance(synonym_data, ET.Element):
+            print(ET.tostring(synonym_data, encoding="unicode"))
+        else:
+            print(synonym_data)
 
         # `synonym_search_term_data` is the data for the search term of `_fetch_synonym_data`, either the accepted ID or the original query ID, depending on the API. For APIs that must resolve to the accepted name to access synonyms, this will be the accepted ID, but for those that do not need to resolve, this will be the original query ID. While some APIs may include the search term's data in the synonym search response, others may not, so this step ensures that we have the search term's data regardless of the API's structure.
         synonym_search_term_data = self._fetch_synonym_search_term_data(
             raw_data, synonym_data
         )
+        print("synonym_search_term_data")
+        if isinstance(synonym_search_term_data, ET.Element):
+            print(ET.tostring(synonym_search_term_data, encoding="unicode"))
+        else:
+            print(synonym_search_term_data)
 
         search_term = []
         synonyms = []

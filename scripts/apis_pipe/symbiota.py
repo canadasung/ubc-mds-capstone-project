@@ -10,14 +10,15 @@ HTTP calls use the base-class ``_fetch_JSON`` helper and constructs the full URL
 """
 
 import re
+from itertools import product
 
 # import xml.etree.ElementTree as ET  # only needed if taxonomy extraction is re-enabled
 from urllib.parse import urlparse
 
+from scripts.config import SYMBIOTA_PORTAL_BY_NAME
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from scripts.config import SYMBIOTA_PORTAL_BY_NAME
 
 # Canonical column order for extended Symbiota synonym DataFrames.
 # Commented out: currently using the standard _format_synonym schema from SpeciesAPI.
@@ -38,14 +39,20 @@ from scripts.config import SYMBIOTA_PORTAL_BY_NAME
 #     "GBIF Accepted Status",
 # ]
 
-# Rankid ranges for taxonomy column extraction from api/v2/taxonomy/{id}.
-# Commented out: only needed if _extract_taxonomy is re-enabled.
-# _RANK_RANGES: dict[str, tuple[int, int]] = {
-#     "Phylum": (25, 45),
-#     "Class": (50, 75),
-#     "Family": (130, 155),
-#     "Subfamily": (155, 170),
-# }
+# Maps each portal's display_name to the endpoint used for name search queries.
+_SEARCH_ENDPOINT: dict[str, str] = {
+    "MyCoPortal": "api/v2/taxonomy/search",
+}
+_DEFAULT_SEARCH_ENDPOINT = "api/v2/taxonomy"
+
+# Exact rankid values used by Symbiota for each taxonomic rank.
+# Kingdom (10) is read from the top-level kingdomName field instead.
+_RANK_IDS: dict[str, int] = {
+    "phylum": 30,
+    "class_": 60,
+    "order": 100,
+    "family": 140,
+}
 
 
 class SymbiotaAPI(SpeciesAPI):
@@ -89,42 +96,34 @@ class SymbiotaAPI(SpeciesAPI):
         self.portal_name = portal.display_name
 
     # ---------------------------------------------------------
-    # Schema helpers (commented out: standard _format_synonym used instead)
+    # Schema helpers
     # ---------------------------------------------------------
 
-    # def _empty_record(self) -> dict:
-    #     """Return a blank record with every output column set to an empty string."""
-    #     return {col: "" for col in COLUMNS}
+    def _extract_taxonomy(self, data: dict) -> list[dict[str, str]]:
+        """
+        Extract taxonomy hierarchy fields from an api/v2/taxonomy/{id} response.
 
-    # def _build_record(self, taxonomy: dict, **fields) -> dict:
-    #     """Build a single output record by merging empty defaults, taxonomy, and field overrides."""
-    #     return {**self._empty_record(), **taxonomy, "Source Name": self.portal_name, **fields}
+        Builds a rankid → list-of-names index. When a rankid has multiple entries
+        (e.g. two families), the cartesian product is returned so the caller can
+        emit one row per combination — capturing the ambiguity rather than silently
+        dropping it.
+        """
+        rank_index: dict[int, list[str]] = {}
+        for entry in data.get("classification", []):
+            rid = entry.get("rankid")
+            name = entry.get("scientificName", "")
+            if rid is not None and name and str(name).strip():
+                rank_index.setdefault(int(rid), []).append(str(name).strip())
 
-    # def _split_binomial(self, name: str) -> tuple[str, str]:
-    #     """Split a binomial scientific name into (genus, species epithet)."""
-    #     parts = name.split()
-    #     return (parts[0] if parts else ""), (parts[1] if len(parts) > 1 else "")
+        kingdom = str(data.get("kingdomName") or (rank_index.get(10, [""])[0]) or "")
+        col_values: dict[str, list[str]] = {"kingdom": [kingdom]}
+        for col, rid in _RANK_IDS.items():
+            col_values[col] = rank_index.get(rid, [""])
 
-    # def _extract_taxonomy(self, data: dict) -> dict:
-    #     """
-    #     Extract taxonomy hierarchy fields from an api/v2/taxonomy/{id} response.
-    #     Returns Kingdom, Phylum, Class, Family, Subfamily using _RANK_RANGES.
-    #     """
-    #     rank_index: dict[int, str] = {}
-    #     for entry in data.get("classification", []):
-    #         rid = entry.get("rankid")
-    #         name = entry.get("scientificName", "")
-    #         if rid is not None and name and str(name).strip():
-    #             rank_index[int(rid)] = str(name).strip()
-    #     def lowest_in_range(lo: int, hi: int) -> str:
-    #         return next((rank_index[r] for r in range(lo, hi + 1) if r in rank_index), "")
-    #     return {
-    #         "Kingdom": str(data.get("kingdomName") or lowest_in_range(10, 15) or ""),
-    #         "Phylum": lowest_in_range(*_RANK_RANGES["Phylum"]),
-    #         "Class": lowest_in_range(*_RANK_RANGES["Class"]),
-    #         "Family": lowest_in_range(*_RANK_RANGES["Family"]),
-    #         "Subfamily": lowest_in_range(*_RANK_RANGES["Subfamily"]),
-    #     }
+        return [
+            dict(zip(col_values.keys(), combo))
+            for combo in product(*col_values.values())
+        ]
 
     # ---------------------------------------------------------
     # Taxon ID resolution (internal helpers)
@@ -175,32 +174,8 @@ class SymbiotaAPI(SpeciesAPI):
             return accepted["tid"]
 
     # ---------------------------------------------------------
-    # HTML synonym scraping extractors (internal helpers)
+    # TODO: write title here
     # ---------------------------------------------------------
-
-    # NOTE: the below is unnecessary, as symbiota portals do not provide separate pages for recognized synonyms, only the page for the accepted taxon, whose ID we already know from the search results.
-    # def _extract_synonym_ids(self, syn_html: str) -> dict[str, int]:
-    #     """
-    #     Extract a name-to-id mapping from synonym ``<a>`` links in HTML.
-
-    #     Parameters
-    #     ----------
-    #     syn_html : str
-    #         The inner HTML of the ``synonymDiv`` element.
-
-    #     Returns
-    #     -------
-    #     dict[str, int]
-    #         Mapping of synonym name strings to their internal taxon IDs.
-    #     """
-    #     id_map: dict[str, int] = {}
-    #     for a_match in re.finditer(
-    #         r"<a[^>]*[?&]tid=(\d+)[^>]*>(.*?)</a>", syn_html, re.DOTALL
-    #     ):
-    #         inner_name = re.search(r"<i>([^<]+)</i>", a_match.group(2))
-    #         if inner_name:
-    #             id_map[inner_name.group(1).strip()] = int(a_match.group(1))
-    #     return id_map
 
     def _extract_synonym_pairs(self, syn_html: str) -> list[tuple[str, str]]:
         """
@@ -250,16 +225,10 @@ class SymbiotaAPI(SpeciesAPI):
             fail or return no results.
         """
         search_params = {"taxon": name, "type": "EXACT", "limit": 100, "offset": 0}
-        # Try both endpoints in order, returning the first successful response with results. While most portals will use /api/v2/taxonomy for both search queries and ID lookups, some (e.g. MyCoPortal) use /api/v2/taxonomy/search for name queries and api/v2/taxonomy for direct ID lookups, and may fail silently on a search query in api/v2/taxonomy, so we need to check both in this exact order.
-        for endpoint in ("api/v2/taxonomy/search", "api/v2/taxonomy"):
-            data = self._fetch_JSON(f"{self.BASE_URL}/{endpoint}", search_params)
-            if data == {}:
-                # _fetch_JSON returns {} on RequestException (network/HTTP error).
-                print(
-                    f"[{self.portal_name}] '{endpoint}' returned an error; trying next endpoint."
-                )
-                continue
+        endpoint = _SEARCH_ENDPOINT.get(self.portal_name, _DEFAULT_SEARCH_ENDPOINT)
+        data = self._fetch_JSON(f"{self.BASE_URL}/{endpoint}", search_params)
 
+        if data != {}:
             # Some portals return a list directly, while others wrap it in a 'results' dict.
             if isinstance(data, list):
                 results = data[0] if len(data) > 0 else {}
@@ -272,14 +241,9 @@ class SymbiotaAPI(SpeciesAPI):
                     f"[{self.portal_name}] '{endpoint}' returned results for '{name}'."
                 )
                 return results
-            else:
-                print(
-                    f"[{self.portal_name}] '{endpoint}' returned no results for '{name}'."
-                )
-                continue
 
         print(
-            f"[{self.portal_name}] All search endpoints returned no results for '{name}'. Attempting autocomplete search."
+            f"[{self.portal_name}] Search endpoint returned no results for '{name}'. Attempting autocomplete search."
         )
 
         # If neither API endpoint returned results, attempt to resolve the ID via autocomplete.
@@ -353,7 +317,7 @@ class SymbiotaAPI(SpeciesAPI):
         return [{"name": name, "author": author} for name, author in pairs]
 
     def _fetch_synonym_search_term_data(
-        self, raw_data: dict, synonym_data: list[dict]
+        self, _raw_data: dict, _synonym_data: list[dict]
     ) -> dict:
         """
         Return the accepted taxon's taxonomy record for the synonym search term.
@@ -376,16 +340,10 @@ class SymbiotaAPI(SpeciesAPI):
         dict
             The accepted taxon's taxonomy record, or ``raw_data`` on failure.
         """
-        # If the query was already the accepted name, we can skip the extra request and just return raw_data.
-        query_id = self._extract_internal_id(raw_data)
-        if str(self.accepted_id) == str(query_id):
-            return raw_data
-        else:
-            # Otherwise, query was a synonym — fetch the accepted taxon's record to get the correct name and author.
-            accepted_data = self._fetch_JSON(
-                f"{self.BASE_URL}/api/v2/taxonomy/{self.accepted_id}"
-            )
-            return accepted_data  # TODO: add error handling for failed request
+        # Always fetch the full taxonomy record for consistent classification data.
+        return self._fetch_JSON(
+            f"{self.BASE_URL}/api/v2/taxonomy/{self.accepted_id}"
+        )  # TODO: add error handling for failed request
 
     def _compile_synonym_search_term(
         self, synonym_search_term_data: dict
@@ -412,17 +370,24 @@ class SymbiotaAPI(SpeciesAPI):
         if not name or self._is_infraspecific(name):
             return []
         genus, species = self._extract_genus_species(name)
+        taxonomies = self._extract_taxonomy(synonym_search_term_data)
         return [
             self._format_row(
-                api_name=self.portal_name,
-                genus=genus,
-                species=species,
-                api_internal_id=str(self.accepted_id),
-                author=synonym_search_term_data.get("author", ""),
-                api_link=f"{self.BASE_URL}/taxa/index.php?tid={self.accepted_id}"
-                if self.accepted_id
-                else "",  # URL is the same for all synonyms since Symbiota redirects synonym searches to the accepted taxon page.
+                **{
+                    "api_name": self.portal_name,
+                    **taxonomy,
+                    "genus": genus,
+                    "species": species,
+                    "api_internal_id": str(self.accepted_id),
+                    "author": synonym_search_term_data.get("author", ""),
+                    "source_name": synonym_search_term_data.get("source") or "",
+                    "status": "Accepted",
+                    "api_link": f"{self.BASE_URL}/taxa/index.php?tid={self.accepted_id}"
+                    if self.accepted_id
+                    else "",
+                }
             )
+            for taxonomy in taxonomies
         ]
 
     def _compile_synonyms(self, synonym_data: list[dict]) -> list[dict]:
@@ -453,16 +418,19 @@ class SymbiotaAPI(SpeciesAPI):
                 genus, species = self._extract_genus_species(name)
                 results.append(
                     self._format_row(
-                        api_name=self.portal_name,
-                        genus=genus,
-                        species=species,
-                        api_internal_id=str(
-                            self.accepted_id
-                        ),  # symbiota portals only have accepted ID
-                        author=item.get("author", ""),
-                        api_link=f"{self.BASE_URL}/taxa/index.php?taxon={self.accepted_id}"
-                        if self.accepted_id
-                        else "",  # URL is the same for all synonyms since Symbiota redirects synonym searches to the accepted taxon page.
+                        **{
+                            "api_name": self.portal_name,
+                            "genus": genus,
+                            "species": species,
+                            "api_internal_id": str(
+                                self.accepted_id
+                            ),  # symbiota portals only have accepted ID
+                            "author": item.get("author", ""),
+                            "status": "Synonym",
+                            "api_link": f"{self.BASE_URL}/taxa/index.php?taxon={self.accepted_id}"
+                            if self.accepted_id
+                            else "",
+                        }
                     )
                 )
         return results
