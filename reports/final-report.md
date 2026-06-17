@@ -32,21 +32,21 @@ bibliography: references.bib
 
 # Executive Summary {#sec-executive-summary}
 
-At the Beaty Biodiversity Museum, curators keep millions of physical specimen organized and labeled based on the most current scientific consensus about their taxonomy, including the species name and phylogenetic tree. Since taxonomy is constantly changing, many different synonyms may be used to label the same species in different publications [@sandall2023]. We propose a web app that gathers synonym and taxonomic information from many online sources, presenting it to curators in multiple ways and providing direct links back to each source, so they can make an informed decision about which designation to incorporate into the museum's database.
+At the Beaty Biodiversity Museum, curators keep millions of physical specimens organized and labeled based on the most current scientific consensus about their taxonomy, including the species name and phylogenetic tree. Since taxonomy is constantly changing, many different synonyms may be used to label the same species in different publications [@sandall2023]. We propose a web app that gathers synonym and taxonomic information from many online sources, presenting it to curators in multiple ways and providing direct links back to each source, so they can make an informed decision about which designation to incorporate into the museum's database. The live application and source code are linked in [Appendix A](#sec-appendix-a).
 
 # Introduction {#sec-introduction}
 
-Taxonomy refers to classifying organisms into hierarchical groups based on shared characteristics and evolutionary relationships. Within Beaty, curators are responsible for ensuring every specimen is identified, classified, and stored appropriately [@rossellomora2011]. Since taxonomy is an ever evolving field, individual species names can change over time, introducing synonyms, basionyms, variants, subspecies, and more. Beyond just the name, entire taxonomic classifications (e.g. family, order) can change, introducing further uncertainty around where organisms should physically and digitally be stored.
+Taxonomy refers to classifying organisms into hierarchical groups based on shared characteristics and evolutionary relationships. Within Beaty, curators are responsible for ensuring every specimen is identified, classified, and stored appropriately [@rossellomora2011]. Since taxonomy is an ever-evolving field, individual species names can change over time, introducing synonyms, basionyms, variants, subspecies, and more. Beyond just the name, entire taxonomic classifications (e.g. family, order) can change, introducing further uncertainty around where organisms should physically and digitally be stored.
 
 Many online databases compile updated species names and taxonomic classification changes from millions of individual publications. Currently, curators access these resources individually, manually comparing competing information based on their expert knowledge of Beaty's current organization scheme. Our web app will speed up this process by making API calls to online sources and creating a combined list of species synonyms and additional information, such as author names and year of publication, to help curators decide which synonym to use. This will give curators a more consistent, reproducible, and faster workflow to classify and label specimens.
 
-To achieve this, our app queries a list of well-known databases relevant to the species being searched, gathers all results, and presents them to the curator in several different views. The Overview lists all synonyms returned from the search alongside the databases that contain them. The Detail view shows the full search results from every database, with an option to download as a CSV file. The Relations view provides an interactive graph of synonyms grouped by genus. The Timeline shows when each name was published and by whom in chronological order. Finally, the Taxonomy view displays the species' classification across ranks such as Kingdom, Phylum, Class, Order, Family, and Genus. The aggregated results include direct links back to their source databases, consolidating the information a curator needs in one place without having to open multiple sites manually.
+To achieve this, our app queries a list of well-known databases relevant to the species being searched, gathers all results, and presents them to the curator in several different views. The Overview view lists all synonyms returned from the search alongside the databases that contain them. The Detail view shows the full search results from every database, with an option to download as a CSV file. The Relations view provides an interactive graph of synonyms grouped by genus. The Timeline view shows when each name was published and by whom in chronological order. Finally, the Taxonomy view displays the species' classification across ranks such as Kingdom, Phylum, Class, Order, Family, and Genus. The aggregated results include direct links back to their source databases, consolidating the information a curator needs in one place without having to open multiple sites manually.
 
 # Data {#sec-data}
 
 ## Data Sources
 
-All data is sourced on-demand via APIs and web scraping from 30+ individual websites hosting species synonyms and taxonomic information. Because taxonomy is updated frequently, data is collected dynamically to ensure our web app always displays the most current information. A full list of sources — including those currently implemented, suggested for future use, and those we were unable to implement — is provided in [Appendix A](#sec-appendix-a).
+All data is sourced on-demand via APIs and web scraping from 30+ individual websites hosting species synonyms and taxonomic information. Because taxonomy is updated frequently, data is collected dynamically to ensure our web app always displays the most current information. A full list of sources — including those currently implemented, suggested for future use, and those we were unable to implement — is provided in [Appendix B](#sec-appendix-b).
 
 ## Data Size and Structure
 
@@ -62,7 +62,8 @@ The original raw data enters our pipeline from API calls to each source, which r
   - `order`
   - `family`
   - `subfamily`
-  - `genus`, `species` (required)
+  - `genus` (required)
+  - `species` (required)
 - `author`: author of the species synonym (optional)
 - `publication_name`: name of the publication where the species synonym name was published (optional)
 - `publication_year`: year when the species synonym name was published (optional)
@@ -81,13 +82,13 @@ We also perform format validation checks at data entry time for fields where the
 
 ## Reliability and Monitoring
 
-APIs and website structures change over time, posing a risk to our data pipeline. We've included some structural checks to verify that the fetch calls are still retrieving data and that the expected keywords and fields are present in the responses. Future developers should be aware that these checks cannot catch subtle changes, for example if a piece of data is moved to a new keyword but the old keyword remains, and we encourage ongoing human oversight to monitor for such issues.
+APIs and website structures change over time, posing a risk to our data pipeline. We have included some structural checks to verify that the fetch calls are still retrieving data and that the expected keywords and fields are present in the responses. Future developers should be aware that these checks cannot catch subtle changes, for example if a piece of data is moved to a new keyword but the old keyword remains, and we encourage ongoing human oversight to monitor for such issues.
 
 Many of the API sources are sparsely maintained and subject to network outages. To address this, we built a "down detector" that checks connectivity to each source at query time and reports outages to the user, allowing them to make informed judgments about the completeness of their results.
 
 ## Biases
 
-While we aim to avoid designating any single source as ground truth, as the lack of such a consensus is the central problem our project addresses, where a baseline or default source is required, we use GBIF because it contains general information for every species. The "suggest" feature uses GBIF to determine the kingdom of a search term; we are comfortable with this given expert input that disputed kingdoms are extremely rare. The taxonomy comparison view, by default, calculates edit distance between GBIF's taxonomy and the other sources, and we have also included the option for the user to choose any of the sources as the comparison source. We feel this design decision is sufficient to mitigate possible bias from choosing GBIF as the default comparison source.
+While we aim to avoid designating any single source as ground truth, as the lack of such a consensus is the central problem our project addresses, where a baseline or default source is required, we use GBIF because it contains general information for every species. The "suggest" feature uses GBIF to determine the kingdom of a search term; we are comfortable with this given expert input that disputed kingdoms are extremely rare. The taxonomy comparison view, by default, calculates edit distance between GBIF's taxonomy and the other sources, and we have also included the option for the user to choose any of the sources as the comparison source. We consider this design decision sufficient to mitigate possible bias from choosing GBIF as the default comparison source.
 
 ## Processing and Filtering Raw Data
 
@@ -96,19 +97,19 @@ The main purpose of our project is to process and filter the raw data from the A
 1. User searches "amanita muscaria"
 2. The query string is normalized to "Amanita muscaria"
 3. `_fetch_query_data()` turns "Amanita muscaria" into "99487"
-4. `_fetch_synonym_data()` gets synonyms for "99487", including metadata such as author, publication name, etc for each synonym
+4. `_fetch_synonym_data()` gets synonyms for "99487", including metadata such as author, publication name, etc. for each synonym
 5. `_fetch_synonym_search_term_data()` gets metadata for "99487" itself, as well as taxonomy if available
 6. `_compile_synonym_data()` turns the synonym data into a formatted output
 7. `_compile_synonym_search_term_data()` turns the raw synonym search term data into a formatted output
 8. The two outputs are combined and returned
 
-So, while the actual implementation of each function is unique to each API, the overall purpose, inputs and outputs, and call order of the functions are standardized.
+While the actual implementation of each function is unique to each API, the overall purpose, inputs and outputs, and call order of the functions are standardized.
 
-In addition to the five required functions, the SpeciesAPI template also defines many optional helper functions that the API children can implement if needed, such as `_extract_publication_year()` for extracting the publication year from a publication name string (e.g. "(1998). Book of Bugs"). Since not all APIs provide publication year, and of those that do not all need to extract it from a string (some have a clean year already mapped to a keyword/field in the response), not all API children will need to implement this function. Some of the helper functions have a default implementation in the SpeciesAPI parent, such as `_is_infraspecific()` which checks if a species name string contains any of the text patterns that would indicate it is an infraspecific name (e.g. "Amanita muscaria subsp. flavolta"), which we would want to filter out. We have left the flexibility for this function to be overridden in a child class, but expect that most APIs will share the default implementation. Lastly, any child API implementation can always implement entirely new functions. With this design, our processing and filtering uses consistent formatting, naming conventions, and organization of functions, while maintaining the required flexibility for each API to have custom code.
+In addition to the five required functions, the SpeciesAPI template also defines many optional helper functions that the API children can implement if needed, such as `_extract_publication_year()` for extracting the publication year from a publication name string (e.g. "(1998). Book of Bugs"). Since not all APIs provide publication year, and of those that do not all need to extract it from a string (some have a clean year already mapped to a keyword/field in the response), not all API children will need to implement this function. Some of the helper functions have a default implementation in the SpeciesAPI parent, such as `_is_infraspecific()` which checks if a species name string contains any of the text patterns that would indicate it is an infraspecific name (e.g. "Amanita muscaria subsp. flavolta"), which we would want to filter out. We have left the flexibility for this function to be overridden in a child class, but expect that most APIs will share the default implementation. Lastly, any child API implementation can always implement entirely new functions. With this design, our processing and filtering use consistent formatting, naming conventions, and organization of functions, while maintaining the required flexibility for each API to have custom code.
 
 # Data Science Methods {#sec-methods}
 
-Data Science methods focused primarily on UX and UI, through usability of the site and visualization techniques, respectively. In terms of overall UX design, we considered Nielson's 10 Usability Heuristics (https://www.nngroup.com/articles/ten-usability-heuristics/) to simplify and improve user experience of the site. For example, our Database Selection tab allows users to choose which databases should be shown. Other customizations exist throughout the website design, allowing for a highly tailored user experience.
+Our data science methods focused primarily on UX and UI, through usability of the site and visualization techniques, respectively. In terms of overall UX design, we considered Nielsen's 10 Usability Heuristics [@nielsen1994] to simplify and improve the user experience of the site. For example, our Database Selection tab allows users to choose which databases should be shown. Other customizations exist throughout the website design, allowing for a highly tailored user experience.
 
 Visualizations were carefully thought out throughout the site. Information has the capability to be shown in different ways (e.g. timeline view can be horizontal or vertical). Information is also encoded using different visual channels: color, size, and shape carry purposeful meaning throughout the site, indicating synonym acceptance, prevalence of synonyms, and disagreement between sites.
 
@@ -116,19 +117,19 @@ In terms of statistics, two main methods were used. In the Taxonomy view, Levens
 
 A final data science technique employed here included practices surrounding reproducibility and project collaboration via GitHub. Widely practiced architecture systems support both the frontend and backend of the site. Combined with well-documented code and package environments managed with conda, any collaborator (or the CI runner) can recreate the same site locally. In terms of collaboration, we used Git and GitHub with branch-based development. Pull requests merge into protected main / dev branches, and code review is required before merging. A GitHub Actions CI/CD pipeline runs the automated pytest suite on every pull request so a wide range of bugs are caught before they reach the shared branches.
 
-Primary stakeholders for this site include Beaty museum staff. For these stakeholders, false matches or missed synonyms directly affect which names enter the museum database, so naming conventionality and consistency matter most to them. Beaty data decisions are made to last; therefore, there are stakeholders downstream as well. These include anyone using Beaty published data or future museum staff who must rely on the accuracy of the data in the museum's database.
+Primary stakeholders for this site include Beaty museum staff. For these stakeholders, false matches or missed synonyms directly affect which names enter the museum database, so naming conventions and consistency matter most to them. Beaty data decisions are made to last; therefore, there are stakeholders downstream as well. These include anyone using Beaty published data or future museum staff who must rely on the accuracy of the data in the museum's database.
 
-Some ethical considerations were made when designing the site; the most significant one being conveying necessary information but not biasing user decisions. To do so, we avoided using colors which typically convey good and bad (red and green).
+Some ethical considerations were made when designing the site; the most significant one being conveying necessary information but not biasing user decisions. To do so, we avoided using colors that have positive or negative associations (e.g. green and red).
 
 # Data Product and Results {#sec-results}
 
 The final product is the web application (Next.js/React + Mantine frontend, FastAPI backend wrapping the Python pipeline, deployed via a Hugging Face Space + Vercel). One query fans out to up to 17 biodiversity databases (GBIF, COL, GenBank, Index Fungorum, Mushroom Observer, Tropicos, and eleven Symbiota portals) through a FastAPI service.
 
-A web app was used over a script/notebook because the end users are museum curators, not programmers. A searchable browser UI removes any setup barrier and fits an exploratory task. Multiple linked views were used over one mega-table because different curatorial questions need different shapes: "what are the synonyms?" (table), "where do sources disagree on classification?" (taxonomy grid), "how are names related?" (graph). Forcing all of that into a single layout would hide clear signals and make user experience worse.
+A web app was used over a script/notebook because the end users are museum curators, not programmers. A searchable browser UI removes any setup barrier and fits an exploratory task. Multiple views were used over a single large view to answer different kinds of curatorial questions: "What are the synonyms?" (table); "Where do sources disagree on classification?" (taxonomy grid); "How are names related?" (graph). Trying to force all those views into a single layout would hide clear signals and make the user experience worse.
 
-A key fact related to this website is that users are meant to use this site as decision support in the curatorial workflow. In our workflow, a user checks a name against the current online consensus before deciding which designation to enter into the museum's collection database. The tool surfaces and organizes evidence but never overwrites or auto-selects a name. It is not meant to make any decisions for the user, or even influence their decision heavily. This is because users can have decades of experience and knowledge related to this topic, and it was very important to respect that throughout this process.
+A key design principle of this tool is to support curators in their decision-making workflow, and not to replace their judgment. In our workflow, a user checks a name against the current online consensus before deciding which designation to enter into the museum's collection database. The tool surfaces and organizes evidence but never overwrites or auto-selects a name. It is not meant to make any decisions for the user, or even influence their decision heavily. This is because users can have decades of experience and knowledge related to this topic, and it was very important to respect that throughout this process.
 
-The structure of the site does include some limitations; a real-time fan-out makes the app only as fast and available as its slowest/least-reliable source, and results aren't reproducible snapshots. A possible improvement would be utilizing asynchronous/parallel source calls to cut latency. This was deferred because sequential calls were far easier to debug per-source and the failure-isolation logic was simpler to reason about while the pipeline was still stabilizing.
+The structure of the site does include some limitations; a real-time fan-out makes the app only as fast and available as its slowest, least-reliable source, and results are not reproducible snapshots. A possible improvement would be utilizing asynchronous/parallel source calls to cut latency. This was deferred because sequential calls were far easier to debug per-source and the failure-isolation logic was simpler to reason about while the pipeline was still stabilizing.
 
 # Conclusions and Recommendations {#sec-conclusions}
 
@@ -145,9 +146,14 @@ We recommend that the museum assign technical staff to add secure credential man
 ::: {#refs}
 :::
 
-# Appendix A: Data Sources {#sec-appendix-a .unnumbered}
+# Appendix A: Project Links {#sec-appendix-a .unnumbered}
 
-The following table lists the individual data sources expected to be integrated into our pipeline, along with their primary taxonomic scope.
+- **Web application:** <https://ubc-mds-project.vercel.app/>
+- **Source code:** <https://github.com/beatybiodiversitymuseum/ubc-mds-project>
+
+# Appendix B: Data Sources {#sec-appendix-b .unnumbered}
+
+The following table lists the individual data sources integrated into our pipeline, along with their primary taxonomic scope.
 
 | Source | Taxonomic Scope |
 | ------ | --------------- |
@@ -173,7 +179,7 @@ The following table lists the individual data sources expected to be integrated 
 | [NE Herbaria Portal](https://portal.neherbaria.org/portal/) | Northeastern US herbarium collections |
 | [PteridoPortal](https://pteridoportal.org/portal/) | Pteridophytes (ferns & allies) |
 | [SERNEC](https://sernecportal.org/portal/index.php) | 233 herbaria in southeastern USA |
-| [SW Biodiversity](https://swbiodiversity.org/) | Botanical data (Arizona--New Mexico) |
+| [SW Biodiversity](https://swbiodiversity.org/) | Botanical data (Arizona—New Mexico) |
 | [Symbiota Portals](https://symbiota.org/symbiota-portals/) | Many taxonomic groups depending on portal |
 | [Tropicos](https://www.tropicos.org/home) | Plants / herbs |
 | [VertNet](https://vertnet.org/) | Vertebrate biodiversity data |
