@@ -199,6 +199,7 @@ class GBIFAPI(SpeciesAPI):
                     "kingdom": synonym_search_term_data.get("kingdom", ""),
                     "phylum": synonym_search_term_data.get("phylum", ""),
                     "class_": synonym_search_term_data.get("class", ""),
+                    "order": synonym_search_term_data.get("order", ""),
                     "family": synonym_search_term_data.get("family", ""),
                     "genus": genus,
                     "species": species,
