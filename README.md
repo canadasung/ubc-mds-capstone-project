@@ -311,6 +311,9 @@ source of truth.
 
 ## Tests
 
+> **Note:** the test suite is significantly out of date and is not recommended for
+> use at this time.
+
 Run the suite from the repository root:
 
 ```bash
