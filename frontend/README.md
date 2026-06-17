@@ -7,28 +7,64 @@ the Streamlit-to-React mapping.
 
 ## Prerequisites
 
-- Node.js >= 18.18 (Next.js 14). The conda environment (`mds-project`) already
-  provides Node 20+, so no separate install is needed when that environment is
-  active.
-- The FastAPI backend running locally:
-  ```bash
-  # from the repo root, with the conda env active
-  uvicorn backend_api.main:app --reload --port 8000
-  ```
+- Node.js >= 18.18 (Next.js 14). The `mds-project` conda environment provides
+  Node 20+ along with all Python dependencies, so no separate Node install is
+  needed when it is active.
 
-## Setup
+## Running locally
+
+Open two terminal windows, one for the backend and one for the frontend.
+
+### 1. Activate the conda environment (both terminals)
+
+Run this first in each terminal before anything else:
+
+```bash
+conda activate mds-project
+```
+
+### 2. Terminal 1: start the FastAPI backend
+
+From the repo root:
+
+```bash
+uvicorn backend_api.main:app --reload --port 8000
+```
+
+Leave this running. You should see `Uvicorn running on http://127.0.0.1:8000`.
+
+### 3. Terminal 2: start the Next.js frontend
+
+From the repo root:
+
+```bash
+cd frontend
+npm install          # only needed the first time, or after pulling new changes
+npm run dev
+```
+
+Leave this running too. You should see `Ready - started server on http://localhost:3000`.
+
+### 4. Open the app in your browser
+
+Navigate to [http://localhost:3000](http://localhost:3000).
+
+> Next.js defers compilation until the first page load, so the terminal may look
+> idle until you open this URL.
+
+### First-time setup only
+
+If you have not set up `.env.local` yet:
 
 ```bash
 cd frontend
 cp .env.local.example .env.local   # points at http://localhost:8000 by default
-npm install
-npm run dev                        # http://localhost:3000
 ```
 
-The backend already allows requests from `http://localhost:3000` (see
-`backend_api/main.py`). If you host the API elsewhere, set
-`NEXT_PUBLIC_API_BASE_URL` in `.env.local` and add that frontend origin to the
-backend's `ALLOWED_ORIGINS`.
+The backend already allows requests from `http://localhost:3000` by default. If
+you host the API elsewhere, set `NEXT_PUBLIC_API_BASE_URL` in `.env.local` and add
+that frontend origin to the backend's `ALLOWED_ORIGINS` (read in
+`backend_api/main.py`).
 
 ## Scripts
 
