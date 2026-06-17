@@ -18,6 +18,12 @@ import { useFilteredRecords, useSearch } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
 import type { SpeciesRecord } from "@/lib/types";
 
+const formatHeader = (col: string) =>
+  col
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\bApi\b/g, "API");
+
 /** Column order: union of keys across records, first-seen order. */
 function columnsOf(records: SpeciesRecord[]): string[] {
   const cols: string[] = [];
@@ -89,7 +95,7 @@ export function DetailView() {
           <Table.Thead>
             <Table.Tr>
               {columns.map((c) => (
-                <Table.Th key={c}>{c}</Table.Th>
+                <Table.Th key={c}>{formatHeader(c)}</Table.Th>
               ))}
             </Table.Tr>
           </Table.Thead>

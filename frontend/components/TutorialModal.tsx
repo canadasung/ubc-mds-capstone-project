@@ -54,13 +54,13 @@ const STEPS: { label: string; title: string; body: React.ReactNode }[] = [
       <Stack gap="sm">
         <Text>
           Use the search panel on the left to type in a scientific species name (e.g.{" "}
-          <em>Podospora anserina</em> or <em>Amanita muscaria</em>), then click{" "}
-          <strong>Search</strong>.
+          <em>Podospora anserina</em> or <em>Amanita muscaria</em>), select the databases to
+          query, then click <strong>Search</strong>.
         </Text>
         <Text>
-          The tool will automatically select the most relevant sources based on the organism&apos;s
-          kingdom classfication on GBIF. Expand &ldquo;Database selection&rdquo; to manually choose
-          individual sources.
+          If you aren&apos;t sure which sources to query, we recommend using the
+          &ldquo;suggest&rdquo; button to automatically select relevant sources by the kingdom
+          of your search query, rather than querying all sources.
         </Text>
       </Stack>
     ),
@@ -73,19 +73,19 @@ const STEPS: { label: string; title: string; body: React.ReactNode }[] = [
         <Text>After searching, switch between views using the tabs at the top of the results area:</Text>
         <List size="sm" spacing={6}>
           <List.Item>
-            <strong>Overview</strong>: all synonyms returned from the search and the sources that contain them
+            <strong>Overview</strong>: all synonyms returned from the search and which sources list each one
           </List.Item>
           <List.Item>
-            <strong>Detail</strong>: detailed search results from all databases, with an option to download results as a CSV file
-          </List.Item>
-          <List.Item>
-            <strong>Relations</strong>: an interactive graph of synonyms grouped by genus name
+            <strong>Relations</strong>: an interactive graph of synonyms grouped by genus and/or species
           </List.Item>
           <List.Item>
             <strong>Timeline</strong>: a chronological view of when names were published and by whom
           </List.Item>
           <List.Item>
-            <strong>Taxonomy</strong>: a table view to compare taxonomic classification
+            <strong>Taxonomy</strong>: a table view to compare taxonomic classification from different sources
+          </List.Item>
+          <List.Item>
+            <strong>Detail</strong>: detailed search results from all databases, with an option to download results as a CSV file
           </List.Item>
         </List>
       </Stack>
@@ -93,9 +93,13 @@ const STEPS: { label: string; title: string; body: React.ReactNode }[] = [
   },
   {
     label: "Next Steps",
-    title: "Step 3 — Dig Deeper",
+    title: "Step 3 — Go To Original Sources",
     body: (
       <Stack gap="sm">
+        <Text>
+          That&apos;s it! All views include links back to the websites that the information was
+          retrieved from using APIs, which you can visit for more detailed information.
+        </Text>
         <Text>
           You can re-open this tutorial at any time by clicking the <strong>Tutorial</strong>{" "}
           button in the top-right corner of the header.
