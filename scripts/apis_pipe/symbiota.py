@@ -50,6 +50,7 @@ _DEFAULT_SEARCH_ENDPOINT = "api/v2/taxonomy"
 _RANK_IDS: dict[str, int] = {
     "phylum": 30,
     "class_": 60,
+    "order": 100,
     "family": 140,
 }
 

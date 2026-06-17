@@ -302,39 +302,18 @@ class SpeciesAPI(ABC):
             return "Synonym"
         return ""
 
-    def _extract_taxonomy(self, classification: list[dict]) -> dict[str, str]:
+    def _extract_taxonomy(self, data) -> dict[str, str]:
         """
-        Extract kingdom, phylum, class, family, and subfamily from a list of
-        rank-tagged classification entries.
+        Extract taxonomy fields from a raw API response.
 
-        Each entry is expected to have ``"rank"`` and ``"name"`` keys,
-        e.g. ``{"name": "Fagales", "rank": "order", "authorship": "Engl."}``.
-        Rank matching is case-insensitive.
-
-        Parameters
-        ----------
-        classification : list of dict
-            List of rank-tagged entries from an API classification response.
-
-        Returns
-        -------
-        dict[str, str]
-            Keys are ``"kingdom"``, ``"phylum"``, ``"class_"``, ``"family"``,
-            and ``"subfamily"``, with values from the classification list or
-            ``""`` when a rank is absent.
+        Raises
+        ------
+        NotImplementedError
+            When the child class has not provided an implementation.
         """
-        rank_map = {
-            item.get("rank", "").lower(): item.get("name", "")
-            for item in classification
-            if item.get("rank") and item.get("name")
-        }
-        return {
-            "kingdom": rank_map.get("kingdom", ""),
-            "phylum": rank_map.get("phylum", ""),
-            "class_": rank_map.get("class", ""),
-            "family": rank_map.get("family", ""),
-            "subfamily": rank_map.get("subfamily", ""),
-        }
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement _extract_taxonomy()."
+        )
 
     def _extract_genus_species(self, name: str) -> tuple[str, str]:
         """
@@ -373,6 +352,7 @@ class SpeciesAPI(ABC):
         kingdom: str = _UNSET,  # type: ignore[assignment]
         phylum: str = _UNSET,  # type: ignore[assignment]
         class_: str = _UNSET,  # type: ignore[assignment]
+        order: str = _UNSET,  # type: ignore[assignment]
         family: str = _UNSET,  # type: ignore[assignment]
         subfamily: str = _UNSET,  # type: ignore[assignment]
         author: str = _UNSET,  # type: ignore[assignment]
@@ -423,6 +403,7 @@ class SpeciesAPI(ABC):
             "kingdom": kingdom,
             "phylum": phylum,
             "class": class_,
+            "order": order,
             "family": family,
             "subfamily": subfamily,
             "author": author,

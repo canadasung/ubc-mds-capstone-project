@@ -171,12 +171,12 @@ class COLAPI(SpeciesAPI):
 
     def _extract_taxonomy(self, data: dict) -> dict[str, str]:
         """
-        Extract kingdom, phylum, class, family, and subfamily from a COL
+        Extract kingdom, phylum, class, order, family, and subfamily from a COL
         name-usage record.
 
         Locates the ``"classification"`` list under the ``"usage"`` wrapper
         (nameusage/search results) or at the top level (direct /taxon/{id}
-        records), then delegates to the base ``_extract_taxonomy`` helper.
+        records).
 
         Parameters
         ----------
@@ -186,12 +186,24 @@ class COLAPI(SpeciesAPI):
         Returns
         -------
         dict[str, str]
-            Keys are ``"kingdom"``, ``"phylum"``, ``"class_"``, ``"family"``,
-            and ``"subfamily"``.
+            Keys are ``"kingdom"``, ``"phylum"``, ``"class_"``, ``"order"``,
+            ``"family"``, and ``"subfamily"``.
         """
         usage = data.get("usage") or data
         classification = usage.get("classification") or data.get("classification", [])
-        return super()._extract_taxonomy(classification)
+        rank_map = {
+            item.get("rank", "").lower(): item.get("name", "")
+            for item in classification
+            if item.get("rank") and item.get("name")
+        }
+        return {
+            "kingdom": rank_map.get("kingdom", ""),
+            "phylum": rank_map.get("phylum", ""),
+            "class_": rank_map.get("class", ""),
+            "order": rank_map.get("order", ""),
+            "family": rank_map.get("family", ""),
+            "subfamily": rank_map.get("subfamily", ""),
+        }
 
     def _compile_synonym_search_term(
         self, synonym_search_term_data: dict

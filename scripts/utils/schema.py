@@ -13,6 +13,7 @@ SYNONYM_COLUMNS = [
     "phylum",  # taxonomic phylum (optional)
     "class",  # taxonomic class (optional)
     "family",  # taxonomic family (optional)
+    "order",  # taxonomic order (optional)
     "subfamily",  # taxonomic subfamily (optional)
     "genus",  # taxonomic genus (required)
     "species",  # taxonomic species (required)
@@ -38,6 +39,7 @@ _TAXON_COLUMNS = {
     "kingdom",
     "phylum",
     "class",
+    "order",
     "family",
     "subfamily",
     "genus",
