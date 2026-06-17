@@ -80,7 +80,7 @@ A single query produces five linked views of the same data:
 - **Timeline**: each name placed at its year of first publication, with author and
   publication shown in chronological order.
 - **Taxonomy**: the species' classification across ranks (Kingdom, Phylum, Class,
-  Order, Family, Subfamily, Genus). Cells are shaded by edit distance against a
+  Order, Family, Subfamily). Cells are shaded by edit distance against a
   comparison source (GBIF by default, user-selectable) so near-misses are
   distinguished from genuine disagreements.
 
