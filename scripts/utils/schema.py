@@ -130,7 +130,7 @@ def _validate_api_name(v: str) -> None:
 
 def _validate_publication_year(v: str) -> None:
     """
-    Validate that a publication year is a 4-digit string or ``UNAVAILABLE``.
+    Validate that a publication year is a 4-digit year string, ``""``, or ``UNAVAILABLE``.
 
     Parameters
     ----------
@@ -140,11 +140,13 @@ def _validate_publication_year(v: str) -> None:
     Raises
     ------
     ValueError
-        If ``v`` is not a 4-digit string and is not equal to ``UNAVAILABLE``.
+        If ``v`` is not a 4-digit numeric string, ``""``, or ``UNAVAILABLE``.
     """
-    if v != UNAVAILABLE and v != "" and not re.fullmatch(r"\d{4}", v):
+    if v in (UNAVAILABLE, ""):
+        return
+    if not re.fullmatch(r"\d{4}", v):
         raise ValueError(
-            f"'publication_year' must be a 4-digit year string, an empty string, or {UNAVAILABLE!r}, got {v!r}"
+            f"'publication_year' must be a 4-digit numeric string, an empty string, or {UNAVAILABLE!r}, got {v!r}"
         )
 
 
@@ -249,7 +251,7 @@ def make_synonym_row(**kwargs) -> dict:
                 f"omit the argument to let make_synonym_row apply the default."
             )
     row = {col: kwargs.get(col, UNAVAILABLE) for col in SYNONYM_COLUMNS}
-    missing = [col for col in _REQUIRED_COLUMNS if row[col] == UNAVAILABLE]
+    missing = [col for col in _REQUIRED_COLUMNS if row[col] in (UNAVAILABLE, "")]
     if missing:
         raise ValueError(f"Missing required columns: {sorted(missing)}")
     for col, validate in _VALIDATORS.items():
