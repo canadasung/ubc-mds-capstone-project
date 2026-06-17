@@ -84,15 +84,19 @@ export function TaxonomyView() {
     }
 
     const allowed = new Set(keys);
+    const isReal = (v: string) => v !== "" && v !== unavailMarker;
+
+    const HIGHER_RANKS = ["Kingdom", "Phylum", "Class", "Order", "Family", "Subfamily"];
+
     const filtered = data.sources.filter((row) => {
       const k = keyForApiName(row.source);
       // Index Fungorum is excluded from this view.
       if (k === "index_fungorum") return false;
       // keep when allowed, or when the source is unknown to the queried set
-      return allowed.has(k) || !queriedSources.includes(k);
+      if (!allowed.has(k) && queriedSources.includes(k)) return false;
+      // exclude sources where every higher rank is unavailable or empty
+      return HIGHER_RANKS.some((rank) => isReal(cellValue(row, rank)));
     });
-
-    const isReal = (v: string) => v !== "" && v !== unavailMarker;
 
     // keep only ranks that still have at least one non-empty value
     const presentRanks = data.ranks.filter((r) =>
@@ -109,16 +113,19 @@ export function TaxonomyView() {
         : visibleKeys[0] ?? backbone;
 
     // shade the higher ranks against the chosen backbone source
-    const shading = computeShading(filtered, presentRanks, effectiveBackbone);
+    const shading = computeShading(filtered, presentRanks, effectiveBackbone, unavailMarker);
 
     // A rank is a disagreement when the displayed sources hold 2+ distinct
     // real values. Blank and unavailable cells are excluded so they don't
     // inflate the disagreement count.
+    const TAXONOMY_RANKS = new Set(["Kingdom", "Phylum", "Class", "Order", "Family", "Subfamily"]);
     const disagreements = presentRanks.filter((rank) => {
+      if (!TAXONOMY_RANKS.has(rank)) return false;
       const distinct = new Set(
         filtered
-          .map((row) => cellValue(row, rank).toLowerCase())
-          .filter((v) => isReal(v)),
+          .map((row) => cellValue(row, rank))
+          .filter((v) => isReal(v))
+          .map((v) => v.toLowerCase()),
       );
       return distinct.size > 1;
     });
@@ -131,6 +138,8 @@ export function TaxonomyView() {
       effectiveBackbone,
     };
   }, [data, keys, queriedSources, backbone, unavailMarker]);
+
+  const disagreementSet = new Set(disagreements);
 
   // Options for the backbone picker: every visible source, keyed by source key.
   const backboneOptions = useMemo(
@@ -156,7 +165,7 @@ export function TaxonomyView() {
     <>
       <Text c="dimmed" size="md" mb="sm">
         Accepted classification for <b>{query}</b> per source · {sources.length}{" "}
-        source{sources.length === 1 ? "" : "s"} shown
+        source{sources.length === 1 ? "" : "s"} found with taxonomic data
       </Text>
 
       <DisagreementSummary
@@ -213,7 +222,7 @@ export function TaxonomyView() {
                     const val = cellValue(row, r);
                     const shade = shading.get(r)?.get(row.source) ?? null;
                     return (
-                      <Table.Td key={r} style={highlight ? shade ?? undefined : undefined}>
+                      <Table.Td key={r} style={highlight && disagreementSet.has(r) ? shade ?? undefined : undefined}>
                         {val === "" ? null : val === unavailMarker ? (
                           <span style={{ color: "var(--mantine-color-gray-5)" }}>{val}</span>
                         ) : val}
@@ -231,7 +240,7 @@ export function TaxonomyView() {
         <>
           <Select
             label="Truth backbone"
-            description="Source treated as the reference for Kingdom, Phylum, Class, Order & Family."
+            description="Source treated as the reference for Kingdom, Phylum, Class, Order, Family & Subfamily."
             data={backboneOptions}
             value={effectiveBackbone}
             onChange={(v) => v && setBackbone(v)}
@@ -301,7 +310,7 @@ function ShadingLegend() {
   return (
     <Stack gap={6} mt="md">
       <Text size="sm" c="dimmed">
-        Only Kingdom, Phylum, Class, Order &amp; Family are shaded. The backbone source
+        Only Kingdom, Phylum, Class, Order, Family &amp; Subfamily are shaded. The backbone source
         and any source matching it are very light blue; cells that differ are a
         darker blue by character edit distance from the backbone.
       </Text>
