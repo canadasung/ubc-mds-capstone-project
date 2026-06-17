@@ -2,11 +2,12 @@
 
 /** Chooses the active view and handles the shared empty/loading/error states. */
 
-import { Alert, Center, Loader, Stack, Text } from "@mantine/core";
-import { IconInfoCircle } from "@tabler/icons-react";
+import { Alert, Center, Group, Loader, SimpleGrid, Stack, Text, ThemeIcon } from "@mantine/core";
+import { IconCheck, IconInfoCircle } from "@tabler/icons-react";
 
 import { useSearch } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
+import { backendNameForKey, labelForKey } from "@/lib/sources";
 import { ApiError } from "@/lib/types";
 
 import { TableView } from "@/components/views/TableView";
@@ -18,6 +19,9 @@ import { TaxonomyView } from "@/components/views/TaxonomyView";
 export function ResultsArea() {
   const activeView = useSearchStore((s) => s.activeView);
   const submittedQuery = useSearchStore((s) => s.submittedQuery);
+  const submittedSources = useSearchStore((s) => s.submittedSources);
+  const searchProgress = useSearchStore((s) => s.searchProgress);
+  const isFiltering = useSearchStore((s) => s.isFiltering);
   const search = useSearch();
 
   if (!submittedQuery) {
@@ -33,14 +37,56 @@ export function ResultsArea() {
     );
   }
 
-  if (search.isFetching) {
+  if (isFiltering) {
     return (
       <Center mih={200}>
-        <Stack align="center" gap="xs">
-          <Loader />
-          <Text c="dimmed" size="sm">
-            Querying selected sources…
+        <Text c="dimmed" size="sm">Filtering results…</Text>
+      </Center>
+    );
+  }
+
+  if (search.isFetching) {
+    const done = searchProgress?.done ?? 0;
+    const activeBackendName = searchProgress?.source ?? null;
+
+    return (
+      <Center mih={200}>
+        <Stack gap="md" align="center">
+          <Text size="sm" c="dimmed">
+            {searchProgress
+              ? `Searching ${searchProgress.source} (${done}/${searchProgress.total})…`
+              : "Starting search…"}
           </Text>
+          <SimpleGrid cols={2} spacing="xs" verticalSpacing="xs">
+            {submittedSources.map((key, i) => {
+              const backendName = backendNameForKey(key);
+              const isCompleted = i < done;
+              const isActive = !isCompleted && backendName === activeBackendName;
+
+              return (
+                <Group key={key} gap="xs" wrap="nowrap">
+                  {isCompleted ? (
+                    <ThemeIcon size="xs" radius="xl" color="teal" variant="filled">
+                      <IconCheck size={10} />
+                    </ThemeIcon>
+                  ) : isActive ? (
+                    <Loader size="xs" />
+                  ) : (
+                    <Text size="xs" c="dimmed" lh={1} style={{ width: 18, textAlign: "center" }}>
+                      ○
+                    </Text>
+                  )}
+                  <Text
+                    size="sm"
+                    c={isCompleted ? "teal" : isActive ? undefined : "dimmed"}
+                    fw={isActive ? 600 : undefined}
+                  >
+                    {labelForKey(key)}
+                  </Text>
+                </Group>
+              );
+            })}
+          </SimpleGrid>
         </Stack>
       </Center>
     );
@@ -63,10 +109,10 @@ export function ResultsArea() {
     case "Detail":
       return <DetailView />;
     case "Relations":
-      return <RelationsView />;  
+      return <RelationsView />;
     case "Timeline":
       return <TimelineView />;
-    case "Taxonomy":           
+    case "Taxonomy":
       return <TaxonomyView />;
     default:
       return null;

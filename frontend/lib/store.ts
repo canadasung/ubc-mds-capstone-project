@@ -26,6 +26,7 @@ interface SearchState {
 
   // ── Live search progress ──────────────────────────────────────
   isSearching: boolean;
+  isFiltering: boolean; // brief flash when re-submitting with only source removals
   searchProgress: { source: string; done: number; total: number } | null;
   searchError: string | null;
   searchSuggestions: string[] | null;
@@ -45,6 +46,7 @@ interface SearchState {
 
   setCachedSearch: (query: string, sources: string[], data: SearchResponse) => void;
   setIsSearching: (v: boolean) => void;
+  setIsFiltering: (v: boolean) => void;
   setSearchProgress: (p: { source: string; done: number; total: number } | null) => void;
   setSearchError: (e: string | null) => void;
   setSearchSuggestions: (names: string[] | null) => void;
@@ -61,6 +63,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   cachedData: null,
 
   isSearching: false,
+  isFiltering: false,
   searchProgress: null,
   searchError: null,
   searchSuggestions: null,
@@ -94,6 +97,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     set({ cachedQuery: query, cachedSources: sources, cachedData: data }),
 
   setIsSearching: (v) => set({ isSearching: v }),
+
+  setIsFiltering: (v) => set({ isFiltering: v }),
 
   setSearchProgress: (p) => set({ searchProgress: p }),
 

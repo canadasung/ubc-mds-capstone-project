@@ -26,13 +26,17 @@ export function useSources() {
 }
 
 /**
- * Registers the SSE live-search effect. Fires whenever submittedQuery or
- * submittedSources change. Handles smart-cache logic:
- *   - same query, no new sources → skip re-fetch (client-side filter handles it)
+ * Registers the SSE live-search effect. Call this ONCE near the root of the
+ * component tree (page.tsx). Do NOT call it from inside useSearch() — useSearch()
+ * is called by multiple components simultaneously, which would open multiple
+ * competing SSE connections.
+ *
+ * Smart-cache logic:
+ *   - same query, no new sources → brief "filtering" flash, no re-fetch
  *   - same query, new sources added → fetch only the new sources, merge results
  *   - query changed → full fetch
  */
-function useLiveSearchEffect() {
+export function useLiveSearchEffect() {
   const submittedQuery = useSearchStore((s) => s.submittedQuery);
   const submittedSources = useSearchStore((s) => s.submittedSources);
   const cachedQuery = useSearchStore((s) => s.cachedQuery);
@@ -40,6 +44,7 @@ function useLiveSearchEffect() {
   const cachedData = useSearchStore((s) => s.cachedData);
   const setCachedSearch = useSearchStore((s) => s.setCachedSearch);
   const setIsSearching = useSearchStore((s) => s.setIsSearching);
+  const setIsFiltering = useSearchStore((s) => s.setIsFiltering);
   const setSearchProgress = useSearchStore((s) => s.setSearchProgress);
   const setSearchError = useSearchStore((s) => s.setSearchError);
   const setSearchSuggestions = useSearchStore((s) => s.setSearchSuggestions);
@@ -52,8 +57,17 @@ function useLiveSearchEffect() {
 
     const addedSources = submittedSources.filter((s) => !cachedSources.includes(s));
 
-    // Same query, no new sources — client-side filtering is sufficient
-    if (submittedQuery === cachedQuery && addedSources.length === 0) return;
+    // Same query, no new sources — client-side filtering is sufficient.
+    // Only flash the "filtering" indicator when there's cached data to show
+    // (i.e. not on an initial search where cachedData is null).
+    if (submittedQuery === cachedQuery && addedSources.length === 0) {
+      if (cachedData) {
+        setIsFiltering(true);
+        const t = setTimeout(() => setIsFiltering(false), 800);
+        return () => clearTimeout(t);
+      }
+      return;
+    }
 
     const isIncremental = submittedQuery === cachedQuery && addedSources.length > 0;
     const sourcesToFetch = isIncremental ? addedSources : submittedSources;
@@ -82,8 +96,14 @@ function useLiveSearchEffect() {
         setSearchProgress(null);
       },
       (names: string[]) => {
-        setSearchSuggestions(names);
-        setSearchError("No results found.");
+        if (isIncremental && cachedData) {
+          // Newly-added source returned nothing — keep existing results, just
+          // update the cache key so we don't re-fetch this source next time.
+          setCachedSearch(submittedQuery, submittedSources, cachedData);
+        } else {
+          setSearchSuggestions(names);
+          setSearchError("No results found.");
+        }
         setIsSearching(false);
         setSearchProgress(null);
       },
@@ -101,8 +121,6 @@ function useLiveSearchEffect() {
 
 /** Store-backed replacement for the old TanStack Query useSearch(). */
 export function useSearch() {
-  useLiveSearchEffect();
-
   const data = useSearchStore((s) => s.cachedData) ?? undefined;
   const isFetching = useSearchStore((s) => s.isSearching);
   const searchError = useSearchStore((s) => s.searchError);
@@ -153,13 +171,15 @@ export function useFilteredRecords(): {
   activeSourceKeys: string[];
 } {
   const search = useSearch();
-  const selectedSources = useSearchStore((s) => s.selectedSources);
+  // Use submittedSources (not selectedSources) so results only change when
+  // Search is pressed, making the isFiltering flash visible and meaningful.
+  const submittedSources = useSearchStore((s) => s.submittedSources);
 
   return useMemo(() => {
     const data = search.data;
     if (!data) return { records: [], activeSourceKeys: [] };
 
-    const allowed = new Set(selectedSources);
+    const allowed = new Set(submittedSources);
     // Normalise the queried sources list to keys for comparison
     const queriedKeys = new Set(data.sources.map((s) => keyForApiName(s)));
 
@@ -169,6 +189,6 @@ export function useFilteredRecords(): {
       return allowed.has(key) || !queriedKeys.has(key);
     });
 
-    return { records, activeSourceKeys: selectedSources };
-  }, [search.data, selectedSources]);
+    return { records, activeSourceKeys: submittedSources };
+  }, [search.data, submittedSources]);
 }

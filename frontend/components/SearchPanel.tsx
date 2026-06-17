@@ -18,7 +18,6 @@ import {
   Collapse,
   Divider,
   Group,
-  Progress,
   Stack,
   Text,
   TextInput,
@@ -45,7 +44,6 @@ export function SearchPanel() {
   const setAllSources = useSearchStore((s) => s.setAllSources);
   const setSources = useSearchStore((s) => s.setSources);
   const isSearching = useSearchStore((s) => s.isSearching);
-  const searchProgress = useSearchStore((s) => s.searchProgress);
 
   const [advancedOpen, advanced] = useDisclosure(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
@@ -101,25 +99,6 @@ export function SearchPanel() {
           <Button type="submit" fullWidth loading={isSearching} disabled={isSearching}>
             Search
           </Button>
-
-          {isSearching && (
-            <Stack gap={4}>
-              <Progress
-                value={
-                  searchProgress
-                    ? (searchProgress.done / searchProgress.total) * 100
-                    : 0
-                }
-                animated={!searchProgress}
-                size="sm"
-              />
-              <Text size="xs" c="dimmed">
-                {searchProgress
-                  ? `Searching ${searchProgress.source} (${searchProgress.done}/${searchProgress.total})…`
-                  : "Starting search…"}
-              </Text>
-            </Stack>
-          )}
         </Stack>
       </form>
 
