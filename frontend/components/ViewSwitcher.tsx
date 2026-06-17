@@ -9,7 +9,7 @@ export function ViewSwitcher() {
   const activeView = useSearchStore((s) => s.activeView);
   const setActiveView = useSearchStore((s) => s.setActiveView);
 
-  const options: ViewKey[] = ["Overview", "Detail", "Relations", "Timeline", "Taxonomy"];
+  const options: ViewKey[] = ["Overview", "Relations", "Timeline", "Taxonomy", "Detail"];
 
   return (
     <SegmentedControl

@@ -13,7 +13,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { SOURCE_KEYS } from "./sources";
 import type { SearchResponse } from "./types";
 
-export type ViewKey = "Overview" | "Detail" | "Relations" | "Timeline" | "Taxonomy";
+export type ViewKey = "Overview" | "Relations" | "Timeline" | "Taxonomy" | "Detail";
 
 interface SearchState {
   // ── Search form ───────────────────────────────────────────────
