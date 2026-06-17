@@ -217,10 +217,6 @@ export function RelationsView() {
 
   const onNodeMouseLeave = useCallback(() => setHoveredLabel(null), []);
 
-  if (records.length === 0) {
-    return <Text c="dimmed">No results to display.</Text>;
-  }
-
   return (
     <GenusElbowContext.Provider value={genusElbowX}>
     <HoverContext.Provider value={hoveredLabel}>

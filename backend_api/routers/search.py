@@ -1,22 +1,29 @@
 """
-Search router — exposes the /api/search and /api/sources endpoints.
+Search router — exposes /api/search, /api/search/stream, /api/suggest, and /api/sources.
 """
 
 from __future__ import annotations
 
+import asyncio
+import json
 import re
 import sys
 from pathlib import Path
-import pandas as pd
 
-from fastapi import APIRouter, HTTPException, Query
+import pandas as pd
+from fastapi import APIRouter, Query, Request
+from fastapi.responses import StreamingResponse
 
 _PROJECT_ROOT = Path(__file__).parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from fastapi import HTTPException
+
 from scripts.utils.normalize_query_string import normalize_query_string
 from scripts.utils.router import ANIMALIA_APIS, PLANTAE_APIS, FUNGI_APIS, TaxonRouter
+from scripts.utils.fuzzy_search import fuzzy_search as _fuzzy_search
+from scripts.utils.call_apis_pipe import _PORTAL_REGISTRY
 
 router = APIRouter()
 
@@ -91,6 +98,97 @@ def get_sources():
     return {"sources": _ALL_APIS}
 
 
+@router.get("/api/suggest")
+def suggest(query: str = Query(..., min_length=1)):
+    """Return the recommended source list for a given species name.
+
+    Calls the taxon router to determine the kingdom and returns the
+    corresponding list of portal display names.
+
+    Parameters
+    ----------
+    query : str
+        Species name to route.
+
+    Returns
+    -------
+    dict
+        A dictionary with a single key ``"sources"`` containing a list of
+        portal display names, e.g. ``["GBIF", "COL", "Index Fungorum"]``.
+        Empty list if the kingdom cannot be determined.
+    """
+    display_names = _taxon_router.route(query.strip())
+    return {"sources": display_names}
+
+
+@router.get("/api/search/stream")
+async def search_stream(
+    request: Request,
+    query: str = Query(..., min_length=1),
+    sources: str = Query(""),
+):
+    """Stream synonym search results as Server-Sent Events.
+
+    Emits one ``progress`` event before and after each source is queried,
+    then either a ``result`` event (with the full SearchResponse payload) or
+    a ``suggestions`` event (with fuzzy-match candidates) when the query
+    returns no results.
+
+    Parameters
+    ----------
+    query : str
+        Species name to search.
+    sources : str
+        Comma-separated list of backend portal display names to query,
+        e.g. ``"GBIF,COL,MyCoPortal"``. Unknown names are silently skipped.
+    """
+    display_names = [s.strip() for s in sources.split(",") if s.strip()]
+    q = query.strip()
+
+    async def generate():
+        total = len(display_names)
+        dfs = []
+
+        for i, name in enumerate(display_names):
+            # Stop before starting the next source if the client disconnected.
+            if await request.is_disconnected():
+                return
+
+            yield f"data: {json.dumps({'type': 'progress', 'source': name, 'done': i, 'total': total})}\n\n"
+
+            factory = _PORTAL_REGISTRY.get(name)
+            if factory:
+                try:
+                    df = await asyncio.to_thread(lambda f=factory, qq=q: f().get_synonyms(qq))
+                    if not df.empty:
+                        dfs.append(df)
+                except Exception:
+                    pass  # skip failed source, continue with remaining
+
+            yield f"data: {json.dumps({'type': 'progress', 'source': name, 'done': i + 1, 'total': total})}\n\n"
+
+        if not dfs:
+            try:
+                suggestions = await asyncio.to_thread(_fuzzy_search, q)
+            except Exception:
+                suggestions = []
+            yield f"data: {json.dumps({'type': 'suggestions', 'names': suggestions})}\n\n"
+        else:
+            combined = pd.concat(dfs, ignore_index=True)
+            result = {
+                "query": q,
+                "sources": display_names,
+                "results": combined.astype(object).where(pd.notna(combined), other=None).to_dict(orient="records"),
+            }
+            yield f"data: {json.dumps({'type': 'result', 'data': result})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @router.get("/api/search")
 def search(
     query: str = Query(..., min_length=1),
@@ -125,7 +223,8 @@ def search(
     ------
     HTTPException
         404 if mock data is requested but no sample file exists for the query.
-        501 if ``mock=False``, as live search is not yet implemented.
+        501 if ``mock=False``, as live search is not yet implemented on this endpoint
+        (use ``/api/search/stream`` instead).
     """
     query = query.strip()
 
@@ -137,10 +236,10 @@ def search(
     if mock:
         df = _mock_search(query)
     else:
-        raise HTTPException(status_code=501, detail="Live search is not yet implemented.")
+        raise HTTPException(status_code=501, detail="Use /api/search/stream for live search.")
 
     return {
         "query": query,
         "sources": selected_sources,
         "results": df.astype(object).where(pd.notna(df), other=None).to_dict(orient="records"),
-    } 
+    }

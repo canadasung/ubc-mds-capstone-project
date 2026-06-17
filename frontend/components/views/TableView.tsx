@@ -20,10 +20,6 @@ export function TableView() {
   const { records } = useFilteredRecords();
   const query = useSearchStore((s) => s.submittedQuery);
 
-  if (records.length === 0) {
-    return <Text c="dimmed">No names found across the selected sources.</Text>;
-  }
-
   const { sources, rows } = buildPresenceTable(records, query);
 
   return (

@@ -19,8 +19,8 @@ class GBIFAPI(SpeciesAPI):
 
     BASE_URL = GBIF_PORTAL.base_url
 
-    # Regular expression to extract a leading year from a GBIF "publishedIn" string.
-    _PUBLISHED_IN_RE: re.Pattern = re.compile(r"^\((\d{4})\)\.\s*")
+    # Regular expression to extract a year from a GBIF "publishedIn" string.
+    _PUBLISHED_IN_RE: re.Pattern = re.compile(r"\((\d{4})\)")
 
     def _fetch_query_data(self, name: str) -> dict:
         """
@@ -136,27 +136,8 @@ class GBIFAPI(SpeciesAPI):
         str
             Four-digit year string, or ``""`` if the pattern is absent.
         """
-        m = self._PUBLISHED_IN_RE.match(string)
+        m = self._PUBLISHED_IN_RE.search(string)
         return m.group(1) if m else ""
-
-    def _extract_publication_name(self, string: str) -> str:
-        """
-        Extract the publication name from a GBIF ``publishedIn`` string.
-
-        Strips the leading year prefix (e.g. ``"(1788). "``) and returns
-        the remainder as the publication name.
-
-        Parameters
-        ----------
-        string : str
-            A GBIF ``publishedIn`` value.
-
-        Returns
-        -------
-        str
-            The publication name, or the original string if no prefix is found.
-        """
-        return self._PUBLISHED_IN_RE.sub("", string)
 
     def _fetch_synonym_search_term_data(
         self, raw_data: dict, synonym_data: list[dict]
@@ -225,7 +206,7 @@ class GBIFAPI(SpeciesAPI):
                     "api_internal_id": key,
                     "author": synonym_search_term_data.get("authorship", ""),
                     "publication_year": self._extract_publication_year(published_in),
-                    "publication_name": self._extract_publication_name(published_in),
+                    "publication_name": published_in,
                     "api_link": f"https://www.gbif.org/species/{key}",
                     "status": self._extract_status(
                         synonym_search_term_data.get("taxonomicStatus", "")
@@ -271,9 +252,7 @@ class GBIFAPI(SpeciesAPI):
                                 "publication_year": self._extract_publication_year(
                                     published_in
                                 ),
-                                "publication_name": self._extract_publication_name(
-                                    published_in
-                                ),
+                                "publication_name": published_in,
                                 "api_link": f"https://www.gbif.org/species/{item_id}",
                                 "status": self._extract_status(
                                     item.get("taxonomicStatus", "")

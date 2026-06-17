@@ -2,11 +2,12 @@
 
 /** Chooses the active view and handles the shared empty/loading/error states. */
 
-import { Alert, Center, Loader, Stack, Text } from "@mantine/core";
-import { IconInfoCircle } from "@tabler/icons-react";
+import { Alert, Button, Center, Group, Loader, SimpleGrid, Stack, Text, ThemeIcon } from "@mantine/core";
+import { IconCheck, IconInfoCircle } from "@tabler/icons-react";
 
-import { useSearch } from "@/lib/hooks";
+import { useSearch, useFilteredRecords } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
+import { backendNameForKey, labelForKey } from "@/lib/sources";
 import { ApiError } from "@/lib/types";
 
 import { TableView } from "@/components/views/TableView";
@@ -18,7 +19,25 @@ import { TaxonomyView } from "@/components/views/TaxonomyView";
 export function ResultsArea() {
   const activeView = useSearchStore((s) => s.activeView);
   const submittedQuery = useSearchStore((s) => s.submittedQuery);
+  const submittedSources = useSearchStore((s) => s.submittedSources);
+  const cachedQuery = useSearchStore((s) => s.cachedQuery);
+  const cachedSources = useSearchStore((s) => s.cachedSources);
+  const searchProgress = useSearchStore((s) => s.searchProgress);
+  const isFiltering = useSearchStore((s) => s.isFiltering);
+  const hasHydrated = useSearchStore((s) => s._hasHydrated);
+  const cancelSearch = useSearchStore((s) => s.cancelSearch);
+  const setQuery = useSearchStore((s) => s.setQuery);
+  const submit = useSearchStore((s) => s.submit);
   const search = useSearch();
+  const { records } = useFilteredRecords();
+
+  if (!hasHydrated) {
+    return (
+      <Center mih={200}>
+        <Text c="dimmed" size="sm">Reloading…</Text>
+      </Center>
+    );
+  }
 
   if (!submittedQuery) {
     return (
@@ -33,27 +52,126 @@ export function ResultsArea() {
     );
   }
 
-  if (search.isLoading) {
+  if (isFiltering) {
     return (
       <Center mih={200}>
-        <Stack align="center" gap="xs">
-          <Loader />
-          <Text c="dimmed" size="sm">
-            Querying selected sources…
+        <Text c="dimmed" size="sm">Filtering results…</Text>
+      </Center>
+    );
+  }
+
+  if (search.isFetching) {
+    const done = searchProgress?.done ?? 0;
+    const activeBackendName = searchProgress?.source ?? null;
+
+    // For incremental searches (same query, new source added), sources that
+    // were already cached should appear immediately as completed.
+    const isIncremental = cachedQuery === submittedQuery && cachedSources.length > 0;
+    const fetchingKeys = isIncremental
+      ? submittedSources.filter((k) => !cachedSources.includes(k))
+      : submittedSources;
+
+    return (
+      <Center mih={200}>
+        <Stack gap="md" align="center">
+          <Text size="sm" c="dimmed">
+            {searchProgress
+              ? `Searching ${searchProgress.source} (${done}/${searchProgress.total})…`
+              : "Starting search…"}
           </Text>
+          <SimpleGrid cols={2} spacing="xs" verticalSpacing="xs">
+            {submittedSources.map((key) => {
+              const backendName = backendNameForKey(key);
+              const alreadyCached = isIncremental && cachedSources.includes(key);
+              const fetchIndex = fetchingKeys.indexOf(key);
+              const isCompleted = alreadyCached || (fetchIndex >= 0 && fetchIndex < done);
+              const isActive = !isCompleted && backendName === activeBackendName;
+
+              return (
+                <Group key={key} gap="xs" wrap="nowrap">
+                  {isCompleted ? (
+                    <ThemeIcon size="xs" radius="xl" color="teal" variant="filled">
+                      <IconCheck size={10} />
+                    </ThemeIcon>
+                  ) : isActive ? (
+                    <Loader size="xs" />
+                  ) : (
+                    <Text size="xs" c="dimmed" lh={1} style={{ width: 18, textAlign: "center" }}>
+                      ○
+                    </Text>
+                  )}
+                  <Text
+                    size="sm"
+                    c={isCompleted ? "teal" : isActive ? undefined : "dimmed"}
+                    fw={isActive ? 600 : undefined}
+                  >
+                    {labelForKey(key)}
+                  </Text>
+                </Group>
+              );
+            })}
+          </SimpleGrid>
+          <Button size="xs" variant="subtle" color="red" onClick={cancelSearch}>
+            Cancel
+          </Button>
         </Stack>
       </Center>
     );
   }
 
-  // 404 ("no sample data") is surfaced as suggestions in the SearchPanel; here
-  // we just show a neutral message rather than a scary error.
-  if (search.isError) {
+  if (search.error) {
     const err = search.error as ApiError;
+    const suggestions = err.available ?? [];
+    const isExactMatch =
+      suggestions.length === 1 &&
+      suggestions[0].toLowerCase() === submittedQuery.toLowerCase();
     return (
-      <Alert variant="light" color="gray" title="No results">
-        {err.message}
-      </Alert>
+      <Stack gap="md">
+        <Alert variant="light" color="gray" title="No results">
+          {err.message}
+        </Alert>
+        {isExactMatch ? (
+          <Text size="sm" c="dimmed">
+            This species exists but was not found in your selected sources. Try
+            selecting additional sources, or use the <strong>Suggest</strong>{" "}
+            button to find sources by kingdom.
+          </Text>
+        ) : suggestions.length > 0 ? (
+          <Stack gap="xs">
+            <Text size="sm">Did you mean:</Text>
+            <Group gap="xs">
+              {suggestions.map((s) => (
+                <Button
+                  key={s}
+                  size="compact-xs"
+                  variant="light"
+                  onClick={() => {
+                    setQuery(s);
+                    setTimeout(submit, 0);
+                  }}
+                >
+                  {s}
+                </Button>
+              ))}
+            </Group>
+          </Stack>
+        ) : null}
+      </Stack>
+    );
+  }
+
+  if (search.data && records.length === 0) {
+    return (
+      <Stack gap="md">
+        <Alert variant="light" color="gray" title="No results">
+          No results found in your selected sources.
+        </Alert>
+        <Text size="sm" c="dimmed">
+          This species exists but was not found in your selected sources. Try
+          selecting additional sources, or use the <strong>Suggest</strong>{" "}
+          button to find sources by kingdom.
+        </Text>
+      </Stack>
     );
   }
 
@@ -63,10 +181,10 @@ export function ResultsArea() {
     case "Detail":
       return <DetailView />;
     case "Relations":
-      return <RelationsView />;  
+      return <RelationsView />;
     case "Timeline":
       return <TimelineView />;
-    case "Taxonomy":           
+    case "Taxonomy":
       return <TaxonomyView />;
     default:
       return null;

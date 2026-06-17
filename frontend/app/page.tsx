@@ -24,8 +24,12 @@ import { ResultsSummary } from "@/components/ResultsSummary";
 import { ResultsArea } from "@/components/ResultsArea";
 import { TutorialModal, hasTutorialCookie } from "@/components/TutorialModal";
 import { useSearchStore } from "@/lib/store";
+import { useLiveSearchEffect } from "@/lib/hooks";
 
 export default function Page() {
+  // Registered once here so only a single SSE connection is ever opened.
+  useLiveSearchEffect();
+
   const panelOpen = useSearchStore((s) => s.panelOpen);
   const togglePanel = useSearchStore((s) => s.togglePanel);
 

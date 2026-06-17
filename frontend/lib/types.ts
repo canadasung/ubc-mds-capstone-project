@@ -8,6 +8,7 @@ export interface SpeciesRecord {
   kingdom: string | null;
   phylum: string | null;
   class: string | null;
+  order: string | null;
   family: string | null;
   subfamily: string | null;
   genus: string | null;
@@ -48,6 +49,12 @@ export interface TaxonomyResponse {
   ranks: string[];
   sources: TaxonomyRow[];
   disagreements: string[];
+  unavailable_marker?: string;
+}
+
+/** GET /api/suggest */
+export interface SuggestResponse {
+  sources: string[]; // display names, e.g. ["GBIF", "COL", "MyCoPortal"]
 }
 
 /** Body of a 404 from /api/search or /api/taxonomy. */

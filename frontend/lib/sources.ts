@@ -19,37 +19,39 @@ export type SourceGroup = "backbone" | "symbiota" | "independent";
 export interface SourceDef {
   key: string;
   label: string;
+  /** Display name used by the backend _PORTAL_REGISTRY, e.g. "GBIF", "CCH2". */
+  backendName: string;
   group: SourceGroup;
   full?: string;
   aliases?: string[];
 }
 
 export const SOURCES: SourceDef[] = [
-  { key: "gbif", label: "GBIF", group: "backbone", full: "Global Biodiversity Information Facility" },
-  { key: "symbiota_mycoportal", label: "MyCoPortal", group: "symbiota", full: "Mycology Collections Portal" },
-  { key: "symbiota_lichen", label: "Lichen Portal", group: "symbiota", full: "Consortium of Lichen Herbaria" },
-  { key: "symbiota_bryophyte", label: "Bryophyte Portal", group: "symbiota", full: "Consortium of North American Bryophyte Herbaria" },
-  { key: "symbiota_sernec", label: "Southeast Herbaria", group: "symbiota", full: "SouthEast Regional Network of Expertise and Collections (SERNEC)", aliases: ["sernec"] },
-  { key: "symbiota_cch2", label: "California Herbaria", group: "symbiota", full: "Consortium of California Herbaria (CCH2)", aliases: ["cch2"] },
-  { key: "symbiota_nansh", label: "Small Herbaria Network", group: "symbiota", full: "North American Network of Small Herbaria (NANSH)", aliases: ["nansh"] },
-  { key: "symbiota_swbiodiversity", label: "Southwest Biodiversity", group: "symbiota", full: "Southwest Biodiversity – SEINet AZ/NM Node", aliases: ["sw biodiversity"] },
-  { key: "symbiota_macroalgae", label: "Macroalgae Portal", group: "symbiota", full: "Macroalgae Herbarium Consortium" },
-  { key: "symbiota_pterido", label: "Pteridophyte Portal", group: "symbiota", full: "Pteridophyte Collections Consortium" },
-  { key: "symbiota_neherbaria", label: "Northeast Herbaria", group: "symbiota", full: "Consortium of Northeastern Herbaria", aliases: ["ne herbaria"] },
-  { key: "symbiota_midatlantic", label: "Mid-Atlantic Herbaria", group: "symbiota" },
-  { key: "col", label: "Catalogue of Life", group: "independent" },
-  { key: "tropicos", label: "Tropicos", group: "independent" },
-  { key: "index_fungorum", label: "Index Fungorum", group: "independent" },
-  { key: "genbank", label: "GenBank", group: "independent" },
-  { key: "mushroomobs", label: "Mushroom Observer", group: "independent" },
+  { key: "gbif", label: "GBIF", backendName: "GBIF", group: "backbone", full: "Global Biodiversity Information Facility" },
+  { key: "symbiota_mycoportal", label: "MyCoPortal", backendName: "MyCoPortal", group: "symbiota", full: "Mycology Collections Portal" },
+  { key: "symbiota_lichen", label: "Lichen Portal", backendName: "Lichen Portal", group: "symbiota", full: "Consortium of Lichen Herbaria" },
+  { key: "symbiota_bryophyte", label: "Bryophyte Portal", backendName: "Bryophyte Portal", group: "symbiota", full: "Consortium of North American Bryophyte Herbaria" },
+  { key: "symbiota_sernec", label: "Southeast Herbaria", backendName: "SERNEC", group: "symbiota", full: "SouthEast Regional Network of Expertise and Collections (SERNEC)", aliases: ["sernec"] },
+  { key: "symbiota_cch2", label: "California Herbaria", backendName: "CCH2", group: "symbiota", full: "Consortium of California Herbaria (CCH2)", aliases: ["cch2"] },
+  { key: "symbiota_nansh", label: "Small Herbaria Network", backendName: "NANSH", group: "symbiota", full: "North American Network of Small Herbaria (NANSH)", aliases: ["nansh"] },
+  { key: "symbiota_swbiodiversity", label: "Southwest Biodiversity", backendName: "swbiodiversity", group: "symbiota", full: "Southwest Biodiversity – SEINet AZ/NM Node", aliases: ["sw biodiversity"] },
+  { key: "symbiota_macroalgae", label: "Macroalgae Portal", backendName: "Algae Herbarium Portal", group: "symbiota", full: "Macroalgae Herbarium Consortium" },
+  { key: "symbiota_pterido", label: "Pteridophyte Portal", backendName: "Pterido Portal", group: "symbiota", full: "Pteridophyte Collections Consortium" },
+  { key: "symbiota_neherbaria", label: "Northeast Herbaria", backendName: "CNH", group: "symbiota", full: "Consortium of Northeastern Herbaria", aliases: ["ne herbaria"] },
+  { key: "symbiota_midatlantic", label: "Mid-Atlantic Herbaria", backendName: "Mid-Atlantic Herbaria Consortium", group: "symbiota" },
+  { key: "col", label: "Catalogue of Life", backendName: "COL", group: "independent" },
+  { key: "tropicos", label: "Tropicos", backendName: "Tropicos", group: "independent" },
+  { key: "index_fungorum", label: "Index Fungorum", backendName: "Index Fungorum", group: "independent" },
+  { key: "genbank", label: "GenBank", backendName: "GenBank", group: "independent" },
+  { key: "mushroomobs", label: "Mushroom Observer", backendName: "Mushroom Observer", group: "independent" },
 ];
 
 export const SOURCE_KEYS: string[] = SOURCES.map((s) => s.key);
 
 export const GROUP_LABELS: Record<SourceGroup, string> = {
-  backbone: "🌍 Global Backbone",
-  symbiota: "🌿 Symbiota Portals",
-  independent: "🔬 Independent APIs",
+  backbone: "Global Backbone",
+  symbiota: "Symbiota Portals",
+  independent: "Independent APIs",
 };
 
 const KEY_TO_DEF = new Map(SOURCES.map((s) => [s.key, s]));
@@ -81,6 +83,11 @@ export function fullForLabel(label: string): string {
 
 export function groupOf(key: string): SourceGroup | undefined {
   return KEY_TO_DEF.get(key)?.group;
+}
+
+/** Backend portal registry name for a source key (undefined if not found). */
+export function backendNameForKey(key: string): string | undefined {
+  return KEY_TO_DEF.get(key)?.backendName;
 }
 
 /**
