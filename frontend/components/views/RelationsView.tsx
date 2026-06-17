@@ -235,6 +235,9 @@ export function RelationsView() {
           onChange={(e) => setAlignByName(e.currentTarget.checked)}
         />
       </Group>
+      <Text size="xs" c="dimmed">
+        Clicking a species name opens its page on the source website.
+      </Text>
     <div style={{ width: "100%", height: 680, border: "1px solid #e9ecef", borderRadius: 8 }}>
       <ReactFlow
         nodes={nodes}

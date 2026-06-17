@@ -44,6 +44,8 @@ export const SOURCES: SourceDef[] = [
   { key: "index_fungorum", label: "Index Fungorum", backendName: "Index Fungorum", group: "independent" },
   { key: "genbank", label: "GenBank", backendName: "GenBank", group: "independent" },
   { key: "mushroomobs", label: "Mushroom Observer", backendName: "Mushroom Observer", group: "independent" },
+  { key: "itis", label: "ITIS", backendName: "ITIS", group: "independent", full: "Integrated Taxonomic Information System" },
+  { key: "fishbase", label: "FishBase", backendName: "FishBase", group: "independent", full: "FishBase" },
 ];
 
 export const SOURCE_KEYS: string[] = SOURCES.map((s) => s.key);

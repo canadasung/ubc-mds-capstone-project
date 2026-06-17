@@ -5,7 +5,7 @@ import pandas as pd
 from scripts.config import ALL_PORTALS
 
 # value to use when data is unavailable (i.e. never present) from a given API source. This is not the same as an empty string, which indicates that the data was not found for that particular query (e.g. no author for a given taxonomic name).
-UNAVAILABLE = "U"
+UNAVAILABLE = "N/A"
 
 SYNONYM_COLUMNS = [
     "api_name",  # name of API source that provided the data, e.g. GBIF (required)
@@ -21,7 +21,7 @@ SYNONYM_COLUMNS = [
     "publication_name",  # name of the publication where the taxonomic name was published (optional)
     "publication_year",  # year when the taxonomic name was published (optional)
     "status",  # status of the taxonomic name in the API source's database, either "Accepted" or "Synonym" (optional)
-    "source_name",  # name of the source that provided the data to the API source, e.g. a cited journal article, museum collection, etc. (optional)
+    "original_source",  # name of the source that provided the data to the API source, e.g. a cited journal article, museum collection, etc. (optional)
     "api_link",  # link to the search result on the API source's website (optional)
     "api_internal_id",  # unique identifier for the record of this taxonomic name in the API source's database (required)
 ]
@@ -49,7 +49,7 @@ _TAXON_COLUMNS = {
 # columns that must be strings (can be empty or UNAVAILABLE, but not other types)
 _STRING_COLUMNS = {
     "api_internal_id",
-    "source_name",
+    "original_source",
     "author",
     "publication_name",
 }
@@ -238,7 +238,7 @@ def make_synonym_row(**kwargs) -> dict:
         If a required column is missing or set to ``UNAVAILABLE``, or if any
         column value fails its validator.
     """
-    # Validate that a blank string, "", was used for any passed value that did not have an entry, not None or "U"
+    # Validate that a blank string, "", was used for any passed value that did not have an entry, not None or "N/A"
     for col, v in kwargs.items():
         if v is None:
             raise TypeError(

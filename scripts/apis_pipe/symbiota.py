@@ -380,7 +380,7 @@ class SymbiotaAPI(SpeciesAPI):
                     "species": species,
                     "api_internal_id": str(self.accepted_id),
                     "author": synonym_search_term_data.get("author", ""),
-                    "source_name": synonym_search_term_data.get("source") or "",
+                    "original_source": synonym_search_term_data.get("source") or "",
                     "status": "Accepted",
                     "api_link": f"{self.BASE_URL}/taxa/index.php?tid={self.accepted_id}"
                     if self.accepted_id

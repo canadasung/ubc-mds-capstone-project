@@ -14,7 +14,7 @@
  * column has a single differing value, orange when it has several.
  */
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Anchor,
   Group,
@@ -25,6 +25,7 @@ import {
   Table,
   Text,
   Tooltip,
+  UnstyledButton,
 } from "@mantine/core";
 
 import { useActiveSourceKeys, useSearch, useTaxonomy } from "@/lib/hooks";
@@ -40,12 +41,14 @@ import {
   type CellShade,
 } from "@/lib/taxonomyShading";
 import type { TaxonomyRow } from "@/lib/types";
+import { SortCaret, SORT_BTN_STYLE, nextSortState } from "@/components/SortCaret";
 
 export function TaxonomyView() {
   const query = useSearchStore((s) => s.submittedQuery);
   const { data, isLoading } = useTaxonomy();
   const { keys, queriedSources } = useActiveSourceKeys();
   const search = useSearch();
+  const unavailMarker = search.data?.unavailable_marker ?? "N/A";
 
   // Whether to shade cells by disagreement. Resets to on when the view remounts.
   const [highlight, setHighlight] = useState(true);
@@ -83,16 +86,19 @@ export function TaxonomyView() {
     }
 
     const allowed = new Set(keys);
+    const isReal = (v: string) => v !== "" && v !== unavailMarker;
+
+    const HIGHER_RANKS = ["Kingdom", "Phylum", "Class", "Order", "Family", "Subfamily"];
+
     const filtered = data.sources.filter((row) => {
       const k = keyForApiName(row.source);
       // Index Fungorum is excluded from this view.
       if (k === "index_fungorum") return false;
       // keep when allowed, or when the source is unknown to the queried set
-      return allowed.has(k) || !queriedSources.includes(k);
+      if (!allowed.has(k) && queriedSources.includes(k)) return false;
+      // exclude sources where every higher rank is unavailable or empty
+      return HIGHER_RANKS.some((rank) => isReal(cellValue(row, rank)));
     });
-
-    const unavailMarker = data.unavailable_marker;
-    const isReal = (v: string) => v !== "" && v !== unavailMarker;
 
     // keep only ranks that still have at least one non-empty value
     const presentRanks = data.ranks.filter((r) =>
@@ -109,16 +115,19 @@ export function TaxonomyView() {
         : visibleKeys[0] ?? backbone;
 
     // shade the higher ranks against the chosen backbone source
-    const shading = computeShading(filtered, presentRanks, effectiveBackbone);
+    const shading = computeShading(filtered, presentRanks, effectiveBackbone, unavailMarker);
 
     // A rank is a disagreement when the displayed sources hold 2+ distinct
     // real values. Blank and unavailable cells are excluded so they don't
     // inflate the disagreement count.
+    const TAXONOMY_RANKS = new Set(["Kingdom", "Phylum", "Class", "Order", "Family", "Subfamily"]);
     const disagreements = presentRanks.filter((rank) => {
+      if (!TAXONOMY_RANKS.has(rank)) return false;
       const distinct = new Set(
         filtered
-          .map((row) => cellValue(row, rank).toLowerCase())
-          .filter((v) => isReal(v)),
+          .map((row) => cellValue(row, rank))
+          .filter((v) => isReal(v))
+          .map((v) => v.toLowerCase()),
       );
       return distinct.size > 1;
     });
@@ -130,7 +139,25 @@ export function TaxonomyView() {
       disagreements,
       effectiveBackbone,
     };
-  }, [data, keys, queriedSources, backbone]);
+  }, [data, keys, queriedSources, backbone, unavailMarker]);
+
+  const disagreementSet = new Set(disagreements);
+
+  const [taxSort, setTaxSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
+  const toggleTaxSort = useCallback(
+    (key: string) => setTaxSort((prev) => nextSortState(prev, key)),
+    [],
+  );
+  const sortedSources = useMemo(() => {
+    if (!taxSort) return sources;
+    const { key, dir } = taxSort;
+    return [...sources].sort((a, b) => {
+      const valA = key === "__source__" ? a.source : cellValue(a, key);
+      const valB = key === "__source__" ? b.source : cellValue(b, key);
+      const cmp = valA.localeCompare(valB, undefined, { sensitivity: "base" });
+      return dir === "asc" ? cmp : -cmp;
+    });
+  }, [sources, taxSort]);
 
   // Options for the backbone picker: every visible source, keyed by source key.
   const backboneOptions = useMemo(
@@ -156,7 +183,7 @@ export function TaxonomyView() {
     <>
       <Text c="dimmed" size="md" mb="sm">
         Accepted classification for <b>{query}</b> per source · {sources.length}{" "}
-        source{sources.length === 1 ? "" : "s"} shown
+        source{sources.length === 1 ? "" : "s"} found with taxonomic data
       </Text>
 
       <DisagreementSummary
@@ -176,14 +203,24 @@ export function TaxonomyView() {
         <Table withTableBorder withColumnBorders striped fz="md">
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Source</Table.Th>
+              <Table.Th>
+                <UnstyledButton onClick={() => toggleTaxSort("__source__")} style={SORT_BTN_STYLE}>
+                  Source
+                  <SortCaret dir={taxSort?.key === "__source__" ? taxSort.dir : null} />
+                </UnstyledButton>
+              </Table.Th>
               {ranks.map((r) => (
-                <Table.Th key={r}>{r}</Table.Th>
+                <Table.Th key={r}>
+                  <UnstyledButton onClick={() => toggleTaxSort(r)} style={SORT_BTN_STYLE}>
+                    {r}
+                    <SortCaret dir={taxSort?.key === r ? taxSort.dir : null} />
+                  </UnstyledButton>
+                </Table.Th>
               ))}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {sources.map((row) => {
+            {sortedSources.map((row) => {
               const sourceKey = keyForApiName(row.source);
               const shortLabel = labelForKey(sourceKey);
               const fullLabel = fullLabelForKey(sourceKey);
@@ -213,8 +250,10 @@ export function TaxonomyView() {
                     const val = cellValue(row, r);
                     const shade = shading.get(r)?.get(row.source) ?? null;
                     return (
-                      <Table.Td key={r} style={highlight ? shade ?? undefined : undefined}>
-                        {val === "" ? "—" : val}
+                      <Table.Td key={r} style={highlight && disagreementSet.has(r) ? shade ?? undefined : undefined}>
+                        {val === "" ? null : val === unavailMarker ? (
+                          <span style={{ color: "var(--mantine-color-gray-5)" }}>{val}</span>
+                        ) : val}
                       </Table.Td>
                     );
                   })}
@@ -225,18 +264,21 @@ export function TaxonomyView() {
         </Table>
       </Table.ScrollContainer>
 
-      <Select
-        label="Truth backbone"
-        description="Source treated as the reference for Kingdom, Phylum, Class & Family."
-        data={backboneOptions}
-        value={effectiveBackbone}
-        onChange={(v) => v && setBackbone(v)}
-        allowDeselect={false}
-        maw={260}
-        mt="md"
-      />
-
-      {highlight && <ShadingLegend />}
+      {highlight && (
+        <>
+          <Select
+            label="Truth backbone"
+            description="Source treated as the reference for Kingdom, Phylum, Class, Order, Family & Subfamily."
+            data={backboneOptions}
+            value={effectiveBackbone}
+            onChange={(v) => v && setBackbone(v)}
+            allowDeselect={false}
+            maw={260}
+            mt="md"
+          />
+          <ShadingLegend />
+        </>
+      )}
     </>
   );
 }
@@ -296,7 +338,7 @@ function ShadingLegend() {
   return (
     <Stack gap={6} mt="md">
       <Text size="sm" c="dimmed">
-        Only Kingdom, Phylum, Class &amp; Family are shaded. The backbone source
+        Only Kingdom, Phylum, Class, Order, Family &amp; Subfamily are shaded. The backbone source
         and any source matching it are very light blue; cells that differ are a
         darker blue by character edit distance from the backbone.
       </Text>

@@ -19,6 +19,9 @@ class ITISAPI(SpeciesAPI):
     """
 
     BASE_URL = ITIS_PORTAL.base_url
+    # ITIS prefix-search endpoints can be slow for accepted names that match
+    # many records, so we use a longer timeout than the base-class default.
+    _TIMEOUT = 30
 
     def _fetch_query_data(self, name: str) -> dict:
         """
@@ -42,6 +45,7 @@ class ITISAPI(SpeciesAPI):
         data = self._fetch_JSON(
             f"{self.BASE_URL}/getITISTermsFromScientificName",
             params={"srchKey": name},
+            timeout=self._TIMEOUT,
         )
         terms = data.get("itisTerms")
         if terms is None:  # TODO: add error
@@ -108,6 +112,7 @@ class ITISAPI(SpeciesAPI):
             accepted_names_data = self._fetch_JSON(
                 f"{self.BASE_URL}/getAcceptedNamesFromTSN",
                 params={"tsn": tsn},
+                timeout=self._TIMEOUT,
             )
 
             accepted_names = [
@@ -146,6 +151,7 @@ class ITISAPI(SpeciesAPI):
         data = self._fetch_JSON(
             f"{self.BASE_URL}/getSynonymNamesFromTSN",
             params={"tsn": accepted_tsn},
+            timeout=self._TIMEOUT,
         )
         return [s for s in (data.get("synonyms") or []) if s]  # TODO: add error
 
@@ -176,6 +182,7 @@ class ITISAPI(SpeciesAPI):
             return self._fetch_JSON(
                 f"{self.BASE_URL}/getFullRecordFromTSN",
                 params={"tsn": self._accepted_tsn},
+                timeout=self._TIMEOUT,
             )
         else:
             return raw_data

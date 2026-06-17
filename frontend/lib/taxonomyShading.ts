@@ -1,8 +1,8 @@
 /**
  * Per-cell shading for the Taxonomic view.
  *
- * Only the higher ranks — Kingdom, Phylum, Class, Family — are shaded. Genus and
- * Species are never shaded (they're shown as plain text).
+ * Only the higher ranks — Kingdom, Phylum, Class, Order, Family, Subfamily — are shaded.
+ * Genus and Species are never shaded (they're shown as plain text).
  *
  * For the shaded ranks a single source is treated as the "truth" backbone
  * (GBIF by default, but user-selectable). Each cell is coloured by how far its
@@ -30,7 +30,9 @@ export const SHADED_RANKS: ReadonlySet<string> = new Set([
   "Kingdom",
   "Phylum",
   "Class",
+  "Order",
   "Family",
+  "Subfamily",
 ]);
 
 /** Default backbone source key (the taxonomic "truth" value). */
@@ -110,16 +112,19 @@ export function columnReference(
   rank: string,
   rows: TaxonomyRow[],
   backbone: string,
+  unavailMarker = "N/A",
 ): string {
   if (!SHADED_RANKS.has(rank)) return "";
 
+  const isReal = (v: string) => v !== "" && v !== unavailMarker;
+
   const backboneRow = rows.find((r) => keyForApiName(r.source) === backbone);
   const fromBackbone = backboneRow ? cellValue(backboneRow, rank) : "";
-  if (fromBackbone) return fromBackbone;
+  if (isReal(fromBackbone)) return fromBackbone;
 
   for (const r of rows) {
     const v = cellValue(r, rank);
-    if (v) return v;
+    if (isReal(v)) return v;
   }
   return "";
 }
@@ -134,6 +139,7 @@ export function shadeColumn(
   rows: TaxonomyRow[],
   rank: string,
   reference: string,
+  unavailMarker = "N/A",
 ): Map<string, CellShade | null> {
   const result = new Map<string, CellShade | null>();
   const refNorm = norm(reference);
@@ -141,7 +147,7 @@ export function shadeColumn(
 
   for (const row of rows) {
     const raw = cellValue(row, rank);
-    if (!shaded || !raw) {
+    if (!shaded || !raw || raw === unavailMarker) {
       result.set(row.source, null); // white
       continue;
     }
@@ -164,11 +170,12 @@ export function computeShading(
   rows: TaxonomyRow[],
   ranks: string[],
   backbone: string = DEFAULT_BACKBONE,
+  unavailMarker = "N/A",
 ): Map<string, Map<string, CellShade | null>> {
   const byRank = new Map<string, Map<string, CellShade | null>>();
   for (const rank of ranks) {
-    const reference = columnReference(rank, rows, backbone);
-    byRank.set(rank, shadeColumn(rows, rank, reference));
+    const reference = columnReference(rank, rows, backbone, unavailMarker);
+    byRank.set(rank, shadeColumn(rows, rank, reference, unavailMarker));
   }
   return byRank;
 }
