@@ -30,6 +30,7 @@ interface SearchState {
   searchProgress: { source: string; done: number; total: number } | null;
   searchError: string | null;
   searchSuggestions: string[] | null;
+  _cancelStream: (() => void) | null; // close the active EventSource
 
   // ── Layout ────────────────────────────────────────────────────
   panelOpen: boolean;
@@ -50,6 +51,8 @@ interface SearchState {
   setSearchProgress: (p: { source: string; done: number; total: number } | null) => void;
   setSearchError: (e: string | null) => void;
   setSearchSuggestions: (names: string[] | null) => void;
+  setStreamCancel: (fn: (() => void) | null) => void;
+  cancelSearch: () => void;
 }
 
 export const useSearchStore = create<SearchState>((set, get) => ({
@@ -67,6 +70,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   searchProgress: null,
   searchError: null,
   searchSuggestions: null,
+  _cancelStream: null,
 
   panelOpen: true,
   activeView: "Overview",
@@ -105,4 +109,11 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   setSearchError: (e) => set({ searchError: e }),
 
   setSearchSuggestions: (names) => set({ searchSuggestions: names }),
+
+  setStreamCancel: (fn) => set({ _cancelStream: fn }),
+
+  cancelSearch: () => {
+    get()._cancelStream?.();
+    set({ _cancelStream: null, isSearching: false, searchProgress: null });
+  },
 }));

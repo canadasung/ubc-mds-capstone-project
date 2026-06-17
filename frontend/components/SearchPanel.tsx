@@ -27,11 +27,9 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { IconChevronDown, IconChevronRight, IconSearch } from "@tabler/icons-react";
 
-import { useSearch } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
 import { GROUP_LABELS, SOURCES, SOURCE_KEYS, keyForApiName, type SourceGroup } from "@/lib/sources";
 import { suggest } from "@/lib/api";
-import { ApiError } from "@/lib/types";
 
 const GROUP_ORDER: SourceGroup[] = ["backbone", "symbiota", "independent"];
 
@@ -45,12 +43,9 @@ export function SearchPanel() {
   const setSources = useSearchStore((s) => s.setSources);
   const isSearching = useSearchStore((s) => s.isSearching);
 
-  const [advancedOpen, advanced] = useDisclosure(false);
+  const [advancedOpen, advanced] = useDisclosure(true);
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
-  const search = useSearch();
-  const error = search.error as ApiError | null;
-
   const handleSuggest = async () => {
     if (!query.trim()) {
       setSuggestError(
@@ -101,38 +96,6 @@ export function SearchPanel() {
           </Button>
         </Stack>
       </form>
-
-      {/* Error + "Did you mean?" */}
-      {error && (
-        <Box>
-          <Text c="red" size="sm">
-            {error.message}
-          </Text>
-          {error.available && error.available.length > 0 && (
-            <Box mt="xs">
-              <Text size="sm" mb={4}>
-                Did you mean:
-              </Text>
-              <Group gap="xs">
-                {error.available.map((s) => (
-                  <Button
-                    key={s}
-                    size="compact-xs"
-                    variant="light"
-                    onClick={() => {
-                      setQuery(s);
-                      // submit on next tick so the store has the new query
-                      setTimeout(submit, 0);
-                    }}
-                  >
-                    {s}
-                  </Button>
-                ))}
-              </Group>
-            </Box>
-          )}
-        </Box>
-      )}
 
       <Divider />
 

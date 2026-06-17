@@ -2,7 +2,7 @@
 
 /** Chooses the active view and handles the shared empty/loading/error states. */
 
-import { Alert, Center, Group, Loader, SimpleGrid, Stack, Text, ThemeIcon } from "@mantine/core";
+import { Alert, Button, Center, Group, Loader, SimpleGrid, Stack, Text, ThemeIcon } from "@mantine/core";
 import { IconCheck, IconInfoCircle } from "@tabler/icons-react";
 
 import { useSearch } from "@/lib/hooks";
@@ -22,6 +22,9 @@ export function ResultsArea() {
   const submittedSources = useSearchStore((s) => s.submittedSources);
   const searchProgress = useSearchStore((s) => s.searchProgress);
   const isFiltering = useSearchStore((s) => s.isFiltering);
+  const cancelSearch = useSearchStore((s) => s.cancelSearch);
+  const setQuery = useSearchStore((s) => s.setQuery);
+  const submit = useSearchStore((s) => s.submit);
   const search = useSearch();
 
   if (!submittedQuery) {
@@ -87,19 +90,43 @@ export function ResultsArea() {
               );
             })}
           </SimpleGrid>
+          <Button size="xs" variant="subtle" color="red" onClick={cancelSearch}>
+            Cancel
+          </Button>
         </Stack>
       </Center>
     );
   }
 
-  // Empty results / error are surfaced as suggestions in the SearchPanel; here
-  // we just show a neutral message rather than a scary error.
   if (search.error) {
     const err = search.error as ApiError;
+    const suggestions = err.available ?? [];
     return (
-      <Alert variant="light" color="gray" title="No results">
-        {err.message}
-      </Alert>
+      <Stack gap="md">
+        <Alert variant="light" color="gray" title="No results">
+          {err.message}
+        </Alert>
+        {suggestions.length > 0 && (
+          <Stack gap="xs">
+            <Text size="sm">Did you mean:</Text>
+            <Group gap="xs">
+              {suggestions.map((s) => (
+                <Button
+                  key={s}
+                  size="compact-xs"
+                  variant="light"
+                  onClick={() => {
+                    setQuery(s);
+                    setTimeout(submit, 0);
+                  }}
+                >
+                  {s}
+                </Button>
+              ))}
+            </Group>
+          </Stack>
+        )}
+      </Stack>
     );
   }
 

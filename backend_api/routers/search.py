@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
 
 _PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -123,6 +123,7 @@ def suggest(query: str = Query(..., min_length=1)):
 
 @router.get("/api/search/stream")
 async def search_stream(
+    request: Request,
     query: str = Query(..., min_length=1),
     sources: str = Query(""),
 ):
@@ -149,6 +150,10 @@ async def search_stream(
         dfs = []
 
         for i, name in enumerate(display_names):
+            # Stop before starting the next source if the client disconnected.
+            if await request.is_disconnected():
+                return
+
             yield f"data: {json.dumps({'type': 'progress', 'source': name, 'done': i, 'total': total})}\n\n"
 
             factory = _PORTAL_REGISTRY.get(name)

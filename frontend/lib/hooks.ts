@@ -11,12 +11,12 @@
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { getSearch, getSources, getTaxonomy, openSearchStream } from "./api";
+import { getSources, openSearchStream } from "./api";
 import { keyForApiName } from "./sources";
 import { sourceOf } from "./fields";
 import { useSearchStore } from "./store";
 import { ApiError } from "./types";
-import type { SearchResponse, SpeciesRecord } from "./types";
+import type { SearchResponse, SpeciesRecord, TaxonomyRow, TaxonomyResponse } from "./types";
 
 export function useSources() {
   return useQuery({
@@ -48,6 +48,7 @@ export function useLiveSearchEffect() {
   const setSearchProgress = useSearchStore((s) => s.setSearchProgress);
   const setSearchError = useSearchStore((s) => s.setSearchError);
   const setSearchSuggestions = useSearchStore((s) => s.setSearchSuggestions);
+  const setStreamCancel = useSearchStore((s) => s.setStreamCancel);
 
   // submittedSources.join is stable as long as the array contents don't change
   const submittedSourcesKey = submittedSources.join(",");
@@ -114,7 +115,11 @@ export function useLiveSearchEffect() {
       },
     );
 
-    return cleanup;
+    setStreamCancel(cleanup);
+    return () => {
+      cleanup();
+      setStreamCancel(null);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [submittedQuery, submittedSourcesKey]);
 }
@@ -135,14 +140,75 @@ export function useSearch() {
   return { data, isFetching, error };
 }
 
-export function useTaxonomy() {
-  const query = useSearchStore((s) => s.submittedQuery);
+const RANK_FIELDS: Array<{ field: keyof SpeciesRecord; label: string }> = [
+  { field: "kingdom", label: "Kingdom" },
+  { field: "phylum", label: "Phylum" },
+  { field: "class", label: "Class" },
+  { field: "order", label: "Order" },
+  { field: "family", label: "Family" },
+  { field: "subfamily", label: "Subfamily" },
+  { field: "genus", label: "Genus" },
+  { field: "species", label: "Species" },
+];
 
-  return useQuery({
-    queryKey: ["taxonomy", query],
-    queryFn: () => getTaxonomy(query),
-    enabled: query.length > 0,
-  });
+/**
+ * Derives the taxonomy comparison table directly from the live search results
+ * stored in Zustand, instead of calling the mock /api/taxonomy endpoint.
+ * Returns the same shape as the old TanStack Query hook so TaxonomyView is unchanged.
+ */
+export function useTaxonomy(): {
+  data: TaxonomyResponse | undefined;
+  isLoading: boolean;
+  isError: boolean;
+} {
+  const query = useSearchStore((s) => s.submittedQuery);
+  const search = useSearch();
+
+  return useMemo(() => {
+    if (search.isFetching) {
+      return { data: undefined, isLoading: true, isError: false };
+    }
+
+    const results = search.data?.results;
+    if (!results || results.length === 0) {
+      return { data: undefined, isLoading: false, isError: !!search.error };
+    }
+
+    // Group records by source, preserving the order they were received.
+    const bySource = new Map<string, SpeciesRecord[]>();
+    for (const rec of results) {
+      if (!bySource.has(rec.api_name)) bySource.set(rec.api_name, []);
+      bySource.get(rec.api_name)!.push(rec);
+    }
+
+    const rows: TaxonomyRow[] = [];
+    for (const [source, recs] of bySource) {
+      // Prefer the Accepted row as the canonical reference for this source.
+      const ref = recs.find((r) => r.status === "Accepted") ?? recs[0];
+      const synonymCount = recs.filter((r) => r.status === "Synonym").length;
+
+      const entry: TaxonomyRow = { source, synonym_count: synonymCount };
+      for (const { field, label } of RANK_FIELDS) {
+        const val = ref[field];
+        entry[label] =
+          val != null && String(val).trim() !== "" ? String(val).trim() : null;
+      }
+      rows.push(entry);
+    }
+
+    const presentRanks = RANK_FIELDS.map((r) => r.label).filter((label) =>
+      rows.some((row) => row[label] != null),
+    );
+
+    const data: TaxonomyResponse = {
+      query,
+      ranks: presentRanks,
+      sources: rows,
+      disagreements: [], // TaxonomyView recomputes this from the filtered source set
+    };
+
+    return { data, isLoading: false, isError: false };
+  }, [search.data, search.isFetching, search.error, query]);
 }
 
 /**
@@ -157,7 +223,8 @@ export function useActiveSourceKeys(): {
   const search = useSearch();
   const selectedSources = useSearchStore((s) => s.selectedSources);
 
-  const queriedSources = search.data?.sources ?? [];
+  // Normalise to frontend keys so callers can compare with keyForApiName(row.source).
+  const queriedSources = (search.data?.sources ?? []).map(keyForApiName);
   return { keys: selectedSources, queriedSources };
 }
 
