@@ -75,7 +75,7 @@ A single query produces five linked views of the same data:
   recognize each name. The searched name is shown first.
 - **Detail**: the full set of records from every database, with an option to
   download the results as a CSV file.
-- **Relations**: an interactive graph of synonyms grouped by genus, with links to
+- **Relations**: an interactive graph of synonyms grouped by genus and/or species, with links to
   each source record.
 - **Timeline**: each name placed at its year of first publication, with author and
   publication shown in chronological order.
