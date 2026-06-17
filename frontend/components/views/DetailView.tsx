@@ -99,7 +99,7 @@ export function DetailView() {
                 {columns.map((c) => {
                   const v = rec[c];
                   const str = v == null ? "" : String(v);
-                  const isLink = /^https?:\/\//.test(str);
+                  const isLink = c !== "original_source" && /^https?:\/\//.test(str);
                   return (
                     <Table.Td key={c}>
                       {isLink ? (

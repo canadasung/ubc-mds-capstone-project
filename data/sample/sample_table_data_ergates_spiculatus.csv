@@ -1,4 +1,4 @@
-api_name,kingdom,phylum,class,family,subfamily,genus,species,api_internal_id,author,publication_name,publication_year,api_link,status,source_name
+api_name,kingdom,phylum,class,family,subfamily,genus,species,api_internal_id,author,publication_name,publication_year,api_link,status,original_source
 GBIF,Animalia,Arthropoda,Insecta,Cerambycidae,,Trichocnemis,spiculatus,6263417,,,,https://www.gbif.org/species/6263417,Accepted,
 GBIF,Animalia,Arthropoda,Insecta,Cerambycidae,,Ergates,spiculatus,4292778,Gemminger & Harold,,1872,https://www.gbif.org/species/4292778,Synonym,
 GBIF,Animalia,Arthropoda,Insecta,Cerambycidae,,Ergates,californica,4292782,(White),,1853,https://www.gbif.org/species/4292782,Synonym,

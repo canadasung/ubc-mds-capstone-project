@@ -1,4 +1,4 @@
-api_name,kingdom,phylum,class,family,subfamily,genus,species,api_internal_id,author,publication_name,publication_year,api_link,status,source_name
+api_name,kingdom,phylum,class,family,subfamily,genus,species,api_internal_id,author,publication_name,publication_year,api_link,status,original_source
 GBIF,Fungi,Basidiomycota,Agaricomycetes,Amanitaceae,,Amanita,muscaria,8168319,,,,https://www.gbif.org/species/8168319,Accepted,
 GBIF,Fungi,Basidiomycota,Agaricomycetes,Amanitaceae,,Agaricus,aureolus,5455639,Kalchbr.,Icon. Sel. Hymenomyc. Hung. (Budapest) 1: 9.,1873,https://www.gbif.org/species/5455639,Synonym,
 GBIF,Fungi,Basidiomycota,Agaricomycetes,Amanitaceae,,Agaricus,imperialis,5955425,Batsch,Elench. Fung. (Halle): 59.,1783,https://www.gbif.org/species/5955425,Synonym,
