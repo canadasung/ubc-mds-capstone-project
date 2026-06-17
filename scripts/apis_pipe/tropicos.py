@@ -9,10 +9,10 @@ import re
 
 from dotenv import load_dotenv
 
+from scripts.config import TROPICOS_API_KEY_PLACEHOLDER, TROPICOS_PORTAL
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from scripts.config import TROPICOS_API_KEY_PLACEHOLDER, TROPICOS_PORTAL
 
 load_dotenv()
 
@@ -131,7 +131,7 @@ class TropicosAPI(SpeciesAPI):
             accepted_id = accepted[0].get("AcceptedName", {}).get("NameId")
             if accepted_id is not None:
                 return str(accepted_id)
-        return name_id
+        return name_id  # TODO: double check error logic here. Does .../AcceptedNames always return list?
 
     def _fetch_synonym_data(self, raw_data: list) -> list:
         """
@@ -198,14 +198,10 @@ class TropicosAPI(SpeciesAPI):
                 params={"apikey": self.key, "format": "json"},
             )
 
-            if (
-                not isinstance(result, list)
-                or len(result) == 0
-                or result[0].get("Error") == "No names were found"
-            ):
-                return []
-            else:
-                return [result]  # TODO: double check this error handling
+            # /Name/{id} returns a single dict
+            if isinstance(result, dict) and not result.get("Error"):
+                return [result]
+            return []
         else:
             return raw_data
 
@@ -243,20 +239,22 @@ class TropicosAPI(SpeciesAPI):
         display_date = item.get("DisplayDate", "")
         year_match = re.search(r"\d{4}", display_date)
         return [
-            self._format_row(**{
-                "api_name": TROPICOS_PORTAL.display_name,
-                "family": item.get("Family", ""),
-                "genus": genus,
-                "species": species,
-                "api_internal_id": name_id,
-                "author": item.get("Author", ""),
-                "publication_name": item.get("DisplayReference", ""),
-                "publication_year": year_match.group(0) if year_match else "",
-                "status": status,
-                "api_link": (
-                    f"https://www.tropicos.org/name/{name_id}" if name_id else ""
-                ),
-            })
+            self._format_row(
+                **{
+                    "api_name": TROPICOS_PORTAL.display_name,
+                    "family": item.get("Family", ""),
+                    "genus": genus,
+                    "species": species,
+                    "api_internal_id": name_id,
+                    "author": item.get("Author", ""),
+                    "publication_name": item.get("DisplayReference", ""),
+                    "publication_year": year_match.group(0) if year_match else "",
+                    "status": status,
+                    "api_link": (
+                        f"https://www.tropicos.org/name/{name_id}" if name_id else ""
+                    ),
+                }
+            )
         ]
 
     def _compile_synonyms(self, synonym_data: list) -> list[dict]:
@@ -293,20 +291,24 @@ class TropicosAPI(SpeciesAPI):
             sci_name_raw = syn_info.get("ScientificName", "")
             sci_name_with_authors = syn_info.get("ScientificNameWithAuthors", "")
             author = (
-                sci_name_with_authors[len(sci_name_raw):].strip()
+                sci_name_with_authors[len(sci_name_raw) :].strip()
                 if sci_name_raw and sci_name_with_authors.startswith(sci_name_raw)
                 else ""
             )
-            candidates.append(self._format_row(**{
-                "api_name": TROPICOS_PORTAL.display_name,
-                "family": syn_info.get("Family", ""),
-                "genus": genus,
-                "species": species,
-                "api_internal_id": syn_id,
-                "author": author,
-                "status": "Synonym",
-                "api_link": (
-                    f"https://www.tropicos.org/name/{syn_id}" if syn_id else ""
-                ),
-            }))
+            candidates.append(
+                self._format_row(
+                    **{
+                        "api_name": TROPICOS_PORTAL.display_name,
+                        "family": syn_info.get("Family", ""),
+                        "genus": genus,
+                        "species": species,
+                        "api_internal_id": syn_id,
+                        "author": author,
+                        "status": "Synonym",
+                        "api_link": (
+                            f"https://www.tropicos.org/name/{syn_id}" if syn_id else ""
+                        ),
+                    }
+                )
+            )
         return candidates
