@@ -14,7 +14,7 @@
 import { useMemo } from "react";
 import { Anchor, Button, Group, Table, Text } from "@mantine/core";
 
-import { useFilteredRecords } from "@/lib/hooks";
+import { useFilteredRecords, useSearch } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
 import type { SpeciesRecord } from "@/lib/types";
 
@@ -50,6 +50,8 @@ function fileStem(query: string): string {
 export function DetailView() {
   const { records } = useFilteredRecords();
   const query = useSearchStore((s) => s.submittedQuery);
+  const { data: searchData } = useSearch();
+  const unavailMarker = searchData?.unavailable_marker ?? "N/A";
 
   const columns = useMemo(() => columnsOf(records), [records]);
 
@@ -66,7 +68,7 @@ export function DetailView() {
 
   return (
     <>
-      <Group justify="space-between" align="center" mb="sm" wrap="nowrap">
+      <Group justify="space-between" align="center" mb="xs" wrap="nowrap">
         <Text c="dimmed" size="sm">
           {records.length} row{records.length === 1 ? "" : "s"} × {columns.length} columns
         </Text>
@@ -74,6 +76,13 @@ export function DetailView() {
           Download CSV
         </Button>
       </Group>
+
+      <Text c="dimmed" size="xs" mb="sm">
+        A blank cell means the source was queried but returned no value for that field.{" "}
+        <span style={{ color: "var(--mantine-color-gray-5)" }}>{unavailMarker}</span>{" "}
+        means the source does not provide that field at all. (For sources with status available,
+        taxonomy fields are attached to Accepted names only.)
+      </Text>
 
       <Table.ScrollContainer minWidth={800}>
         <Table withTableBorder withColumnBorders striped fz="xs">
@@ -97,6 +106,8 @@ export function DetailView() {
                         <Anchor href={str} target="_blank" rel="noopener noreferrer">
                           {str}
                         </Anchor>
+                      ) : str === unavailMarker ? (
+                        <span style={{ color: "var(--mantine-color-gray-5)" }}>{str}</span>
                       ) : (
                         str
                       )}

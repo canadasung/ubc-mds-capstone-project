@@ -29,6 +29,7 @@ export interface SearchResponse {
   query: string;
   sources: string[]; // source KEYS that were queried, e.g. ["gbif", "col"]
   results: SpeciesRecord[];
+  unavailable_marker: string; // sentinel value used for fields not provided by a source (e.g. "N/A")
 }
 
 /** GET /api/sources */

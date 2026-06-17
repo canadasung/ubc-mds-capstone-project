@@ -5,7 +5,7 @@ import pandas as pd
 from scripts.config import ALL_PORTALS
 
 # value to use when data is unavailable (i.e. never present) from a given API source. This is not the same as an empty string, which indicates that the data was not found for that particular query (e.g. no author for a given taxonomic name).
-UNAVAILABLE = "U"
+UNAVAILABLE = "N/A"
 
 SYNONYM_COLUMNS = [
     "api_name",  # name of API source that provided the data, e.g. GBIF (required)
@@ -238,7 +238,7 @@ def make_synonym_row(**kwargs) -> dict:
         If a required column is missing or set to ``UNAVAILABLE``, or if any
         column value fails its validator.
     """
-    # Validate that a blank string, "", was used for any passed value that did not have an entry, not None or "U"
+    # Validate that a blank string, "", was used for any passed value that did not have an entry, not None or "N/A"
     for col, v in kwargs.items():
         if v is None:
             raise TypeError(

@@ -46,6 +46,7 @@ export function TaxonomyView() {
   const { data, isLoading } = useTaxonomy();
   const { keys, queriedSources } = useActiveSourceKeys();
   const search = useSearch();
+  const unavailMarker = search.data?.unavailable_marker ?? "N/A";
 
   // Whether to shade cells by disagreement. Resets to on when the view remounts.
   const [highlight, setHighlight] = useState(true);
@@ -91,7 +92,6 @@ export function TaxonomyView() {
       return allowed.has(k) || !queriedSources.includes(k);
     });
 
-    const unavailMarker = data.unavailable_marker;
     const isReal = (v: string) => v !== "" && v !== unavailMarker;
 
     // keep only ranks that still have at least one non-empty value
@@ -130,7 +130,7 @@ export function TaxonomyView() {
       disagreements,
       effectiveBackbone,
     };
-  }, [data, keys, queriedSources, backbone]);
+  }, [data, keys, queriedSources, backbone, unavailMarker]);
 
   // Options for the backbone picker: every visible source, keyed by source key.
   const backboneOptions = useMemo(
@@ -214,7 +214,9 @@ export function TaxonomyView() {
                     const shade = shading.get(r)?.get(row.source) ?? null;
                     return (
                       <Table.Td key={r} style={highlight ? shade ?? undefined : undefined}>
-                        {val === "" ? "—" : val}
+                        {val === "" ? "—" : val === unavailMarker ? (
+                          <span style={{ color: "var(--mantine-color-gray-5)" }}>{val}</span>
+                        ) : val}
                       </Table.Td>
                     );
                   })}
