@@ -214,7 +214,7 @@ export function TaxonomyView() {
                     const shade = shading.get(r)?.get(row.source) ?? null;
                     return (
                       <Table.Td key={r} style={highlight ? shade ?? undefined : undefined}>
-                        {val === "" ? "—" : val === unavailMarker ? (
+                        {val === "" ? null : val === unavailMarker ? (
                           <span style={{ color: "var(--mantine-color-gray-5)" }}>{val}</span>
                         ) : val}
                       </Table.Td>
@@ -227,18 +227,21 @@ export function TaxonomyView() {
         </Table>
       </Table.ScrollContainer>
 
-      <Select
-        label="Truth backbone"
-        description="Source treated as the reference for Kingdom, Phylum, Class & Family."
-        data={backboneOptions}
-        value={effectiveBackbone}
-        onChange={(v) => v && setBackbone(v)}
-        allowDeselect={false}
-        maw={260}
-        mt="md"
-      />
-
-      {highlight && <ShadingLegend />}
+      {highlight && (
+        <>
+          <Select
+            label="Truth backbone"
+            description="Source treated as the reference for Kingdom, Phylum, Class, Order & Family."
+            data={backboneOptions}
+            value={effectiveBackbone}
+            onChange={(v) => v && setBackbone(v)}
+            allowDeselect={false}
+            maw={260}
+            mt="md"
+          />
+          <ShadingLegend />
+        </>
+      )}
     </>
   );
 }
@@ -298,7 +301,7 @@ function ShadingLegend() {
   return (
     <Stack gap={6} mt="md">
       <Text size="sm" c="dimmed">
-        Only Kingdom, Phylum, Class &amp; Family are shaded. The backbone source
+        Only Kingdom, Phylum, Class, Order &amp; Family are shaded. The backbone source
         and any source matching it are very light blue; cells that differ are a
         darker blue by character edit distance from the backbone.
       </Text>

@@ -1,8 +1,8 @@
 /**
  * Per-cell shading for the Taxonomic view.
  *
- * Only the higher ranks — Kingdom, Phylum, Class, Family — are shaded. Genus and
- * Species are never shaded (they're shown as plain text).
+ * Only the higher ranks — Kingdom, Phylum, Class, Order, Family — are shaded.
+ * Genus and Species are never shaded (they're shown as plain text).
  *
  * For the shaded ranks a single source is treated as the "truth" backbone
  * (GBIF by default, but user-selectable). Each cell is coloured by how far its
@@ -30,6 +30,7 @@ export const SHADED_RANKS: ReadonlySet<string> = new Set([
   "Kingdom",
   "Phylum",
   "Class",
+  "Order",
   "Family",
 ]);
 
