@@ -1,7 +1,7 @@
 # Frontend (Next.js)
 
 React/Next.js frontend for the species-synonym tool. Replaces the Streamlit
-prototypes in `../app/` and talks to the existing FastAPI backend in `../api/`.
+prototypes in `../app/` and talks to the FastAPI backend in `../backend_api/`.
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the design and the
 Streamlit→React mapping.
 
@@ -11,7 +11,7 @@ Streamlit→React mapping.
 - The FastAPI backend running locally:
   ```bash
   # from the repo root, with the conda env active
-  uvicorn api.main:app --reload --port 8000
+  uvicorn backend_api.main:app --reload --port 8000
   ```
 
 ## Setup
@@ -24,7 +24,7 @@ npm run dev                        # http://localhost:3000
 ```
 
 The backend already allows CORS from `http://localhost:3000` (see
-`api/main.py`). If you host the API elsewhere, set `NEXT_PUBLIC_API_BASE_URL`
+`backend_api/main.py`). If you host the API elsewhere, set `NEXT_PUBLIC_API_BASE_URL`
 in `.env.local` and add that frontend origin to the CORS `allow_origins` list.
 
 ## Scripts
@@ -45,9 +45,11 @@ switchable set of views (right) sharing one search.
 - **Taxonomic** — per-source classification with disagreements highlighted red.
 - **Debug** — raw record table (toggle "Debug" in the header).
 
-All data is served from the backend's `mock=true` sample CSVs today. Available
-sample species: **Amanita muscaria**, **Taraxacum officinale**, **Ursus arctos**.
-Searching an unknown name returns the available list as "Did you mean?" chips.
+Live search streams results source-by-source via `/api/search/stream`, with a
+progress bar showing which source is currently being queried. If all sources
+return empty, fuzzy suggestions appear as "Did you mean?" chips. The Suggest
+button calls `/api/suggest` to auto-select the right sources for the species'
+kingdom. The taxonomy view still uses pre-computed sample CSVs (`mock=true`).
 
 ## Layout
 
@@ -81,10 +83,9 @@ frontend/
 └── ARCHITECTURE.md
 ```
 
-## Next steps (see ARCHITECTURE.md §7)
+## Next steps
 
-1. Add a `/api/search` source-filter param so deselected sources are honored
-   server-side (today it's filtered client-side when routing is off).
-2. Add a `/api/suggest` endpoint exposing `fuzzy_search` for richer
-   "Did you mean?" results.
-3. Flip `mock=false` once `_live_search` lands in the backend — no UI changes.
+1. Wire `/api/taxonomy` to live data (currently mock-only; depends on the same
+   `call_apis` pipeline that search now uses).
+2. Regenerate sample CSVs to include the new `order` column so mock mode and
+   the Taxonomy view stay in sync.

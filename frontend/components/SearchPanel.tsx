@@ -5,7 +5,8 @@
  *   - search form (Enter submits, like st.form)
  *   - "Database selection" collapse: per-source checkboxes
  *   - Select all / Unselect all / Suggest buttons
- *   - "Did you mean?" suggestions parsed from a 404 response
+ *   - Live progress bar while search runs
+ *   - "Did you mean?" suggestions parsed from empty results
  */
 
 import { useState } from "react";
@@ -17,6 +18,7 @@ import {
   Collapse,
   Divider,
   Group,
+  Progress,
   Stack,
   Text,
   TextInput,
@@ -28,24 +30,9 @@ import { IconChevronDown, IconChevronRight, IconSearch } from "@tabler/icons-rea
 
 import { useSearch } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
-import { GROUP_LABELS, SOURCES, type SourceGroup } from "@/lib/sources";
+import { GROUP_LABELS, SOURCES, SOURCE_KEYS, keyForApiName, type SourceGroup } from "@/lib/sources";
+import { suggest } from "@/lib/api";
 import { ApiError } from "@/lib/types";
-
-const FUNGI_SOURCES = ["gbif", "col", "genbank", "index_fungorum", "mushroomobs", "symbiota_mycoportal", "symbiota_lichen"];
-const PLANTAE_SOURCES = ["gbif", "col", "genbank", "tropicos", "symbiota_bryophyte", "symbiota_cch2", "symbiota_sernec", "symbiota_nansh", "symbiota_swbiodiversity", "symbiota_macroalgae", "symbiota_pterido", "symbiota_neherbaria", "symbiota_midatlantic"];
-const ANIMALIA_SOURCES = ["gbif", "col", "genbank"];
-
-const SUGGEST_MAP: Record<string, string[]> = {
-  "podospora anserina": FUNGI_SOURCES,
-  "amanita muscaria": FUNGI_SOURCES,
-  "taraxacum officinale": PLANTAE_SOURCES,
-  "ergates spiculatus": ANIMALIA_SOURCES,
-  "ursus arctos": ANIMALIA_SOURCES,
-};
-
-function mockSuggest(query: string): string[] | null {
-  return SUGGEST_MAP[query.trim().toLowerCase()] ?? null;
-}
 
 const GROUP_ORDER: SourceGroup[] = ["backbone", "symbiota", "independent"];
 
@@ -57,22 +44,39 @@ export function SearchPanel() {
   const toggleSource = useSearchStore((s) => s.toggleSource);
   const setAllSources = useSearchStore((s) => s.setAllSources);
   const setSources = useSearchStore((s) => s.setSources);
+  const isSearching = useSearchStore((s) => s.isSearching);
+  const searchProgress = useSearchStore((s) => s.searchProgress);
 
   const [advancedOpen, advanced] = useDisclosure(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const search = useSearch();
   const error = search.error as ApiError | null;
 
-  const handleSuggest = () => {
-    const sources = mockSuggest(query);
-    if (!sources) {
+  const handleSuggest = async () => {
+    if (!query.trim()) {
       setSuggestError(
-        "Could not identify kingdom. Please type in a valid search query to use the automatic source suggestions."
+        "Please type in a valid search query to use automatic source suggestions."
       );
       return;
     }
+    setIsSuggesting(true);
     setSuggestError(null);
-    setSources(sources);
+    try {
+      const res = await suggest(query.trim());
+      if (res.sources.length === 0) {
+        setSuggestError(
+          "Could not identify kingdom. Please type in a valid search query to use the automatic source suggestions."
+        );
+        return;
+      }
+      const keys = res.sources.map(keyForApiName).filter((k) => SOURCE_KEYS.includes(k));
+      setSources(keys);
+    } catch {
+      setSuggestError("Suggest request failed. Is the server running?");
+    } finally {
+      setIsSuggesting(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -94,9 +98,28 @@ export function SearchPanel() {
             leftSection={<IconSearch size={16} />}
             aria-label="Search query"
           />
-          <Button type="submit" fullWidth loading={search.isFetching}>
+          <Button type="submit" fullWidth loading={isSearching} disabled={isSearching}>
             Search
           </Button>
+
+          {isSearching && (
+            <Stack gap={4}>
+              <Progress
+                value={
+                  searchProgress
+                    ? (searchProgress.done / searchProgress.total) * 100
+                    : 0
+                }
+                animated={!searchProgress}
+                size="sm"
+              />
+              <Text size="xs" c="dimmed">
+                {searchProgress
+                  ? `Searching ${searchProgress.source} (${searchProgress.done}/${searchProgress.total})…`
+                  : "Starting search…"}
+              </Text>
+            </Stack>
+          )}
         </Stack>
       </form>
 
@@ -181,6 +204,7 @@ export function SearchPanel() {
                 size="compact-sm"
                 variant="default"
                 fullWidth
+                loading={isSuggesting}
                 onClick={handleSuggest}
               >
                 Suggest

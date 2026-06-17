@@ -33,7 +33,7 @@ export function ResultsArea() {
     );
   }
 
-  if (search.isLoading) {
+  if (search.isFetching) {
     return (
       <Center mih={200}>
         <Stack align="center" gap="xs">
@@ -46,9 +46,9 @@ export function ResultsArea() {
     );
   }
 
-  // 404 ("no sample data") is surfaced as suggestions in the SearchPanel; here
+  // Empty results / error are surfaced as suggestions in the SearchPanel; here
   // we just show a neutral message rather than a scary error.
-  if (search.isError) {
+  if (search.error) {
     const err = search.error as ApiError;
     return (
       <Alert variant="light" color="gray" title="No results">
