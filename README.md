@@ -81,7 +81,7 @@ A single query produces five linked views of the same data:
   publication shown in chronological order.
 - **Taxonomy**: the species' classification across ranks (Kingdom, Phylum, Class,
   Order, Family, Subfamily). Cells are shaded by edit distance against a
-  comparison source (GBIF by default, user-selectable) so near-misses are
+  comparison source (GBIF by default, user-selectable) so alternative spellings are
   distinguished from genuine disagreements.
 
 If a search returns no results, the app offers fuzzy name suggestions
@@ -114,7 +114,7 @@ The other sources need no credentials.
 
 Each result is one row with 16 fields. Four are required and the rest are
 optional, since not every source provides every field. Fields a source never
-provides are marked `U` (unavailable), which is distinct from an empty string
+provides are marked `N/A` (unavailable), which is distinct from an empty string
 (searched but not found). The schema and its validation rules are defined in
 [scripts/utils/schema.py](scripts/utils/schema.py).
 
