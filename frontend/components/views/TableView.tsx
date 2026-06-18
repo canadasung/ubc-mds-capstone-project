@@ -6,6 +6,9 @@
  * Cross-source presence matrix (Name × Source). A ✓ in a source column links to
  * that source's page for the name (when a URL exists). The queried name is row 0
  * and bolded; remaining rows are sorted by how many sources recognize them.
+ *
+ * The table scrolls within a bounded height and uses a sticky header, so the
+ * Name and source column headers stay visible while scrolling through tall tables.
  */
 
 import { Anchor, Table, Text, Tooltip } from "@mantine/core";
@@ -23,8 +26,8 @@ export function TableView() {
   const { sources, rows } = buildPresenceTable(records, query);
 
   return (
-    <Table.ScrollContainer minWidth={400}>
-      <Table striped highlightOnHover withTableBorder withColumnBorders>
+    <Table.ScrollContainer minWidth={400} maxHeight="70vh">
+      <Table striped highlightOnHover withTableBorder withColumnBorders stickyHeader>
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Name</Table.Th>
