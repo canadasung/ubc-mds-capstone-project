@@ -74,13 +74,28 @@ export function DetailView() {
   const sortedRecords = useMemo(() => {
     if (!sort) return records;
     const { key, dir } = sort;
+    // Sort rank for a cell value in ascending order: real values (0) sort before
+    // the unavailable marker (1), which sorts before blank cells (2). So in
+    // ascending order the marker comes after every real value and blanks come
+    // last; the direction flip reverses this for descending order. Real values
+    // are compared alphabetically.
+    const rankOf = (v: string) => (v === "" ? 2 : v === unavailMarker ? 1 : 0);
     return [...records].sort((a, b) => {
       const valA = a[key] == null ? "" : String(a[key]);
       const valB = b[key] == null ? "" : String(b[key]);
-      const cmp = valA.localeCompare(valB, undefined, { sensitivity: "base" });
+      const rankA = rankOf(valA);
+      const rankB = rankOf(valB);
+      let cmp: number;
+      if (rankA !== rankB) {
+        cmp = rankA - rankB;
+      } else if (rankA === 0) {
+        cmp = valA.localeCompare(valB, undefined, { sensitivity: "base" });
+      } else {
+        cmp = 0;
+      }
       return dir === "asc" ? cmp : -cmp;
     });
-  }, [records, sort]);
+  }, [records, sort, unavailMarker]);
 
   const handleDownload = () => {
     const csv = toCsv(records, columns);
