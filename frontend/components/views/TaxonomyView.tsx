@@ -315,10 +315,10 @@ function DisagreementSummary({
 /** Explains the backbone-relative blue shading under the table. */
 function ShadingLegend() {
   const levels: Array<{ level: 1 | 2 | 3 | 4; label: string }> = [
-    { level: 1, label: "1" },
-    { level: 2, label: "2–5" },
-    { level: 3, label: "6–7" },
-    { level: 4, label: "8+" },
+    { level: 1, label: "Very low" },
+    { level: 2, label: "Low" },
+    { level: 3, label: "Medium" },
+    { level: 4, label: "High" },
   ];
 
   const chip = (style: CellShade, label: string) => (
