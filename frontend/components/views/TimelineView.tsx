@@ -1204,6 +1204,75 @@ export function TimelineView() {
     return () => observer.disconnect();
   }, []);
 
+  // Drag-to-pan: press and drag anywhere on the canvas to scroll the timeline,
+  // for both the Plotly horizontal view and the CSS vertical view (it only moves
+  // the scroll container, never the views themselves). A small movement
+  // threshold separates a pan from a click, and a real drag swallows the
+  // following click (captured before it reaches a card) so panning never
+  // toggles a card open or closed.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const DRAG_THRESHOLD_PX = 5;
+    let dragging = false;
+    let moved = false;
+    let startX = 0;
+    let startY = 0;
+    let startLeft = 0;
+    let startTop = 0;
+
+    const onMove = (e: MouseEvent) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!moved && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
+        moved = true;
+        el.style.cursor = "grabbing";
+        el.style.userSelect = "none";
+      }
+      if (moved) {
+        el.scrollLeft = startLeft - dx;
+        el.scrollTop = startTop - dy;
+        e.preventDefault();
+      }
+    };
+    const onUp = () => {
+      dragging = false;
+      el.style.cursor = "grab";
+      el.style.userSelect = "";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 0) return; // primary button only
+      dragging = true;
+      moved = false;
+      startX = e.clientX;
+      startY = e.clientY;
+      startLeft = el.scrollLeft;
+      startTop = el.scrollTop;
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
+    const onClickCapture = (e: MouseEvent) => {
+      if (moved) {
+        e.stopPropagation();
+        e.preventDefault();
+        moved = false;
+      }
+    };
+
+    el.style.cursor = "grab";
+    el.addEventListener("mousedown", onDown);
+    el.addEventListener("click", onClickCapture, true);
+    return () => {
+      el.removeEventListener("mousedown", onDown);
+      el.removeEventListener("click", onClickCapture, true);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
   // Dated records grouped into one entry per year (oldest to newest), plus
   // colors, the undated set, and the total dated record count for the header.
   const { groups, undatedEntries, datedCount } = useMemo(() => {
