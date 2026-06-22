@@ -43,23 +43,23 @@ const HoverContext = createContext<HoverState>(null);
 
 const KIND_STYLE: Record<"source" | "genus" | "species", React.CSSProperties> = {
   source: {
-    background: "#e8f4fd",
-    border: "2px solid #228be6",
+    background: "#ffffff",
+    border: "1px solid #adb5bd",
     fontWeight: 600,
     minWidth: 160,
     textAlign: "center",
   },
   genus: {
-    background: "#f8f9fa",
-    border: "1.5px solid #74c0fc",
+    background: "#ffffff",
+    border: "1px solid #adb5bd",
     fontWeight: 500,
     fontStyle: "italic",
     minWidth: 140,
     textAlign: "center",
   },
   species: {
-    background: "#ffffff",
-    border: "1px solid #adb5bd",
+    background: "#f8f9fa",
+    border: "1.5px solid #74c0fc",
     fontStyle: "italic",
     minWidth: 180,
     textAlign: "left",
