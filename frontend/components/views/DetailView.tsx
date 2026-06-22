@@ -9,6 +9,9 @@
  * Database-selection checkboxes. Every column is shown with its raw CSV header;
  * the Download button exports exactly those rows and columns, named from the
  * query (e.g. "amanita_muscaria.csv").
+ *
+ * The table scrolls within a bounded height and uses a sticky header, so the
+ * column names stay visible while scrolling through long result lists.
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -108,8 +111,8 @@ export function DetailView() {
         taxonomy fields are attached to Accepted names only.)
       </Text>
 
-      <Table.ScrollContainer minWidth={800}>
-        <Table withTableBorder withColumnBorders striped fz="xs">
+      <Table.ScrollContainer minWidth={800} maxHeight="70vh">
+        <Table withTableBorder withColumnBorders striped fz="xs" stickyHeader>
           <Table.Thead>
             <Table.Tr>
               {columns.map((c) => (
