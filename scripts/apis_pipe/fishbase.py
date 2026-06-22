@@ -1,22 +1,37 @@
 """
 FishBase HTML scraping client.
 
-SpeciesAPI implementation for FishBase (fishbase.se), the world's largest
-online information system on fishes.
+FishBase (fishbase.se) is the world's largest online information system for
+fish species, covering taxonomy, biology, ecology, and distribution.  It does
+not expose a public REST/JSON API, so this client scrapes two HTML pages per
+query:
 
-FishBase does not expose a public REST/JSON API. This client scrapes two
-HTML pages per query:
-  1. /summary/{Genus}-{Species} — resolves any name (accepted or synonym) to
-     the accepted species and its internal SpecCode. FishBase serves the
-     accepted species page regardless of whether the queried name is the
-     accepted name or a synonym, so no separate synonym-resolution step is
-     needed.
-  2. /nomenclature/{SpecCode} — lists all names (accepted and synonyms) as
-     HTML anchor tags whose href query parameters contain every field we need:
-     GenusName, SpeciesName, Author, Status, Misspelling, SpecCode.
+1. ``/summary/{Genus}-{Species}`` — FishBase redirects any name (accepted or
+   synonym) to the accepted species page, providing the ``SpecCode`` and
+   accepted name via embedded metadata; no separate synonym-resolution request
+   is needed.
+2. ``/nomenclature/{SpecCode}`` — lists all names (accepted and synonyms) as
+   anchor tags whose query-string parameters contain all fields needed:
+   ``GenusName``, ``SpeciesName``, ``Author``, ``Status``, ``Misspelling``,
+   ``SpecCode``.
 
-Subspecific names (SpeciesName containing a space) and misspellings
-(Misspelling=1) are excluded during compilation.
+Subspecific names (``SpeciesName`` containing a space) and misspellings
+(``Misspelling=1``) are excluded during compilation.
+
+FishBase does not provide taxonomy and returns both accepted and synonym results in the nomenclature web scrape. As such, all results are fetched and compiled using the synonym flow (``_fetch_synonym_data`` and ``_compile_synonyms``), and the accepted flow (``_fetch_accepted_data`` and ``_compile_accepted``), which would normally handle the accepted name information and the taxonomy information, returns blank. The status flag is applied dynamically using the ``Status`` field.
+
+Documentation
+-------------
+FishBase does not publish API documentation.  The scraping targets are
+https://www.fishbase.se/summary/{Genus}-{Species} and
+https://www.fishbase.se/nomenclature/{SpecCode}.
+
+Fields implemented
+------------------
+- author: both rows
+- publication_year: both rows
+- status: both rows
+- api_link: both rows
 """
 
 import re
@@ -29,7 +44,7 @@ from .base import SpeciesAPI
 
 class FishBaseAPI(SpeciesAPI):
     """
-    Implementation of SpeciesAPI for FishBase.
+    SpeciesAPI implementation for FishBase via HTML scraping.
     """
 
     BASE_URL = FISHBASE_PORTAL.base_url
@@ -48,13 +63,12 @@ class FishBaseAPI(SpeciesAPI):
     # Strips the trailing ", YYYY" year from a FishBase author string.
     _YEAR_SUFFIX_RE = re.compile(r",\s*(\d{4})$")
 
-    def _fetch_query_data(self, name: str) -> dict:
+    def _fetch_query_data(self, name: str) -> str:
         """
-        Resolve *name* to its accepted species and SpecCode via the summary page.
+        Fetch the summary page HTML for *name* from ``/summary/{Genus}-{Species}``.
 
-        Fetches ``/summary/{Genus}-{Species}``. FishBase automatically serves
-        the accepted species page for both accepted names and synonyms, so no
-        separate synonym-resolution request is needed.
+        FishBase serves the accepted species page for both accepted names and
+        synonyms, so no separate synonym-resolution request is needed.
 
         Parameters
         ----------
@@ -63,102 +77,122 @@ class FishBaseAPI(SpeciesAPI):
 
         Returns
         -------
-        dict
-            Keys ``"spec_code"``, ``"accepted_genus"``, ``"accepted_species"``,
-            or ``{}`` if the name is not found.
+        str
+            Raw HTML of the summary page, or ``""`` if the name is malformed
+            or the request fails.
         """
         parts = name.split()
         if len(parts) < 2:
             # TODO: add error
-            return {}
+            return ""
         genus, species = parts[0], parts[1]
-        html = self._fetch_HTML(f"{self.BASE_URL}/summary/{genus}-{species}")
-        if not html:
-            # TODO: add error
-            return {}
+        return self._fetch_HTML(f"{self.BASE_URL}/summary/{genus}-{species}")
 
-        spec_match = self._SPEC_CODE_RE.search(html)
-        if not spec_match:
-            # TODO: add error
-            return {}
-        spec_code = spec_match.group(1)
-
-        og_match = self._OG_URL_RE.search(html)
-        if og_match:
-            accepted_genus = og_match.group(1)
-            accepted_species = og_match.group(2)
-        else:
-            accepted_genus, accepted_species = genus, species
-
-        return {
-            "spec_code": spec_code,
-            "accepted_genus": accepted_genus,
-            "accepted_species": accepted_species,
-        }
-
-    def _extract_internal_id(self, raw_data: dict) -> str:
+    def _extract_accepted_name(
+        self, html: str, fallback_genus: str = "", fallback_species: str = ""
+    ) -> tuple[str, str]:
         """
-        Return the SpecCode from the query result dict.
+        Extract the accepted genus and species from the ``og:url`` meta tag in summary HTML.
+
+        Falls back to the provided genus/species if the tag is absent.
 
         Parameters
         ----------
-        raw_data : dict
-            The dict returned by ``_fetch_query_data``.
+        html : str
+            Raw HTML of the summary page.
+        fallback_genus : str, optional
+            Genus to return if the ``og:url`` pattern is not found.
+        fallback_species : str, optional
+            Species to return if the ``og:url`` pattern is not found.
+
+        Returns
+        -------
+        tuple[str, str]
+            ``(genus, species)`` of the accepted name.
+        """
+        m = self._OG_URL_RE.search(html)
+        if m:
+            return m.group(1), m.group(2)
+        return fallback_genus, fallback_species
+
+    def _extract_internal_id(self, raw_data: str | dict) -> str:
+        """
+        Extract the FishBase SpecCode from summary page HTML or a params dict.
+
+        When *raw_data* is a ``dict`` (e.g. a parsed synonym URL params dict),
+        reads the ``"SpecCode"`` key directly.  When it is a ``str``, applies
+        ``_SPEC_CODE_RE`` against language-selector link hrefs in the HTML.
+
+        Parameters
+        ----------
+        raw_data : str or dict
+            Either raw HTML of the summary page (from ``_fetch_query_data``) or
+            a URL-decoded synonym params dict (from ``_extract_synonym_params``).
 
         Returns
         -------
         str
-            The FishBase SpecCode, or ``""`` if absent.
+            The SpecCode digits, or ``""`` if not found.
         """
-        return raw_data.get("spec_code", "")
+        if isinstance(raw_data, dict):
+            return raw_data.get("SpecCode", "")
+        m = self._SPEC_CODE_RE.search(raw_data)
+        return m.group(1) if m else ""
 
-    def _fetch_synonym_data(self, raw_data: dict) -> list:
+    def _extract_author(self, string: str) -> str:
         """
-        Scrape synonym parameter dicts from the ``/nomenclature/{SpecCode}`` page.
-
-        Each synonym anchor tag encodes all required fields in its href query
-        string (GenusName, SpeciesName, Author, Status, Misspelling, SpecCode).
+        Normalise a FishBase author string.
 
         Parameters
         ----------
-        raw_data : dict
-            The dict returned by ``_fetch_query_data``.
+        string : str
+            Raw author string from a synonym link's ``Author`` parameter.
 
         Returns
         -------
-        list of dict
-            One dict per synonym anchor, with URL-decoded parameter values.
-            Returns ``[]`` on error or if the page has no synonym links.
+        str
+            ``""`` when *string* is ``"not given"`` (case-insensitive);
+            otherwise *string* unchanged.
         """
-        spec_code = self._extract_internal_id(raw_data)
-        if not spec_code:
-            return []
-        html = self._fetch_HTML(f"{self.BASE_URL}/nomenclature/{spec_code}")
-        if not html:
-            return []
+        if string.strip().lower() == "not given":
+            return ""
+        return string
 
-        synonyms = []
-        for m in self._SYN_LINK_RE.finditer(html):
-            params = {}
-            for part in m.group(1).split("&"):
-                if "=" in part:
-                    key, _, val = part.partition("=")
-                    params[key] = unquote_plus(val)
-            synonyms.append(params)
-        return synonyms
-
-    def _fetch_synonym_search_term_data(
-        self, _raw_data: dict, _synonym_data: list
-    ) -> dict:
+    def _fetch_synonym_data(self, raw_data: str) -> str:
         """
-        Not used for FishBase — the accepted name is included in ``synonym_data``
-        and compiled directly by ``_compile_synonyms``.
+        Fetch the nomenclature page HTML for the SpecCode found in *raw_data*.
+
+        Extracts the SpecCode from the summary HTML, then fetches
+        ``/nomenclature/{SpecCode}``.
 
         Parameters
         ----------
-        _raw_data : dict
+        raw_data : str
+            Raw HTML of the summary page as returned by ``_fetch_query_data``.
+
+        Returns
+        -------
+        str
+            Raw HTML of the ``/nomenclature/{SpecCode}`` page, or ``""`` if
+            no SpecCode is found or the request fails.
+        """
+        spec_code = self._extract_internal_id(raw_data)
+        if not spec_code:
+            return ""
+        return self._fetch_HTML(f"{self.BASE_URL}/nomenclature/{spec_code}")
+
+    def _fetch_accepted_data(self, _raw_data: str, _synonym_data: str) -> dict:
+        """
+        Return ``{}`` — not used for FishBase.
+
+        The accepted name is included in the nomenclature HTML and compiled
+        directly by ``_compile_synonyms``.
+
+        Parameters
+        ----------
+        _raw_data : str
             Unused.
-        _synonym_data : list of dict
+        _synonym_data : str
             Unused.
 
         Returns
@@ -168,12 +202,17 @@ class FishBaseAPI(SpeciesAPI):
         """
         return {}
 
-    def _compile_synonym_search_term(
-        self, _synonym_search_term_data: dict
-    ) -> list[dict]:
+    def _compile_accepted(self, _accepted_data: dict) -> list[dict]:
         """
-        Not used for FishBase — the accepted name is compiled by
-        ``_compile_synonyms`` alongside the other records.
+        Return ``[]`` — not used for FishBase.
+
+        The accepted name is compiled by ``_compile_synonyms`` alongside all
+        synonym records.
+
+        Parameters
+        ----------
+        _accepted_data : dict
+            Unused (always ``{}``).
 
         Returns
         -------
@@ -187,11 +226,12 @@ class FishBaseAPI(SpeciesAPI):
         Extract the four-digit year from a FishBase author string.
 
         FishBase encodes author and year together (e.g. ``"Linnaeus, 1758"``).
+        Applies ``_YEAR_SUFFIX_RE`` to capture the trailing year.
 
         Parameters
         ----------
         string : str
-            Raw author string from the synonym link parameters.
+            Raw author string from a synonym link's ``Author`` parameter.
 
         Returns
         -------
@@ -201,39 +241,45 @@ class FishBaseAPI(SpeciesAPI):
         m = self._YEAR_SUFFIX_RE.search(string)
         return m.group(1) if m else ""
 
-    def _extract_author(self, string: str) -> str:
+    def _extract_synonym_params(self, html: str) -> list[dict]:
         """
-        Strip the trailing year suffix and return the author name.
+        Parse URL-decoded parameter dicts from every ``SynonymSummary.php`` link in HTML.
+
+        Applies ``_SYN_LINK_RE`` and URL-decodes each query string.
 
         Parameters
         ----------
-        string : str
-            Raw author string from the synonym link parameters,
-            e.g. ``"Linnaeus, 1758"``.
+        html : str
+            Raw HTML of the ``/nomenclature/{SpecCode}`` page.
 
         Returns
         -------
-        str
-            Author name without the year (e.g. ``"Linnaeus"``), ``""`` if the
-            author is ``"Not given"``, or the original string if no year suffix
-            is present.
+        list of dict
+            One URL-decoded parameter dict per synonym anchor found.
         """
-        if string.strip().lower() == "not given":
-            return ""
-        return self._YEAR_SUFFIX_RE.sub("", string).rstrip(", ").strip()
+        params_list = []
+        for m in self._SYN_LINK_RE.finditer(html):
+            params = {}
+            for part in m.group(1).split("&"):
+                if "=" in part:
+                    key, _, val = part.partition("=")
+                    params[key] = unquote_plus(val)
+            params_list.append(params)
+        return params_list
 
-    def _compile_synonyms(self, synonym_data: list) -> list[dict]:
+    def _compile_synonyms(self, synonym_data: str) -> list[dict]:
         """
-        Convert raw synonym parameter dicts into pipeline-standard synonym records.
+        Convert nomenclature page HTML into pipeline-standard synonym records.
 
-        Includes the accepted name alongside synonyms. Excludes misspellings
-        (``Misspelling=1``) and subspecific names (``SpeciesName`` contains a
-        space). Deduplicates by canonical binomial name.
+        Includes the accepted name alongside synonyms.  Excludes misspellings
+        (``Misspelling=1``) and subspecific names (``SpeciesName`` containing a
+        space).  Deduplicates by canonical binomial name.
 
         Parameters
         ----------
-        synonym_data : list of dict
-            URL-decoded parameter dicts as returned by ``_fetch_synonym_data``.
+        synonym_data : str
+            Raw HTML of the ``/nomenclature/{SpecCode}`` page as returned by
+            ``_fetch_synonym_data``.
 
         Returns
         -------
@@ -242,7 +288,7 @@ class FishBaseAPI(SpeciesAPI):
         """
         candidates = []
         seen: set[str] = set()
-        for params in synonym_data:
+        for params in self._extract_synonym_params(synonym_data):
             genus = params.get("GenusName", "").strip()
             species = params.get("SpeciesName", "").strip()
             if not genus or not species:
@@ -254,7 +300,7 @@ class FishBaseAPI(SpeciesAPI):
                 continue
             seen.add(name)
             author_raw = params.get("Author", "")
-            spec_code = params.get("SpecCode", "")
+            spec_code = self._extract_internal_id(params)
             candidates.append(
                 self._format_row(
                     **{

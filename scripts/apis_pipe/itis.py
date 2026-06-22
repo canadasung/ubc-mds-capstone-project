@@ -1,10 +1,24 @@
 """
 ITIS API client.
 
-SpeciesAPI implementation for ITIS (Integrated Taxonomic Information System),
-a database of biological names maintained by a partnership of United States
-federal agencies. ITIS provides authoritative taxonomic information for plants,
-animals, fungi, and microbes, including synonym data.
+ITIS (Integrated Taxonomic Information System) is an authoritative database of
+biological names for plants, animals, fungi, and microbes, maintained by a
+partnership of US federal agencies.  This client uses the ITIS JSON web service
+to resolve names by TSN (Taxonomic Serial Number) and retrieve synonym lists,
+publication data, and full taxonomic hierarchy.
+
+Documentation
+-------------
+https://www.itis.gov/ws_description.html
+
+Fields implemented
+------------------
+- Taxonomy (kingdom → subfamily): accepted name row only
+- author: both rows
+- publication_year: both rows
+- original_source: both rows
+- status: both rows
+- api_link: both rows
 """
 
 import re
@@ -17,7 +31,7 @@ from .base import SpeciesAPI
 
 class ITISAPI(SpeciesAPI):
     """
-    Implementation of SpeciesAPI for ITIS.
+    SpeciesAPI implementation for the ITIS JSON web service.
     """
 
     BASE_URL = ITIS_PORTAL.base_url
@@ -26,6 +40,23 @@ class ITISAPI(SpeciesAPI):
     _TIMEOUT = 30
 
     def _extract_publication_year(self, authorship: str) -> str:
+        """
+        Extract a four-digit year from an ITIS authorship string.
+
+        Returns the trailing year only when the string does not end with ``)``,
+        which avoids false matches in parenthesised author strings.
+
+        Parameters
+        ----------
+        authorship : str
+            An ITIS authorship value, e.g. ``"L., 1753"`` or ``"(L.) Lam., 1783"``.
+
+        Returns
+        -------
+        str
+            Four-digit year string, or ``""`` if not found or the string ends
+            with ``)``.
+        """
         stripped = authorship.strip()
         if not stripped.endswith(")"):
             match = re.search(r"(\d{4})\s*$", stripped)
@@ -35,6 +66,19 @@ class ITISAPI(SpeciesAPI):
 
     @staticmethod
     def _strip_links(text: str) -> str:
+        """
+        Strip HTML anchor tags and bare URLs from a text string.
+
+        Parameters
+        ----------
+        text : str
+            A string that may contain ``<a>`` tags or raw ``http(s)://`` URLs.
+
+        Returns
+        -------
+        str
+            Cleaned text with link markup and URLs removed.
+        """
         text = re.sub(r"<a[^>]*>(.*?)</a>", r"\1", text, flags=re.IGNORECASE)
         text = re.sub(
             r"</?a[^>]*>", "", text, flags=re.IGNORECASE
@@ -43,6 +87,25 @@ class ITISAPI(SpeciesAPI):
         return text.strip()
 
     def _build_original_source(self, publications: list, other_sources: list) -> str:
+        """
+        Build a comma-separated ``original_source`` string from ITIS publication records.
+
+        Combines entries from both lists, sorts chronologically by year, and
+        formats each as ``"Name [YYYY]"`` (or just ``"Name"`` when no year is
+        available).
+
+        Parameters
+        ----------
+        publications : list
+            Publication records from ``getPublicationsFromTSN``.
+        other_sources : list
+            Other source records from ``getOtherSourcesFromTSN``.
+
+        Returns
+        -------
+        str
+            Comma-separated source string, or ``""`` if both lists are empty.
+        """
         entries = []
         for pub in publications:
             if not pub:
@@ -65,6 +128,22 @@ class ITISAPI(SpeciesAPI):
         return ", ".join(parts)
 
     def _extract_taxonomy(self, hierarchy_list: list) -> dict[str, str]:
+        """
+        Extract taxonomy fields from an ITIS ``getFullHierarchyFromTSN`` response.
+
+        Parameters
+        ----------
+        hierarchy_list : list
+            The ``"hierarchyList"`` value from the ``getFullHierarchyFromTSN``
+            response, each item being a dict with ``"rankName"`` and
+            ``"taxonName"`` keys.
+
+        Returns
+        -------
+        dict[str, str]
+            Keys: ``"kingdom"``, ``"phylum"``, ``"class_"``, ``"order"``,
+            ``"family"``, and ``"subfamily"``.
+        """
         rank_to_field = {
             "Kingdom": "kingdom",
             "Phylum": "phylum",
@@ -83,11 +162,10 @@ class ITISAPI(SpeciesAPI):
 
     def _fetch_query_data(self, name: str) -> dict:
         """
-        Search the ITIS database for a scientific name.
+        Search the ITIS database for *name* via ``getITISTermsFromScientificName``.
 
-        Calls the ``getITISTermsFromScientificName`` endpoint, which performs a
-        prefix search. Results are filtered for an exact case-insensitive match
-        on the ``scientificName`` field.
+        The endpoint performs a prefix search; results are filtered to the
+        first exact case-insensitive match on ``scientificName``.
 
         Parameters
         ----------
@@ -126,17 +204,18 @@ class ITISAPI(SpeciesAPI):
         Parameters
         ----------
         raw_data : dict
-            A single ITIS term record as returned by ``_fetch_query_data``.
+            A single ITIS term record (from ``_fetch_query_data`` or a synonym
+            record).
 
         Returns
         -------
         str
-            The TSN of the matched record.
+            The TSN as a string.
 
         Raises
         ------
         LookupError
-            When no TSN is present in the record.
+            When no ``tsn`` key is present in the record.
         """
         tsn = raw_data.get("tsn")
         if tsn is None:
@@ -145,52 +224,90 @@ class ITISAPI(SpeciesAPI):
             )
         return str(tsn)
 
-    def _extract_internal_accepted_id(self, raw_data: dict) -> str:
+    def _fetch_accepted_tsn_data(self, tsn: str) -> list:
         """
-        Resolve a term record to the accepted name's TSN.
-
-        If the record's ``nameUsage`` indicates a synonym (``"not accepted"``
-        for plants and algae, ``"invalid"`` for animals and bacteria), fetches
-        ``getAcceptedNamesFromTSN`` to find the accepted TSN. Otherwise returns
-        the record's own TSN unchanged. Stores the result as
-        ``self._accepted_tsn`` for use by ``_fetch_synonym_search_term_data``.
+        Fetch accepted name records for *tsn* from ``getAcceptedNamesFromTSN``.
 
         Parameters
         ----------
-        raw_data : dict
-            A single ITIS term record as returned by ``_fetch_query_data``.
+        tsn : str
+            The TSN to resolve to an accepted name.
+
+        Returns
+        -------
+        list
+            Filtered list of accepted name records, or ``[]`` on error or if
+            no accepted names are found.
+        """
+        data = self._fetch_JSON(
+            f"{self.BASE_URL}/getAcceptedNamesFromTSN",
+            params={"tsn": tsn},
+            timeout=self._TIMEOUT,
+        )
+        return [n for n in (data.get("acceptedNames") or []) if n]
+
+    def _extract_internal_accepted_id(self, accepted_names_data: list) -> str:
+        """
+        Extract the accepted TSN from pre-fetched accepted names data.
+
+        Parameters
+        ----------
+        accepted_names_data : list
+            The list returned by ``_fetch_accepted_tsn_data``.
 
         Returns
         -------
         str
-            The TSN of the accepted name, or the original TSN if the record is already accepted, or blank if no accepted name is found.
+            The ``acceptedTsn`` of the first record, or ``""`` if the list is
+            empty.
         """
-        tsn = self._extract_internal_id(raw_data)
-        if raw_data.get("nameUsage") in ("not accepted", "invalid"):
-            accepted_names_data = self._fetch_JSON(
-                f"{self.BASE_URL}/getAcceptedNamesFromTSN",
-                params={"tsn": tsn},
-                timeout=self._TIMEOUT,
-            )
+        if accepted_names_data:
+            return str(
+                accepted_names_data[0]["acceptedTsn"]
+            )  # TODO: double check this functionality: should we be returning the first one if there are multiple? also add error
+        return ""
 
-            accepted_names = [
-                n for n in (accepted_names_data.get("acceptedNames") or []) if n
-            ]
-            self._accepted_tsn = (
-                str(accepted_names[0]["acceptedTsn"])
-                if accepted_names
-                else ""  # TODO: double check this functionality: should we be returning the first one if there are multiple? also add error
-            )
-        else:
-            self._accepted_tsn = tsn
-        return self._accepted_tsn
+    def _fetch_synonym_publication_data(self, tsn: str) -> tuple[list, list]:
+        """
+        Fetch publication and source records for a synonym TSN.
+
+        Calls ``getPublicationsFromTSN`` and ``getOtherSourcesFromTSN`` in
+        sequence and returns both filtered lists.
+
+        Parameters
+        ----------
+        tsn : str
+            The TSN of the synonym to fetch publication data for.
+
+        Returns
+        -------
+        tuple[list, list]
+            A ``(publications, other_sources)`` pair, each a filtered list.
+        """
+        pub_data = self._fetch_JSON(
+            f"{self.BASE_URL}/getPublicationsFromTSN",
+            params={"tsn": tsn},
+            timeout=self._TIMEOUT,
+        )
+        src_data = self._fetch_JSON(
+            f"{self.BASE_URL}/getOtherSourcesFromTSN",
+            params={"tsn": tsn},
+            timeout=self._TIMEOUT,
+        )
+        publications = [p for p in (pub_data.get("publications") or []) if p]
+        other_sources = [s for s in (src_data.get("otherSources") or []) if s]
+        return publications, other_sources
 
     def _fetch_synonym_data(self, raw_data: dict) -> list:
         """
-        Fetch raw synonym records for the accepted taxon resolved from the term record.
+        Fetch augmented synonym records for the accepted taxon from ``getSynonymNamesFromTSN``.
 
-        Also fetches the full taxonomy hierarchy for the accepted name and stores
-        it as ``self._hierarchy_data`` for use in ``_compile_synonym_search_term``.
+        Also fetches the full taxonomy hierarchy (``getFullHierarchyFromTSN``)
+        and stores it as ``self._hierarchy_data`` for ``_compile_accepted``.
+        If the queried name is a synonym, resolves the accepted TSN first via
+        ``_fetch_accepted_tsn_data``.  Each synonym record is augmented with
+        pre-fetched ``publications`` and ``other_sources`` so that
+        ``_compile_synonyms`` requires no network calls.
 
         Parameters
         ----------
@@ -200,39 +317,57 @@ class ITISAPI(SpeciesAPI):
         Returns
         -------
         list
-            Raw synonym records from ``getSynonymNamesFromTSN``, with null
-            entries removed. Returns ``[]`` if no synonyms are found.
+            Augmented synonym records with ``publications`` and ``other_sources``
+            fields, or ``[]`` if no synonyms are found.
         """
-        accepted_tsn = self._extract_internal_accepted_id(raw_data)
+        tsn = self._extract_internal_id(raw_data)
+        if raw_data.get("nameUsage") in ("not accepted", "invalid"):
+            accepted_names_data = self._fetch_accepted_tsn_data(tsn)
+            self._accepted_tsn = (
+                self._extract_internal_accepted_id(accepted_names_data) or ""
+            )
+        else:
+            self._accepted_tsn = tsn
 
         hierarchy = self._fetch_JSON(
             f"{self.BASE_URL}/getFullHierarchyFromTSN",
-            params={"tsn": accepted_tsn},
+            params={"tsn": self._accepted_tsn},
             timeout=self._TIMEOUT,
         )
         self._hierarchy_data = [r for r in (hierarchy.get("hierarchyList") or []) if r]
 
         data = self._fetch_JSON(
             f"{self.BASE_URL}/getSynonymNamesFromTSN",
-            params={"tsn": accepted_tsn},
+            params={"tsn": self._accepted_tsn},
             timeout=self._TIMEOUT,
         )
-        return [s for s in (data.get("synonyms") or []) if s]  # TODO: add error
+        synonyms = [s for s in (data.get("synonyms") or []) if s]  # TODO: add error
 
-    def _fetch_synonym_search_term_data(
-        self, _raw_data: dict, _synonym_data: list
-    ) -> dict:
+        for s in synonyms:
+            syn_tsn = self._extract_internal_id(s)
+            if syn_tsn:
+                publications, other_sources = self._fetch_synonym_publication_data(
+                    syn_tsn
+                )
+            else:
+                publications, other_sources = [], []
+            s["publications"] = publications
+            s["other_sources"] = other_sources
+
+        return synonyms
+
+    def _fetch_accepted_data(self, _raw_data: dict, _synonym_data: list) -> dict:
         """
-        Return the accepted taxon's full record for use as the synonym search term.
+        Fetch the accepted taxon's full record from ``getFullRecordFromTSN``.
 
-        Always fetches ``getFullRecordFromTSN`` using ``self._accepted_tsn`` so
-        that publication, source, and authorship fields are consistently available
-        regardless of whether the original query was an accepted name or a synonym.
+        Always uses ``self._accepted_tsn`` (set by ``_fetch_synonym_data``) to
+        ensure consistent publication, source, and authorship fields regardless
+        of whether the original query was an accepted name or a synonym.
 
         Parameters
         ----------
-        raw_data : dict
-            A single ITIS term record as returned by ``_fetch_query_data``.
+        _raw_data : dict
+            The original query term record (unused here).
         _synonym_data : list
             Raw synonym records (unused here).
 
@@ -247,55 +382,46 @@ class ITISAPI(SpeciesAPI):
             timeout=self._TIMEOUT,
         )
 
-    def _compile_synonym_search_term(
-        self, synonym_search_term_data: dict
-    ) -> list[dict]:
+    def _compile_accepted(self, accepted_data: dict) -> list[dict]:
         """
-        Build a pipeline-standard record for the synonym search term.
+        Build a pipeline-standard record for the accepted name from an ITIS full record.
 
-        Uses the full record from ``getFullRecordFromTSN``: ``scientificName``
-        is a nested object with ``combinedName``, authorship is in
-        ``taxonAuthor.authorship``.
+        Reads ``scientificName.combinedName`` and ``taxonAuthor.authorship``
+        from the ``getFullRecordFromTSN`` response.
 
         Parameters
         ----------
-        synonym_search_term_data : dict
+        accepted_data : dict
             The accepted name's full record as returned by
-            ``_fetch_synonym_search_term_data``.
+            ``_fetch_accepted_data``.
 
         Returns
         -------
         list of dict
-            One-item list with the search term record, or ``[]`` if the name
+            One-item list with the accepted name record, or ``[]`` if the name
             cannot be determined.
         """
-        sci_name_field = synonym_search_term_data.get("scientificName")
+        sci_name_field = accepted_data.get("scientificName")
         name = ((sci_name_field or {}).get("combinedName") or "").strip()
         author = (
-            (synonym_search_term_data.get("taxonAuthor") or {}).get("authorship") or ""
+            (accepted_data.get("taxonAuthor") or {}).get("authorship") or ""
         ).strip()
 
-        tsn = self._extract_internal_id(synonym_search_term_data)
+        tsn = self._extract_internal_id(accepted_data)
         if not name:
             return []
         genus, species = self._extract_genus_species(name)
         publications = [
             p
             for p in (
-                (synonym_search_term_data.get("publicationList") or {}).get(
-                    "publications"
-                )
-                or []
+                (accepted_data.get("publicationList") or {}).get("publications") or []
             )
             if p
         ]
         other_sources = [
             s
             for s in (
-                (synonym_search_term_data.get("otherSourceList") or {}).get(
-                    "otherSources"
-                )
-                or []
+                (accepted_data.get("otherSourceList") or {}).get("otherSources") or []
             )
             if s
         ]
@@ -323,17 +449,18 @@ class ITISAPI(SpeciesAPI):
 
     def _compile_synonyms(self, synonym_data: list) -> list[dict]:
         """
-        Convert raw ITIS synonym records into pipeline-standard synonym dicts.
+        Convert augmented ITIS synonym records into pipeline-standard dicts.
 
-        Calls ``getPublicationsFromTSN`` for each synonym to retrieve
-        ``publication_name``. ``publication_year`` is parsed from the ``author``
-        string. Taxonomy and ``original_source`` are left as UNAVAILABLE.
+        Each record is expected to carry pre-fetched ``publications`` and
+        ``other_sources`` lists stashed by ``_fetch_synonym_data``.
+        Deduplicates by scientific name.
 
         Parameters
         ----------
         synonym_data : list
-            Raw synonym records as returned by ``_fetch_synonym_data``. Each
-            record contains a ``"sciName"``, ``"author"``, and ``"tsn"`` field.
+            Augmented synonym records as returned by ``_fetch_synonym_data``,
+            each containing ``"sciName"``, ``"author"``, ``"tsn"``,
+            ``"publications"``, and ``"other_sources"``.
 
         Returns
         -------
@@ -351,19 +478,6 @@ class ITISAPI(SpeciesAPI):
             genus, species = self._extract_genus_species(syn_name)
             author = (item.get("author") or "").strip()
 
-            pub_data = self._fetch_JSON(
-                f"{self.BASE_URL}/getPublicationsFromTSN",
-                params={"tsn": tsn},
-                timeout=self._TIMEOUT,
-            )
-            publications = [p for p in (pub_data.get("publications") or []) if p]
-            src_data = self._fetch_JSON(
-                f"{self.BASE_URL}/getOtherSourcesFromTSN",
-                params={"tsn": tsn},
-                timeout=self._TIMEOUT,
-            )
-            other_sources = [s for s in (src_data.get("otherSources") or []) if s]
-
             candidates.append(
                 self._format_row(
                     api_name=ITIS_PORTAL.display_name,
@@ -373,7 +487,8 @@ class ITISAPI(SpeciesAPI):
                     author=author,
                     publication_year=self._extract_publication_year(author),
                     original_source=self._build_original_source(
-                        publications, other_sources
+                        item.get("publications", []),
+                        item.get("other_sources", []),
                     ),
                     status="Synonym",
                     api_link=(
