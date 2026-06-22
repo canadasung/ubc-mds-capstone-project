@@ -155,31 +155,34 @@ We recommend that the museum assign technical staff to add secure credential man
 
 The following table lists the individual data sources integrated into our pipeline, along with their primary taxonomic scope.
 
-| Source | Taxonomic Scope |
-| ------ | --------------- |
-| [AlgaeBase](https://www.algaebase.org/) | Global algal taxonomy |
-| [AntWeb](https://antweb.org/) | Ant taxonomy |
-| [Bryophyte Portal](https://bryophyteportal.org/portal/) | Mosses, liverworts, hornworts |
-| [Catalogue of Life](https://www.catalogueoflife.org/) | Global species checklist across all kingdoms |
-| [CCH2](https://cch2.org/portal/index.php) | Plant species & herbarium collections |
-| [Darwin Core (TDWG)](https://dwc.tdwg.org/) | Biodiversity data standard (terms for species, specimens, occurrences) |
-| [FishBase](https://www.fishbase.se/search.php) | Fish / marine life |
-| [GBIF Occurrence Portal](https://www.gbif.org/occurrence/search) | Global biodiversity occurrences |
-| [GenBank](https://www.ncbi.nlm.nih.gov/genbank/) | Nucleotide sequences across all life (genomic DNA, mRNA, rRNA, viral genomes, metagenomes) |
-| [iDigBio Portal](https://portal.idigbio.org/portal/search) | Aggregated US biodiversity data |
-| [iNaturalist](https://www.inaturalist.org/) | Plants, animals, fungi (citizen science) |
-| [Index Fungorum](https://www.indexfungorum.org/) | Scientific names of fungi |
-| [Lichen Portal](https://lichenportal.org/portal/) | Lichenized fungi |
-| [Macroalgae.org](https://macroalgae.org/portal/) | Algae herbarium data |
-| [Mid-Atlantic Herbaria](https://midatlanticherbaria.org/portal/) | Mid-Atlantic plant collections |
-| [Mushroom Observer](https://mushroomobserver.org/) | Mushrooms / fungi |
-| [MycoMap](https://www.mycomap.com/) | Fungal observations & analytics |
-| [MyCoPortal](https://mycoportal.org/portal/) | Fungi / fungal collections |
-| [NANSH](https://nansh.org/portal/index.php) | Small Herbaria (plants) |
-| [NE Herbaria Portal](https://portal.neherbaria.org/portal/) | Northeastern US herbarium collections |
-| [PteridoPortal](https://pteridoportal.org/portal/) | Pteridophytes (ferns & allies) |
-| [SERNEC](https://sernecportal.org/portal/index.php) | 233 herbaria in southeastern USA |
-| [SW Biodiversity](https://swbiodiversity.org/) | Botanical data (Arizona—New Mexico) |
-| [Symbiota Portals](https://symbiota.org/symbiota-portals/) | Many taxonomic groups depending on portal |
-| [Tropicos](https://www.tropicos.org/home) | Plants / herbs |
-| [VertNet](https://vertnet.org/) | Vertebrate biodiversity data |
+| Source | Taxonomic Scope | Implementation Status |
+| ------ | --------------- | :---: |
+| [AlgaeBase](https://www.algaebase.org/) | Global algal taxonomy | No |
+| [AntWeb](https://antweb.org/) | Ant taxonomy | No |
+| [Bryophyte Portal](https://bryophyteportal.org/portal/) | Mosses, liverworts, hornworts | Yes |
+| [Catalogue of Life](https://www.catalogueoflife.org/) | Global species checklist across all kingdoms | Yes |
+| [CCH2](https://cch2.org/portal/index.php) | Plant species & herbarium collections | Yes |
+| [Darwin Core (TDWG)](https://dwc.tdwg.org/) | Biodiversity data standard (terms for species, specimens, occurrences) | No |
+| [FishBase](https://www.fishbase.se/search.php) | Fish / marine life | Yes |
+| [GBIF Occurrence Portal](https://www.gbif.org/occurrence/search) | Global biodiversity occurrences | Yes |
+| [GenBank](https://www.ncbi.nlm.nih.gov/genbank/) | Nucleotide sequences across all life (genomic DNA, mRNA, rRNA, viral genomes, metagenomes) | Yes |
+| [iDigBio Portal](https://portal.idigbio.org/portal/search) | Aggregated US biodiversity data | No |
+| [iNaturalist](https://www.inaturalist.org/) | Plants, animals, fungi (citizen science) | No |
+| [Index Fungorum](https://www.indexfungorum.org/) | Scientific names of fungi | Yes |
+| [ITIS](https://www.itis.gov/) | Plants, animals, fungi, microbes (US federal taxonomic database) | Yes |
+| [Lichen Portal](https://lichenportal.org/portal/) | Lichenized fungi | Yes |
+| [Macroalgae.org](https://macroalgae.org/portal/) | Algae herbarium data | Yes |
+| [Mid-Atlantic Herbaria](https://midatlanticherbaria.org/portal/) | Mid-Atlantic plant collections | Yes |
+| [Mushroom Observer](https://mushroomobserver.org/) | Mushrooms / fungi | Yes |
+| [MycoMap](https://www.mycomap.com/) | Fungal observations & analytics | No |
+| [MyCoPortal](https://mycoportal.org/portal/) | Fungi / fungal collections | Yes |
+| [NANSH](https://nansh.org/portal/index.php) | Small Herbaria (plants) | Yes |
+| [NE Herbaria Portal](https://portal.neherbaria.org/portal/) | Northeastern US herbarium collections | Yes |
+| [PteridoPortal](https://pteridoportal.org/portal/) | Pteridophytes (ferns & allies) | Yes |
+| [SERNEC](https://sernecportal.org/portal/index.php) | 233 herbaria in southeastern USA | Yes |
+| [SW Biodiversity](https://swbiodiversity.org/) | Botanical data (Arizona—New Mexico) | Yes |
+| [Symbiota Portals](https://symbiota.org/symbiota-portals/) | Many taxonomic groups depending on portal | Yes |
+| [Tropicos](https://www.tropicos.org/home) | Plants / herbs | Yes |
+| [VertNet](https://vertnet.org/) | Vertebrate biodiversity data | No |
+
+: {tbl-colwidths="[35,50,15]"}
