@@ -541,38 +541,6 @@ function styleCardBorders(
 // ---- Vertical timeline sub-components ------------------------------------
 
 /**
- * Small external-link glyph rendered inline after a link's text.
- *
- * Drawn as an inline SVG so it needs no icon dependency and inherits the link
- * color through ``currentColor``.
- *
- * Returns
- * -------
- * JSX.Element
- *     An SVG external-link icon.
- */
-function ExternalLinkIcon() {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ marginLeft: 3, verticalAlign: "-1px" }}
-      aria-hidden
-    >
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-      <polyline points="15 3 21 3 21 9" />
-      <line x1="10" y1="14" x2="21" y2="3" />
-    </svg>
-  );
-}
-
-/**
  * Render one record as a block of labeled fields in a vertical year card.
  *
  * Shows API (the source database, a link when available), Status (colored by
@@ -597,10 +565,9 @@ function RecordBlock({ entry, first }: { entry: TimelineEntry; first?: boolean }
             href={entry.url}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: COLOR_LINK, textDecoration: "underline" }}
+            style={{ color: COLOR_LINK }}
           >
-            {entry.source}
-            <ExternalLinkIcon />
+            <span style={{ textDecoration: "underline" }}>{entry.source}</span> ↗
           </a>
         ) : (
           entry.source
