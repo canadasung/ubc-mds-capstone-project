@@ -216,7 +216,7 @@ function labeledField(
  */
 function recordHtml(e: TimelineEntry, maxChars: number): { html: string; lines: number } {
   const apiValue = e.url
-    ? `<a href="${e.url}" target="_blank"><span style="color:${COLOR_LINK}"><u>${e.source}</u></span></a>`
+    ? `<a href="${e.url}" target="_blank"><span style="color:${COLOR_LINK}"><u>${e.source}</u> ↗</span></a>`
     : e.source;
   const apiLine = `<span style="color:#888">API:</span> ${apiValue}`;
   const statusLine = `<span style="color:#888">Status:</span> <span style="color:${statusColor(e.status)}">${e.status}</span>`;
@@ -453,11 +453,11 @@ function upsertBorderPath(
  * An accepted-only year gets square corners; a synonym-only year gets rounded
  * corners. A year holding both is split like the vertical card: its border is
  * drawn as two paths, a green outline over the accepted records (square top) and
- * a purple outline over the synonyms (rounded bottom). They meet at a separator
- * estimated from the record line counts, so the green border (and the green
- * separator line) stops at the accepted/synonym boundary rather than half-way.
- * The rectangle is kept for its white fill and click target, but its own border
- * is hidden.
+ * a purple outline over the synonyms (rounded bottom). The border changes from
+ * green to purple at a boundary estimated from the record line counts, so the
+ * green border stops where the accepted records end rather than half-way; no line
+ * is drawn across the boundary. The rectangle is kept for its white fill and
+ * click target, but its own border is hidden.
  *
  * Parameters
  * ----------
@@ -511,10 +511,12 @@ function styleCardBorders(
       const inner = Math.max(0, h - 2 * pad);
       const sepY = y + pad + (Math.min(topLines + 0.5, totalLines) / totalLines) * inner;
 
-      // Green: closed outline of the accepted section; its bottom edge is the
-      // separator line. Purple: open outline of the synonym section with rounded
-      // bottom corners and no top edge, so the separator stays green only.
-      const greenD = `M${x},${y} L${x + w},${y} L${x + w},${sepY} L${x},${sepY} Z`;
+      // Green: open outline over the accepted section (top edge and the two
+      // sides down to the boundary, no bottom edge). Purple: open outline over
+      // the synonym section with rounded bottom corners and no top edge. Neither
+      // path draws a line across the boundary, so the border simply changes color
+      // from green to purple where the accepted records end.
+      const greenD = `M${x},${sepY} L${x},${y} L${x + w},${y} L${x + w},${sepY}`;
       const purpleD =
         `M${x},${sepY} L${x},${y + h - r} ` +
         `Q${x},${y + h} ${x + r},${y + h} ` +
@@ -633,11 +635,11 @@ interface VerticalCardProps {
  * An accepted-only year gets a square green border; a synonym-only year gets a
  * rounded purple border. A year holding both is split into a green square-topped
  * accepted section over a purple rounded-bottom synonym section: when expanded,
- * the split (a green separator line) falls at the real accepted/synonym
- * boundary, so the green border stops there rather than half-way; when collapsed
- * it falls back to a half-and-half gradient border. Clicking toggles between a
- * compact representative-name display and an expanded view with a "Name, Year"
- * header followed by one labeled block per record (API, status, author, source).
+ * the border changes from green to purple at the real accepted/synonym boundary,
+ * so the green border stops there rather than half-way; when collapsed it falls
+ * back to a half-and-half gradient border. Clicking toggles between a compact
+ * representative-name display and an expanded view with a "Name, Year" header
+ * followed by one labeled block per record (API, status, author, source).
  *
  * Parameters
  * ----------
@@ -667,15 +669,17 @@ function VerticalCard({ group, isOpen, onToggle }: VerticalCardProps) {
   };
 
   // Mixed and expanded: render two bordered sections, accepted (green, square
-  // top) over synonyms (purple, rounded bottom). The green section's bottom
-  // border is the separator, so the green border stops exactly at the
-  // accepted/synonym boundary instead of a fixed half-way split.
+  // top, no bottom border) over synonyms (purple, rounded bottom, no top border).
+  // The side borders change from green to purple at the accepted/synonym boundary
+  // with no line across it, instead of a fixed half-way split.
   if (hasAccepted && hasSynonym && isOpen) {
     return (
       <div onClick={onToggle} style={baseStyle}>
         <div
           style={{
-            border: `2px solid ${COLOR_ACCEPTED}`,
+            borderTop: `2px solid ${COLOR_ACCEPTED}`,
+            borderLeft: `2px solid ${COLOR_ACCEPTED}`,
+            borderRight: `2px solid ${COLOR_ACCEPTED}`,
             borderRadius: 0,
             padding: "10px 14px",
             backgroundColor: "white",
