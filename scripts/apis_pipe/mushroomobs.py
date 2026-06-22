@@ -5,10 +5,12 @@ Mushroom Observer (https://mushroomobserver.org) is a community-driven database
 of fungal observations.
 """
 
+import re
+
+from scripts.config import MUSHROOM_OBSERVER_PORTAL
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from scripts.config import MUSHROOM_OBSERVER_PORTAL
 
 
 class MushroomObserverAPI(SpeciesAPI):
@@ -17,6 +19,31 @@ class MushroomObserverAPI(SpeciesAPI):
     """
 
     BASE_URL = MUSHROOM_OBSERVER_PORTAL.base_url
+    NAME_URL = "https://mushroomobserver.org/names"
+
+    _SENSU_AUCT_RE = re.compile(r"sensu\s+auct\.", re.IGNORECASE)
+
+    def _extract_publication_name(self, citation: str) -> str:
+        match = re.search(r"<cite>(.*?)</cite>", citation)
+        return match.group(1) if match else ""
+
+    def _extract_publication_year(self, citation: str) -> str:
+        match = re.search(r"\((\d{4})\)\s*$", citation)
+        return match.group(1) if match else ""
+
+    def _extract_taxonomy(self, parents: list) -> dict[str, str]:
+        rank_to_field = {
+            "kingdom": "kingdom",
+            "phylum": "phylum",
+            "class": "class_",
+            "order": "order",
+            "family": "family",
+        }
+        return {
+            rank_to_field[p["rank"]]: p["name"]
+            for p in parents
+            if p.get("rank") in rank_to_field
+        }
 
     def _fetch_query_data(self, name: str) -> dict:
         """
@@ -115,20 +142,31 @@ class MushroomObserverAPI(SpeciesAPI):
             name = normalize_query_string(result["name"])
             if not name:
                 continue
+            author = result.get("author", "")
             if (
                 " sp." in name
                 or self._is_infraspecific(name)
                 or result.get("misspelled", False)
+                or self._SENSU_AUCT_RE.search(author)
             ):
                 continue
             genus, species = self._extract_genus_species(name)
+            citation = result.get("citation", "")
+            taxonomy = self._extract_taxonomy(result.get("parents", []))
+            internal_id = str(result.get("id", ""))
+            status = "Synonym" if result.get("deprecated", False) else "Accepted"
             return [
                 self._format_row(
                     api_name=MUSHROOM_OBSERVER_PORTAL.display_name,
                     genus=genus,
                     species=species,
-                    api_internal_id=str(result.get("id", "")),
-                    author=result.get("author", ""),
+                    api_internal_id=internal_id,
+                    author=author,
+                    publication_name=self._extract_publication_name(citation),
+                    publication_year=self._extract_publication_year(citation),
+                    status=status,
+                    api_link=f"{self.NAME_URL}/{internal_id}" if internal_id else "",
+                    **taxonomy,
                 )
             ]
         return []
@@ -158,22 +196,28 @@ class MushroomObserverAPI(SpeciesAPI):
             full_name = normalize_query_string(full_name)
             if not full_name or full_name in seen:
                 continue
-            # removing rank incomplete names (rank marker above species level, e.g. "Amanita sp.", which indicates a collection-level annotation), misspelled, and infraspecific (rank markers below species level, e.g. "var.", "subsp.", etc) names
+            author = synonym.get("author", "")
+            # removing rank incomplete names (rank marker above species level, e.g. "Amanita sp.", which indicates a collection-level annotation), misspelled, infraspecific (rank markers below species level, e.g. "var.", "subsp.", etc), and sensu auct. names
             if (
                 " sp." in full_name
                 or synonym.get("misspelled", False)
                 or self._is_infraspecific(full_name)
+                or self._SENSU_AUCT_RE.search(author)
             ):
                 continue
             seen.add(full_name)
             genus, species = self._extract_genus_species(full_name)
+            internal_id = str(synonym.get("id", ""))
+            status = "Synonym" if synonym.get("deprecated", False) else "Accepted"
             candidates.append(
                 self._format_row(
                     api_name=MUSHROOM_OBSERVER_PORTAL.display_name,
                     genus=genus,
                     species=species,
-                    api_internal_id=str(synonym.get("id", "")),
-                    author=synonym.get("author", ""),
+                    api_internal_id=internal_id,
+                    author=author,
+                    status=status,
+                    api_link=f"{self.NAME_URL}/{internal_id}" if internal_id else "",
                 )
             )
         return candidates
