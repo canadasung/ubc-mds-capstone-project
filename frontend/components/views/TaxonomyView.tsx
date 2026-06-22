@@ -181,23 +181,27 @@ export function TaxonomyView() {
 
   return (
     <>
-      <Text c="dimmed" size="md" mb="sm">
-        Accepted classification for <b>{query}</b> per source · {sources.length}{" "}
-        source{sources.length === 1 ? "" : "s"} found with taxonomic data
-      </Text>
+      <Group justify="space-between" align="flex-start" wrap="nowrap" mb="sm">
+        <Stack gap={4}>
+          <Text c="dimmed" size="md">
+            Accepted classification for <b>{query}</b> per source · {sources.length}{" "}
+            source{sources.length === 1 ? "" : "s"} found with taxonomic data
+          </Text>
 
-      <DisagreementSummary
-        sourceCount={sources.length}
-        disagreements={disagreements}
-      />
+          <DisagreementSummary
+            sourceCount={sources.length}
+            disagreements={disagreements}
+          />
+        </Stack>
 
-      <Switch
-        checked={highlight}
-        onChange={(e) => setHighlight(e.currentTarget.checked)}
-        label="Highlight differences"
-        size="md"
-        mb="sm"
-      />
+        <Switch
+          checked={highlight}
+          onChange={(e) => setHighlight(e.currentTarget.checked)}
+          label="Highlight differences"
+          size="md"
+          style={{ flexShrink: 0 }}
+        />
+      </Group>
 
       <Table.ScrollContainer minWidth={500}>
         <Table withTableBorder withColumnBorders striped fz="md">
