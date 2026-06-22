@@ -36,6 +36,18 @@ team.
 
 ---
 
+## Final Report
+
+The final report is available at [reports/final-report.pdf](reports/final-report.pdf).
+
+To regenerate it from source after editing [reports/final-report.md](reports/final-report.md):
+
+```bash
+quarto render reports/final-report.md
+```
+
+---
+
 ## Architecture
 
 The system has three layers:
