@@ -36,7 +36,6 @@ class MushroomObserverAPI(SpeciesAPI):
     """
 
     BASE_URL = MUSHROOM_OBSERVER_PORTAL.base_url
-    NAME_URL = "https://mushroomobserver.org/names"
 
     _SENSU_AUCT_RE = re.compile(r"sensu\s+auct\.", re.IGNORECASE)
 
@@ -121,30 +120,25 @@ class MushroomObserverAPI(SpeciesAPI):
             if p.get("rank") in rank_to_field
         }
 
-    def _extract_status(self, string: str) -> str:
+    def _extract_status(self, deprecated: bool | None) -> str:
         """
-        Map a Mushroom Observer status string to ``"Accepted"`` or ``"Synonym"``.
-
-        Mushroom Observer uses a ``deprecated`` boolean rather than a status
-        string; callers should pass ``"deprecated"`` when the flag is ``True``
-        and ``"accepted"`` (or ``""``) otherwise.  Falls back to the base-class
-        implementation for standard ``"accepted"`` / ``"synonym"`` substrings.
+        Map a Mushroom Observer ``deprecated`` flag to ``"Accepted"`` or ``"Synonym"``.
 
         Parameters
         ----------
-        string : str
-            ``"deprecated"`` for a deprecated (synonym) name, or any other
-            value for the base-class substring check.
+        deprecated : bool or None
+            The ``"deprecated"`` field value from a Mushroom Observer name record,
+            or ``None`` if the field is absent.
 
         Returns
         -------
         str
-            ``"Synonym"`` when *string* is ``"deprecated"``; otherwise
-            ``"Accepted"``, ``"Synonym"``, or ``""`` via the base class.
+            ``"Synonym"`` when *deprecated* is ``True``; ``"Accepted"`` when
+            ``False``; ``""`` when ``None``.
         """
-        if string.lower() == "deprecated":
-            return "Synonym"
-        return super()._extract_status(string)
+        if deprecated is None:
+            return ""
+        return "Synonym" if deprecated else "Accepted"
 
     def _fetch_query_data(self, name: str) -> dict:
         """
@@ -193,37 +187,45 @@ class MushroomObserverAPI(SpeciesAPI):
             synonyms.extend(result.get("synonyms", []))
         return synonyms
 
-    def _fetch_accepted_data(self, raw_data: dict, synonym_data: list) -> dict:
+    def _fetch_accepted_data(self, raw_data: dict, synonym_data: list) -> list:
         """
-        Return the ``results`` list from *raw_data* as the search term data.
+        Return all name candidates from *raw_data* for accepted-name resolution.
 
-        The queried name is a top-level result record in the same response as
-        the synonyms, so no additional fetch is needed.
+        When the queried name is already accepted it appears as a top-level
+        result.  When it is a synonym, the accepted name is embedded in the
+        ``"synonyms"`` list of that result.  Concatenating the top-level results
+        with *synonym_data* (already collected by ``_fetch_synonym_data``) gives
+        ``_compile_accepted`` a single list to scan for the non-deprecated entry
+        regardless of which case applies.
 
         Parameters
         ----------
         raw_data : dict
             The full JSON response returned by ``_fetch_query_data``.
         synonym_data : list
-            Flat synonym dicts (unused here).
+            Flat synonym dicts returned by ``_fetch_synonym_data``.
 
         Returns
         -------
         list
-            The ``"results"`` list from the JSON response.
+            Top-level result records concatenated with *synonym_data*.
         """
-        return raw_data.get("results", [])  # TODO: add error handling
+        return raw_data.get("results", []) + synonym_data
 
     def _compile_accepted(self, accepted_data: dict) -> list[dict]:
         """
         Build a pipeline-standard record for the accepted name from the Mushroom Observer results.
 
-        Returns the first non-misspelling, non-infraspecific result.
+        Scans candidates from ``_fetch_accepted_data`` — which includes both
+        top-level results and embedded synonyms — and returns the first
+        non-deprecated, non-infraspecific, non-misspelling entry.  If no such
+        entry exists (e.g. MO only resolves to a variety-level name), returns
+        ``[]``.
 
         Parameters
         ----------
         accepted_data : list
-            The ``"results"`` list returned by ``_fetch_accepted_data``.
+            Combined candidate list returned by ``_fetch_accepted_data``.
 
         Returns
         -------
@@ -231,8 +233,11 @@ class MushroomObserverAPI(SpeciesAPI):
             One-item list with the accepted name record, or ``[]`` if no
             suitable result is found.
         """
-        # TODO: bug here, this is duplicating the entry when the search term is a synonym itself. when the search term is an accepted name this is working as expected. Likely an issue with the formatting of how mushroom observer returns that the code is not matching. Seems like the returned data is not symmetrical whether you search an "accepted" name or a "synonym", even though mushroom observer itself does not classify anything to accepted or synonym
         for result in accepted_data:
+            status = self._extract_status(result.get("deprecated"))
+            if status == "Synonym":
+                continue
+
             name = normalize_query_string(result["name"])
             if not name:
                 continue
@@ -248,9 +253,6 @@ class MushroomObserverAPI(SpeciesAPI):
             citation = result.get("citation", "")
             taxonomy = self._extract_taxonomy(result.get("parents", []))
             internal_id = self._extract_internal_id(result)
-            status = self._extract_status(
-                "deprecated" if result.get("deprecated", False) else "accepted"
-            )
             return [
                 self._format_row(
                     api_name=MUSHROOM_OBSERVER_PORTAL.display_name,
@@ -261,7 +263,9 @@ class MushroomObserverAPI(SpeciesAPI):
                     publication_name=self._extract_publication_name(citation),
                     publication_year=self._extract_publication_year(citation),
                     status=status,
-                    api_link=f"{self.NAME_URL}/{internal_id}" if internal_id else "",
+                    api_link=f"https://mushroomobserver.org/names/{internal_id}"
+                    if internal_id
+                    else "",
                     **taxonomy,
                 )
             ]
@@ -287,6 +291,9 @@ class MushroomObserverAPI(SpeciesAPI):
         candidates = []
         seen = set()
         for synonym in synonym_data:
+            status = self._extract_status(synonym.get("deprecated"))
+            if status == "Accepted":
+                continue
             full_name = synonym.get("name", "")
             full_name = normalize_query_string(full_name)
             if not full_name or full_name in seen:
@@ -303,9 +310,6 @@ class MushroomObserverAPI(SpeciesAPI):
             seen.add(full_name)
             genus, species = self._extract_genus_species(full_name)
             internal_id = self._extract_internal_id(synonym)
-            status = self._extract_status(
-                "deprecated" if synonym.get("deprecated", False) else "accepted"
-            )
             candidates.append(
                 self._format_row(
                     api_name=MUSHROOM_OBSERVER_PORTAL.display_name,
@@ -314,7 +318,9 @@ class MushroomObserverAPI(SpeciesAPI):
                     api_internal_id=internal_id,
                     author=author,
                     status=status,
-                    api_link=f"{self.NAME_URL}/{internal_id}" if internal_id else "",
+                    api_link=f"https://mushroomobserver.org/names/{internal_id}"
+                    if internal_id
+                    else "",
                 )
             )
         return candidates
