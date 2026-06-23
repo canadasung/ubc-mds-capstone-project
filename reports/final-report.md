@@ -72,7 +72,13 @@ The original raw data enters our pipeline from API calls to each source, which r
 - `api_link`: link to the search result on the API source's website (optional)
 - `api_internal_id`: the unique identifier in the API source's database (required)
 
-![Schema of the raw data table (only some columns shown).](images/table-schema.png)
+| api_`\newline{}`{=latex}name | kingdom | phylum | ... | author | publication_`\newline{}`{=latex}year | api_`\newline{}`{=latex}internal_`\newline{}`{=latex}id |
+| -------- | ------- | ------ | --- | ---------------- | -------- | ---------------- |
+| GBIF | Fungi | Basidiomycota | ... | (L.) Lam. | 1753 | 8168319 |
+| COL | Fungi | Basidiomycota | ... | L. | 1873 | 95084 |
+| SERNEC | Fungi | Basidiomycota | ... | Bull. | 1931 | 371397 |
+
+: Example schema of the raw data table (only some columns shown). {tbl-colwidths="[11,9,20,4,20,17,19]"}
 
 ## Data Quality and Validation
 
@@ -122,6 +128,20 @@ Primary stakeholders for this site include Beaty museum staff. For these stakeho
 Some ethical considerations were made when designing the site; the most significant one being conveying necessary information but not biasing user decisions. To do so, we avoided using colors that have positive or negative associations (e.g. green and red).
 
 # Data Product and Results {#sec-results}
+
+```{=latex}
+\begingroup
+\setlength{\fboxsep}{0pt}
+\setlength{\fboxrule}{0.75pt}
+\let\oldincludegraphics\includegraphics
+\renewcommand{\includegraphics}[2][]{\fbox{\oldincludegraphics[#1]{#2}}}
+```
+
+![Overview view of the web application, showing synonym search results for *Podospora anserina* aggregated across API sources.](images/product-view.png){#fig-product-view}
+
+```{=latex}
+\endgroup
+```
 
 The final product is the web application (Next.js/React + Mantine frontend, FastAPI backend wrapping the Python pipeline, deployed via a Hugging Face Space + Vercel). One query fans out to up to 17 biodiversity databases (GBIF, COL, GenBank, Index Fungorum, Mushroom Observer, Tropicos, and eleven Symbiota portals) through a FastAPI service.
 
@@ -187,4 +207,4 @@ The following table lists the individual data sources integrated into our pipeli
 | [VertNet](https://vertnet.org/) | Vertebrate biodiversity data | No |
 | [Wikipedia](https://www.wikipedia.org/) | General reference across all taxonomic groups | No |
 
-: {tbl-colwidths="[35,50,15]"}
+: Data sources integrated into our pipeline, along with their primary taxonomic scope. {tbl-colwidths="[35,50,15]"}
