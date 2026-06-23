@@ -6,16 +6,17 @@ All commands are run from the **project root** directory.
 
 ```
 tests/
-├── scripts/
-│   ├── integration/
-│   │   ├── test_env_configured.py   — verifies .env file and credentials
-│   │   └── test_API_online.py       — live HTTP connectivity checks for all APIs
-│   └── utils/
-│       ├── test_call_apis_pipe.py   — unit tests for scripts/utils/call_apis_pipe.py
-│       ├── test_fuzzy_search.py     — unit tests for scripts/utils/fuzzy_search.py
-│       ├── test_normalize_query_string.py — unit tests for scripts/utils/normalize_query_string.py
-│       ├── test_router.py           — unit tests for scripts/utils/router.py
-│       └── test_schema.py           — unit tests for scripts/utils/schema.py
+├── integration/
+│   ├── test_env_configured.py   — verifies .env file and credentials
+│   ├── test_API_online.py       — live HTTP connectivity checks for all APIs
+│   └── test_utils_live.py       — live tests for fuzzy_search and TaxonRouter
+└── scripts/
+    └── utils/
+        ├── test_call_apis_pipe.py   — unit tests for scripts/utils/call_apis_pipe.py
+        ├── test_fuzzy_search.py     — unit tests for scripts/utils/fuzzy_search.py
+        ├── test_normalize_query_string.py — unit tests for scripts/utils/normalize_query_string.py
+        ├── test_router.py           — unit tests for scripts/utils/router.py
+        └── test_schema.py           — unit tests for scripts/utils/schema.py
 ```
 
 The `utils/` tests are **unit tests** — they mock all network calls and run offline. The `apis_pipe/` tests are also **unit tests**, but instead of synthetic mock data they replay saved real API responses captured from live calls; this keeps them offline while still exercising the actual response shapes each API returns. The `integration/` tests make real HTTP requests and require internet access and a configured `.env` file.
@@ -52,7 +53,7 @@ pytest tests/scripts/utils/ -v
 **All integration tests:**
 
 ```bash
-pytest tests/scripts/integration/ -v
+pytest tests/integration/ -v
 ```
 
 ---
@@ -65,8 +66,8 @@ pytest tests/scripts/utils/test_fuzzy_search.py -v
 pytest tests/scripts/utils/test_normalize_query_string.py -v
 pytest tests/scripts/utils/test_router.py -v
 pytest tests/scripts/utils/test_schema.py -v
-pytest tests/scripts/integration/test_env_configured.py -v
-pytest tests/scripts/integration/test_API_online.py -v
+pytest tests/integration/test_env_configured.py -v
+pytest tests/integration/test_API_online.py -v
 ```
 
 ---
@@ -148,7 +149,7 @@ Unit tests for `empty_synonym_table` and `make_synonym_row` in `scripts/utils/sc
 
 ---
 
-### `tests/scripts/integration/test_env_configured.py`
+### `tests/integration/test_env_configured.py`
 
 Verifies that `.env` exists at the project root and that `ENTREZ_EMAIL` and `TROPICOS_API_KEY` are set to real (non-placeholder) values. Run this before `test_API_online.py` to confirm credentials are in place.
 
@@ -158,11 +159,11 @@ Verifies that `.env` exists at the project root and that `ENTREZ_EMAIL` and `TRO
 
 ---
 
-### `tests/scripts/integration/test_API_online.py`
+### `tests/integration/test_API_online.py`
 
-Live connectivity checks that make real HTTP requests to each API. Each test sends a minimal query and asserts a 2xx response. Tests are parametrized over all 11 Symbiota portals.
+Live connectivity checks that make real HTTP requests to each API. Each test sends a minimal query and asserts a 2xx response. All tests carry `@pytest.mark.integration`. Symbiota portals are parametrized and derived from `scripts.config.SYMBIOTA_PORTALS` so the list stays in sync automatically.
 
-**Requires:** Internet access. `test_tropicos_online` additionally requires `TROPICOS_API_KEY` to be set in `.env` (skipped otherwise).
+**Requires:** Internet access. `test_tropicos_online` uses the `require_tropicos_api_key` conftest fixture — skipped locally if the key is absent or still the placeholder, hard-failed on CI.
 
 | Test | API checked |
 |---|---|
@@ -171,5 +172,24 @@ Live connectivity checks that make real HTTP requests to each API. Each test sen
 | `test_genbank_online` | NCBI GenBank Entrez esearch endpoint |
 | `test_index_fungorum_online` | Index Fungorum `IsAlive` health check |
 | `test_mushroom_observer_online` | Mushroom Observer names endpoint |
-| `test_tropicos_online` | Tropicos name search endpoint |
+| `test_tropicos_online` | Tropicos name search endpoint (2xx check) |
+| `test_tropicos_api_key_authenticates` | Tropicos credential validity (asserts not 401/403) |
+| `test_fishbase_online` | FishBase species summary page (HTML — no JSON API) |
+| `test_itis_online` | ITIS scientific name search endpoint |
 | `test_symbiota_portal_online[*]` | All 11 Symbiota portals (parametrized) |
+
+---
+
+### `tests/integration/test_utils_live.py`
+
+Live end-to-end tests for `fuzzy_search` and `TaxonRouter` using real GBIF network calls. Includes graceful bad-input cases to confirm the pipeline degrades cleanly (returns `[]` or empty list) rather than raising.
+
+**Requires:** Internet access.
+
+| Test | What it covers |
+| --- | --- |
+| `test_fuzzy_search_exact_match` | Known species name returns a list containing that name |
+| `test_fuzzy_search_misspelling_returns_suggestions` | Misspelled name returns a non-empty suggestion list |
+| `test_fuzzy_search_nonsense_returns_empty_list` | Nonsense input returns `[]` without raising |
+| `test_taxon_router_known_fungus` | Known fungus routes to Fungi API list including GBIF and Index Fungorum |
+| `test_taxon_router_nonsense_returns_empty_list` | Nonsense input returns `[]` without raising |
