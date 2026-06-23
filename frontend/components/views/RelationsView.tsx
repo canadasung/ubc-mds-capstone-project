@@ -68,6 +68,19 @@ const KIND_STYLE: Record<"source" | "genus" | "species", React.CSSProperties> = 
   },
 };
 
+/**
+ * Render a single graph node box (a source, genus, or species name).
+ *
+ * The box style is chosen by the node's kind. A species or genus node is
+ * highlighted when its label matches the currently hovered node, and a node that
+ * carries a URL shows a pointer cursor. Hidden left and right handles let React
+ * Flow attach the connecting edges.
+ *
+ * Parameters
+ * ----------
+ * data : RelNodeData
+ *     The node payload: label, kind, optional full name, url, and width override.
+ */
 function RelNode({ data }: NodeProps) {
   const d = data as RelNodeData;
   const hovered = useContext(HoverContext);
@@ -115,17 +128,63 @@ const GenusElbowContext = createContext<number>(GENUS_ELBOW_X);
 // 220 puts the elbow between that right edge and the base genus column at 280.
 const SOURCE_GENUS_ELBOW_X = 220;
 
-function GenusToSpeciesEdge({ sourceX, sourceY, targetX, targetY }: EdgeProps) {
-  const elbowX = useContext(GenusElbowContext);
+/**
+ * Render a right-angle "elbow" edge between two nodes.
+ *
+ * The path runs horizontally from the source to a shared turn column, then
+ * vertically to the target's row, then horizontally into the target. Routing
+ * every sibling edge through the same turn column (``elbowX``) keeps the
+ * connectors aligned into a tidy bracket. The turn is clamped to just past the
+ * source so it never bends backwards.
+ *
+ * Parameters
+ * ----------
+ * sourceX, sourceY, targetX, targetY : number
+ *     Endpoint coordinates supplied by React Flow.
+ * elbowX : number
+ *     X coordinate of the vertical turn.
+ */
+function ElbowEdge({
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  elbowX,
+}: {
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+  elbowX: number;
+}) {
   const ex = Math.max(sourceX + 8, elbowX);
   const d = `M${sourceX},${sourceY} H${ex} V${targetY} H${targetX}`;
   return <path d={d} stroke="#adb5bd" strokeWidth={1} fill="none" className="react-flow__edge-path" />;
 }
 
+/**
+ * Genus-to-species edge: an elbow whose turn column comes from context, so it
+ * shifts right when the genus column is aligned and widened.
+ */
+function GenusToSpeciesEdge({ sourceX, sourceY, targetX, targetY }: EdgeProps) {
+  const elbowX = useContext(GenusElbowContext);
+  return <ElbowEdge sourceX={sourceX} sourceY={sourceY} targetX={targetX} targetY={targetY} elbowX={elbowX} />;
+}
+
+/**
+ * Source-to-genus edge: an elbow turning at the fixed source/genus column, used
+ * only when the genus column is aligned.
+ */
 function SourceToGenusEdge({ sourceX, sourceY, targetX, targetY }: EdgeProps) {
-  const ex = Math.max(sourceX + 8, SOURCE_GENUS_ELBOW_X);
-  const d = `M${sourceX},${sourceY} H${ex} V${targetY} H${targetX}`;
-  return <path d={d} stroke="#adb5bd" strokeWidth={1} fill="none" className="react-flow__edge-path" />;
+  return (
+    <ElbowEdge
+      sourceX={sourceX}
+      sourceY={sourceY}
+      targetX={targetX}
+      targetY={targetY}
+      elbowX={SOURCE_GENUS_ELBOW_X}
+    />
+  );
 }
 
 const nodeTypes = { rel: RelNode };
@@ -134,6 +193,16 @@ const edgeTypes = { gnedge: GenusToSpeciesEdge, sgnedge: SourceToGenusEdge };
 const NAME_COLUMN_WIDTH = 200;
 const GENUS_COLUMN_WIDTH = 160;
 
+/**
+ * Relations view: a React Flow graph of each source's synonyms, grouped by genus.
+ *
+ * Nodes are laid out by the transform layer; two switches optionally align all
+ * genus nodes (and all species nodes) into shared columns for easier comparison,
+ * which also shifts the species column and edge elbows to keep the brackets
+ * tidy. Hovering a genus or species highlights every matching node; clicking a
+ * node opens its source page. The graph canvas has zoom, fit-view, and a
+ * fullscreen toggle.
+ */
 export function RelationsView() {
   const { records } = useFilteredRecords();
   const [hoveredLabel, setHoveredLabel] = useState<HoverState>(null);

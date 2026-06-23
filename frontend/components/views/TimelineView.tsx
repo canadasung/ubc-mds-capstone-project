@@ -1330,9 +1330,7 @@ export function TimelineView() {
   } = useFullscreen<HTMLDivElement>();
 
   // The scaled content is measured at its natural (unscaled) size so the canvas
-  // can reserve the correct scrolled area at any zoom. A transform (not CSS
-  // zoom) is used to scale: it scales the rendered SVG faithfully, whereas CSS
-  // zoom re-lays-out and clips Plotly's multi-line annotation text.
+  // can reserve the correct scrolled area at any zoom.
   const zoomContentRef = useRef<HTMLDivElement>(null);
   const [naturalHeight, setNaturalHeight] = useState(CANVAS_HEIGHT);
   useEffect(() => {
@@ -1361,8 +1359,8 @@ export function TimelineView() {
   }, []);
 
   // Drag-to-pan: press and drag anywhere on the canvas to scroll the timeline,
-  // for both the Plotly horizontal view and the CSS vertical view (it only moves
-  // the scroll container, never the views themselves). A small movement
+  // for both the horizontal and vertical views (it only moves the scroll
+  // container, never the views themselves). A small movement
   // threshold separates a pan from a click, and a real drag swallows the
   // following click (captured before it reaches a card) so panning never
   // toggles a card open or closed.
