@@ -19,8 +19,11 @@ class GBIFAPI(SpeciesAPI):
 
     BASE_URL = GBIF_PORTAL.base_url
 
-    # Regular expression to extract a year from a GBIF "publishedIn" string.
+    # Matches a year wrapped in parentheses, e.g. "(1788)" in publishedIn strings.
     _PUBLISHED_IN_RE: re.Pattern = re.compile(r"\((\d{4})\)")
+    # Matches a bare year NOT inside parentheses, e.g. "1860" in "Suckley, 1860".
+    # Negative lookbehind/lookahead ensure the digits aren't enclosed in parens.
+    _AUTHOR_YEAR_RE: re.Pattern = re.compile(r"(?<!\()\b(\d{4})\b(?!\))")
 
     def _fetch_query_data(self, name: str) -> dict:
         """
@@ -121,22 +124,28 @@ class GBIFAPI(SpeciesAPI):
             "results", []
         )  # TODO: add error handling for failed request rather than just returning an empty list
 
-    def _extract_publication_year(self, string: str) -> str:
+    def _extract_publication_year(self, published_in: str, author: str = "") -> str:
         """
-        Extract the publication year from a GBIF ``publishedIn`` string.
+        Extract the publication year from a GBIF ``publishedIn`` string, falling
+        back to the ``authorship`` string if no year is found there.
 
         Parameters
         ----------
-        string : str
+        published_in : str
             A GBIF ``publishedIn`` value, e.g.
             ``"(1788). Hist. Fung. Halifax (Huddersfield) 2: 46"``.
+        author : str, optional
+            A GBIF ``authorship`` value, e.g. ``"(Linnaeus, 1758)"``.
 
         Returns
         -------
         str
-            Four-digit year string, or ``""`` if the pattern is absent.
+            Four-digit year string, or ``""`` if the pattern is absent in both.
         """
-        m = self._PUBLISHED_IN_RE.search(string)
+        m = self._PUBLISHED_IN_RE.search(published_in)
+        if m:
+            return m.group(1)
+        m = self._AUTHOR_YEAR_RE.search(author)
         return m.group(1) if m else ""
 
     def _fetch_synonym_search_term_data(
@@ -205,7 +214,9 @@ class GBIFAPI(SpeciesAPI):
                     "species": species,
                     "api_internal_id": key,
                     "author": synonym_search_term_data.get("authorship", ""),
-                    "publication_year": self._extract_publication_year(published_in),
+                    "publication_year": self._extract_publication_year(
+                        published_in, synonym_search_term_data.get("authorship", "")
+                    ),
                     "publication_name": published_in,
                     "api_link": f"https://www.gbif.org/species/{key}",
                     "status": self._extract_status(
@@ -250,7 +261,7 @@ class GBIFAPI(SpeciesAPI):
                                 "api_internal_id": item_id,
                                 "author": item.get("authorship", ""),
                                 "publication_year": self._extract_publication_year(
-                                    published_in
+                                    published_in, item.get("authorship", "")
                                 ),
                                 "publication_name": published_in,
                                 "api_link": f"https://www.gbif.org/species/{item_id}",
