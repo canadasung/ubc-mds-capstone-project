@@ -23,10 +23,12 @@ Fields implemented
 import os
 import re
 
+import pandas as pd
 from dotenv import load_dotenv
 
 from scripts.config import TROPICOS_API_KEY_PLACEHOLDER, TROPICOS_PORTAL
 from scripts.utils.normalize_query_string import normalize_query_string
+from scripts.utils.schema import empty_synonym_table
 
 from .base import SpeciesAPI
 
@@ -115,9 +117,12 @@ class TropicosAPI(SpeciesAPI):
             )
         return str(name_id)
 
-    def _fetch_accepted_name_data(self, name_id: str) -> list:
+    def _fetch_accepted_list(self, name_id: str) -> list:
         """
         Fetch the accepted names for *name_id* from ``/Name/{id}/AcceptedNames``.
+
+        Used only to resolve the accepted NameId and is not the source of the
+        accepted name record passed to ``_compile_accepted``.
 
         Parameters
         ----------
@@ -141,16 +146,51 @@ class TropicosAPI(SpeciesAPI):
             return result
         return []
 
+    def _fetch_accepted_data(self, accepted_id: str) -> list:
+        """
+        Search Tropicos for the accepted name by NameId and return the full result list.
+
+        Queries ``/Name/Search`` by NameId so that the returned records include
+        all fields (``DisplayReference``, ``DisplayDate``, ``Author``, etc.)
+        needed by ``_compile_accepted``.
+
+        Parameters
+        ----------
+        accepted_id : str
+            Tropicos NameId of the accepted taxon.
+
+        Returns
+        -------
+        list
+            Raw JSON list from ``/Name/Search``, or ``[]`` if no results are
+            found or the API returns an error record.
+        """
+        results = self._fetch_JSON(
+            f"{self.BASE_URL}/Name/Search",
+            params={
+                "nameid": accepted_id,
+                "apikey": self.key,
+                "format": "json",
+            },
+        )
+        if (
+            not isinstance(results, list)
+            or len(results) == 0
+            or results[0].get("Error") == "No names were found"
+        ):
+            return []
+        return results
+
     def _extract_internal_accepted_id(
-        self, accepted_names_data: list, fallback_id: str = ""
+        self, accepted_list: list, name_id: str = ""
     ) -> str:
         """
         Extract the accepted NameId from pre-fetched accepted names data.
 
         Parameters
         ----------
-        accepted_names_data : list
-            The list returned by ``_fetch_accepted_name_data``.
+        accepted_list : list
+            The list returned by ``_fetch_accepted_list``.
         fallback_id : str, optional
             NameId to return when the list is empty, meaning the queried name
             is itself the accepted name.
@@ -160,38 +200,30 @@ class TropicosAPI(SpeciesAPI):
         str
             NameId of the accepted name, or *fallback_id* if none found.
         """
-        if accepted_names_data:
-            accepted_id = accepted_names_data[0].get("AcceptedName", {}).get("NameId")
+        if accepted_list:
+            accepted_id = accepted_list[0].get("AcceptedName", {}).get("NameId")
             if accepted_id is not None:
                 return str(accepted_id)
-        return fallback_id
+        # if accepted_list list is none, then the queried name is itself the accepted name, so return the name_id
+        return name_id
 
-    def _fetch_synonym_data(self, raw_data: list) -> list:
+    def _fetch_synonym_data(self, accepted_id: str) -> list:
         """
         Fetch raw synonym records for the accepted taxon from ``/Name/{id}/Synonyms``.
 
-        Resolves the accepted NameId by calling ``_fetch_accepted_name_data``
-        and ``_extract_internal_accepted_id``, stores it as ``self.accepted_id``,
-        then fetches and returns the synonym list.
-
         Parameters
         ----------
-        raw_data : list
-            The list returned by ``_fetch_query_data``.
+        accepted_id : str
+            Tropicos NameId of the accepted taxon, as resolved by ``get_synonyms``
+            via ``_fetch_accepted_list`` and ``_extract_internal_accepted_id``.
 
         Returns
         -------
         list
             Raw JSON synonym list, or ``[]`` if no synonyms are found.
         """
-        name_id = self._extract_internal_id(raw_data)
-        accepted_names_data = self._fetch_accepted_name_data(name_id)
-        self.accepted_id = self._extract_internal_accepted_id(
-            accepted_names_data, fallback_id=name_id
-        )
-
         results = self._fetch_JSON(
-            f"{self.BASE_URL}/Name/{self.accepted_id}/Synonyms",
+            f"{self.BASE_URL}/Name/{accepted_id}/Synonyms",
             params={
                 "apikey": self.key,
                 "format": "json",
@@ -203,44 +235,7 @@ class TropicosAPI(SpeciesAPI):
             or results[0].get("Error") == "No names were found"
         ):
             return []
-        else:
-            return results  # TODO: double check this error handling
-
-    def _fetch_accepted_data(self, raw_data: list, synonym_data: list) -> list:
-        """
-        Return the accepted name's record for use as the synonym search term.
-
-        When the queried name is already the accepted name, returns *raw_data*
-        directly.  When it is a synonym, ``self.accepted_id`` differs from the
-        queried NameId, so ``/Name/{accepted_id}`` is fetched and returned as a
-        one-item list so ``_compile_accepted`` always receives the
-        accepted name.
-
-        Parameters
-        ----------
-        raw_data : list
-            The list returned by ``_fetch_query_data``.
-        synonym_data : list
-            Raw synonym records (unused here).
-
-        Returns
-        -------
-        list
-            A one-item list whose first element is the accepted name's record.
-        """
-        name_id = self._extract_internal_id(raw_data)
-        if self.accepted_id != name_id:
-            result = self._fetch_JSON(
-                f"{self.BASE_URL}/Name/{self.accepted_id}",
-                params={"apikey": self.key, "format": "json"},
-            )
-
-            # /Name/{id} returns a single dict
-            if isinstance(result, dict) and not result.get("Error"):
-                return [result]
-            return []
-        else:
-            return raw_data
+        return results  # TODO: double check this error handling
 
     def _extract_author(self, string: str) -> str:
         """
@@ -307,7 +302,7 @@ class TropicosAPI(SpeciesAPI):
         """
         Build a pipeline-standard record for the accepted name from a Tropicos search result.
 
-        Uses the first record in *accepted_data*, which is always the
+        Uses the first record in *accepted_list*, which is always the
         accepted name's record as returned by ``_fetch_accepted_data``.
 
         Parameters
@@ -402,3 +397,57 @@ class TropicosAPI(SpeciesAPI):
                 )
             )
         return candidates
+
+    def get_synonyms(self, name: str) -> pd.DataFrame:
+        """
+        Retrieve synonyms and accepted name for *name* from Tropicos.
+
+        Overrides the base-class orchestration to resolve the accepted NameId
+        explicitly before calling the fetch methods, rather than storing it as
+        side-effect state inside ``_fetch_synonym_data``.  The fetch sequence is:
+
+        1. ``_fetch_query_data`` — name search
+        2. ``_fetch_accepted_list`` — ``/Name/{id}/AcceptedNames`` to resolve
+           the accepted NameId
+        3. ``_extract_internal_accepted_id`` — reads accepted NameId (no API call)
+        4. ``_fetch_synonym_data`` — ``/Name/{accepted_id}/Synonyms``
+
+        The accepted name record is sourced without an extra fetch: if the queried
+        name is already accepted, ``raw_data`` is reused; if it is a synonym, the
+        full accepted name record is already embedded in ``accepted_list`` as
+        ``AcceptedName`` and is used directly.
+
+        Parameters
+        ----------
+        name : str
+            The scientific name to search (e.g. ``"Amanita muscaria"``).
+
+        Returns
+        -------
+        pd.DataFrame
+            Schema-validated synonym table, or an empty table if the name is
+            not found or no rows can be compiled.
+        """
+        name = normalize_query_string(name)
+
+        raw_data = self._fetch_query_data(name)
+        if self._is_empty(raw_data):
+            return empty_synonym_table()
+
+        name_id = self._extract_internal_id(raw_data)
+        accepted_list = self._fetch_accepted_list(name_id)
+        accepted_id = self._extract_internal_accepted_id(accepted_list, name_id)
+
+        synonym_data = self._fetch_synonym_data(accepted_id)
+        if accepted_id == name_id:
+            accepted_data = raw_data
+        else:
+            accepted_data = self._fetch_accepted_data(accepted_id)
+
+        accepted_rows = self._compile_accepted(accepted_data)
+        synonym_rows = self._compile_synonyms(synonym_data)
+
+        rows = accepted_rows + synonym_rows
+        if not rows:
+            return empty_synonym_table()
+        return pd.DataFrame(rows)
