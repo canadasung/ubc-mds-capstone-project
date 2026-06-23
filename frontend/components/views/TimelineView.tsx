@@ -28,7 +28,7 @@ import {
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
-import { useDisclosure, useFullscreen } from "@mantine/hooks";
+import { useDisclosure, useFullscreen, useIsomorphicEffect } from "@mantine/hooks";
 import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 
 import { useFilteredRecords } from "@/lib/hooks";
@@ -1428,6 +1428,55 @@ export function TimelineView() {
       window.removeEventListener("mouseup", onUp);
     };
   }, []);
+
+  // Wheel-to-zoom: scrolling the wheel over the canvas zooms toward the cursor
+  // (matching the Relations view) rather than scrolling; panning is done by
+  // dragging. The content point under the cursor is recorded so the scroll can
+  // be restored once the content resizes (see the layout effect below), keeping
+  // that point fixed under the pointer.
+  const zoomAnchorRef = useRef<
+    { contentX: number; contentY: number; pointerX: number; pointerY: number } | null
+  >(null);
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const pointerX = e.clientX - rect.left;
+      const pointerY = e.clientY - rect.top;
+      const scrollLeft = el.scrollLeft;
+      const scrollTop = el.scrollTop;
+      // Normalize line/page wheel modes to pixels so the step feels consistent.
+      const delta =
+        e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      setZoom((prev) => {
+        const raw = prev * Math.exp(-delta * 0.0015);
+        const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(raw * 1000) / 1000));
+        if (next === prev) return prev;
+        zoomAnchorRef.current = {
+          contentX: (scrollLeft + pointerX) / prev,
+          contentY: (scrollTop + pointerY) / prev,
+          pointerX,
+          pointerY,
+        };
+        return next;
+      });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  // After a wheel zoom resizes the content, restore the scroll so the point that
+  // was under the cursor stays under it. A layout effect avoids a visible jump.
+  useIsomorphicEffect(() => {
+    const el = canvasRef.current;
+    const anchor = zoomAnchorRef.current;
+    if (!el || !anchor) return;
+    el.scrollLeft = anchor.contentX * zoom - anchor.pointerX;
+    el.scrollTop = anchor.contentY * zoom - anchor.pointerY;
+    zoomAnchorRef.current = null;
+  }, [zoom]);
 
   // Dated records grouped into one entry per year (oldest to newest), plus
   // colors, the undated set, and the total dated record count for the header.
