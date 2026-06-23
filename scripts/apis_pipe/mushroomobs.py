@@ -4,9 +4,15 @@ Mushroom Observer API client.
 Mushroom Observer is a community-driven database of fungal observations where
 contributors photograph and identify fungi in the field.  The JSON API exposes
 name records with synonym lists embedded directly in each result, so synonyms
-require no second network request.  Note that Mushroom Observer does not
-distinguish "accepted" from "synonym" using those labels; instead it uses a
-``deprecated`` flag, and ``status`` is inferred from that.
+require no second network request.  Mushroom Observer does not distinguish
+"accepted" from "synonym" using those labels; instead it uses a ``deprecated``
+boolean flag, and ``status`` is inferred from that.
+
+Synonym searches are not always symmetrical: searching an accepted name will
+find its synonyms, but searching a synonym may fail to return an accepted name
+row if the only non-deprecated candidate in the API response is an infraspecific
+name (e.g. a variety or subspecies).  In that case ``_compile_accepted`` returns
+``[]`` rather than emitting a record with a potentially incorrect author.
 
 Documentation
 -------------
@@ -170,7 +176,10 @@ class MushroomObserverAPI(SpeciesAPI):
         Flatten synonym records from all result entries into a single list.
 
         No network request is needed — synonyms are embedded directly in each
-        result record by the Mushroom Observer API.
+        result record by the Mushroom Observer API.  The returned list contains
+        both deprecated and non-deprecated entries; ``_compile_synonyms`` filters
+        to deprecated-only, while ``_fetch_accepted_data`` uses the full list to
+        locate the non-deprecated accepted name when the queried name is a synonym.
 
         Parameters
         ----------
@@ -180,7 +189,7 @@ class MushroomObserverAPI(SpeciesAPI):
         Returns
         -------
         list
-            Flat list of raw synonym dicts from all result records.
+            Flat list of all embedded synonym dicts from every result record.
         """
         synonyms = []
         for result in raw_data.get("results", []):
@@ -275,13 +284,16 @@ class MushroomObserverAPI(SpeciesAPI):
         """
         Convert raw Mushroom Observer synonym records into pipeline-standard dicts.
 
-        Skips misspellings, ``"sp."`` placeholders, infraspecific names,
-        ``sensu auct.`` entries, and duplicates.
+        Skips non-deprecated entries (which belong to the accepted-name row),
+        ``"sp."`` placeholders, infraspecific names (rank markers below species
+        level, e.g. ``"var."``, ``"subsp."``), ``sensu auct.`` entries,
+        misspellings, and duplicates.
 
         Parameters
         ----------
         synonym_data : list
-            Flat list of raw synonym dicts as returned by ``_fetch_synonym_data``.
+            Flat list of all embedded synonym dicts as returned by
+            ``_fetch_synonym_data``.
 
         Returns
         -------
@@ -299,7 +311,6 @@ class MushroomObserverAPI(SpeciesAPI):
             if not full_name or full_name in seen:
                 continue
             author = synonym.get("author", "")
-            # removing rank incomplete names (rank marker above species level, e.g. "Amanita sp.", which indicates a collection-level annotation), misspelled, infraspecific (rank markers below species level, e.g. "var.", "subsp.", etc), and sensu auct. names
             if (
                 " sp." in full_name
                 or synonym.get("misspelled", False)
