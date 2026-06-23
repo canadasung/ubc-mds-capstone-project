@@ -245,9 +245,11 @@ The frontend depends on the backend. Start the backend first, then the frontend.
 
 ### Backend
 
-With the environment active, from the repository root:
+With the environment active (added in the following code blocks as a reminder), 
+from the repository root:
 
 ```bash
+conda activate mds-project
 uvicorn backend_api.main:app --reload --port 8000
 ```
 
@@ -258,6 +260,7 @@ The API is then available at <http://localhost:8000>.
 In a second terminal, with the environment active from the repository root:
 
 ```bash
+conda activate mds-project
 cd frontend
 cp .env.local.example .env.local   # points at http://localhost:8000 by default
 npm install
