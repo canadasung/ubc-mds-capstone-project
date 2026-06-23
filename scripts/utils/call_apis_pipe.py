@@ -74,6 +74,7 @@ def call_apis(query: str, sources: List[str]) -> pd.DataFrame:
     """
     dfs = []
     for source in sources:
+        print(source)
         factory = _PORTAL_REGISTRY.get(source)
         if factory is None:
             continue
