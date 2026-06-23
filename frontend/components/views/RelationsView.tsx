@@ -16,6 +16,7 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import {
   Background,
+  ControlButton,
   Controls,
   Handle,
   Position,
@@ -26,6 +27,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import { Group, Stack, Switch, Text } from "@mantine/core";
+import { useFullscreen } from "@mantine/hooks";
 
 import { useFilteredRecords } from "@/lib/hooks";
 import { buildRelationsGraph, type GraphNode } from "@/lib/transforms";
@@ -138,6 +140,14 @@ export function RelationsView() {
   const [alignByName, setAlignByName] = useState(false);
   const [alignByGenus, setAlignByGenus] = useState(false);
 
+  // Fullscreen toggle for the graph canvas (browser Fullscreen API on the
+  // wrapper). React Flow auto-resizes to fill the container as it grows.
+  const {
+    ref: fullscreenRef,
+    toggle: toggleFullscreen,
+    fullscreen,
+  } = useFullscreen<HTMLDivElement>();
+
   const baseGraph = useMemo(() => buildRelationsGraph(records), [records]);
 
   const { nodes, edges, genusElbowX } = useMemo(() => {
@@ -240,7 +250,16 @@ export function RelationsView() {
           />
         </Group>
       </Group>
-    <div style={{ width: "100%", height: 680, border: "1px solid #e9ecef", borderRadius: 8 }}>
+    <div
+      ref={fullscreenRef}
+      style={{
+        width: "100%",
+        height: fullscreen ? "100vh" : 680,
+        border: "1px solid #e9ecef",
+        borderRadius: fullscreen ? 0 : 8,
+        background: "#fff",
+      }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -256,7 +275,41 @@ export function RelationsView() {
         proOptions={{ hideAttribution: true }}
       >
         <Background color="#fafafa" />
-        <Controls showInteractive={false} />
+        <Controls showInteractive={false}>
+          <ControlButton
+            onClick={toggleFullscreen}
+            title={fullscreen ? "Exit fullscreen" : "Fullscreen"}
+            aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen"}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              {fullscreen ? (
+                <>
+                  <polyline points="4 14 10 14 10 20" />
+                  <polyline points="20 10 14 10 14 4" />
+                  <line x1="14" y1="10" x2="21" y2="3" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </>
+              ) : (
+                <>
+                  <polyline points="15 3 21 3 21 9" />
+                  <polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </>
+              )}
+            </svg>
+          </ControlButton>
+        </Controls>
       </ReactFlow>
     </div>
     </Stack>
