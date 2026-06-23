@@ -68,7 +68,7 @@ The original raw data enters our pipeline from API calls to each source, which r
 - `publication_name`: name of the publication where the species synonym name was published (optional)
 - `publication_year`: year when the species synonym name was published (optional)
 - `status`: whether the species name is considered "accepted" or a "synonym" for that API source (optional)
-- `source_name`: if the API source includes a citation of their information source, such as a journal article or book, it is included here (optional)
+- `original_source`: if the API source includes a citation of their information source, such as a journal article or book, it is included here (optional)
 - `api_link`: link to the search result on the API source's website (optional)
 - `api_internal_id`: the unique identifier in the API source's database (required)
 
