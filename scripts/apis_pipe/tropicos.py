@@ -7,6 +7,16 @@ providing accepted names, synonym lists, and publication metadata.  Unlike most
 other sources in this pipeline, Tropicos requires a registered API key for
 every request; set ``TROPICOS_API_KEY`` in your ``.env`` file before use.
 
+``TropicosAPI`` overrides ``get_synonyms`` with a custom orchestrator so that
+the accepted NameId is resolved explicitly and passed directly to each fetch
+method. The fetch sequence is:
+``_fetch_query_data`` (name search) → ``_fetch_accepted_list``
+(``/Name/{id}/AcceptedNames``, used only for ID resolution) →
+``_fetch_synonym_data`` (``/Name/{accepted_id}/Synonyms``) →
+``_fetch_accepted_data`` (``/Name/Search`` by NameId, used when the queried
+name is a synonym; ``raw_data`` is reused directly when it is already the
+accepted name).
+
 Documentation
 -------------
 https://services.tropicos.org/help
@@ -191,20 +201,19 @@ class TropicosAPI(SpeciesAPI):
         ----------
         accepted_list : list
             The list returned by ``_fetch_accepted_list``.
-        fallback_id : str, optional
+        name_id : str, optional
             NameId to return when the list is empty, meaning the queried name
             is itself the accepted name.
 
         Returns
         -------
         str
-            NameId of the accepted name, or *fallback_id* if none found.
+            NameId of the accepted name, or *name_id* if none found.
         """
         if accepted_list:
             accepted_id = accepted_list[0].get("AcceptedName", {}).get("NameId")
             if accepted_id is not None:
                 return str(accepted_id)
-        # if accepted_list list is none, then the queried name is itself the accepted name, so return the name_id
         return name_id
 
     def _fetch_synonym_data(self, accepted_id: str) -> list:
@@ -302,7 +311,7 @@ class TropicosAPI(SpeciesAPI):
         """
         Build a pipeline-standard record for the accepted name from a Tropicos search result.
 
-        Uses the first record in *accepted_list*, which is always the
+        Uses the first record in *accepted_data*, which is always the
         accepted name's record as returned by ``_fetch_accepted_data``.
 
         Parameters
@@ -407,15 +416,16 @@ class TropicosAPI(SpeciesAPI):
         side-effect state inside ``_fetch_synonym_data``.  The fetch sequence is:
 
         1. ``_fetch_query_data`` — name search
-        2. ``_fetch_accepted_list`` — ``/Name/{id}/AcceptedNames`` to resolve
-           the accepted NameId
+        2. ``_fetch_accepted_list`` — ``/Name/{id}/AcceptedNames`` for ID resolution
         3. ``_extract_internal_accepted_id`` — reads accepted NameId (no API call)
         4. ``_fetch_synonym_data`` — ``/Name/{accepted_id}/Synonyms``
+        5. ``_fetch_accepted_data`` — ``/Name/Search`` by NameId (only when the
+           queried name is a synonym; skipped and ``raw_data`` reused otherwise)
 
-        The accepted name record is sourced without an extra fetch: if the queried
-        name is already accepted, ``raw_data`` is reused; if it is a synonym, the
-        full accepted name record is already embedded in ``accepted_list`` as
-        ``AcceptedName`` and is used directly.
+        The accepted name record is sourced without a redundant fetch: if the
+        queried name is already accepted, ``raw_data`` is reused directly; if it
+        is a synonym, ``_fetch_accepted_data`` searches ``/Name/Search`` by
+        NameId to return the full record including publication fields.
 
         Parameters
         ----------
