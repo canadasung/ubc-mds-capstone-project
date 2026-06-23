@@ -1443,7 +1443,7 @@ export function TimelineView() {
       {groups.length > 0 ? (
         <>
           <Group justify="space-between" mb="sm" wrap="nowrap">
-            <Text>
+            <Text size="md">
               <b>
                 {datedCount} record{datedCount === 1 ? "" : "s"}
               </b>{" "}
@@ -1451,19 +1451,19 @@ export function TimelineView() {
               <b>
                 {groups.length} unique species name{groups.length === 1 ? "" : "s"}
               </b>{" "}
-              <Text span c="dimmed" size="xs">
+              <Text span c="dimmed" size="md">
                 · click a card to expand or collapse it
               </Text>
             </Text>
             <Group gap="xs" wrap="nowrap">
               <Button
                 variant="default"
-                size="xs"
+                size="md"
                 onClick={() => setYearOrder((o) => (o === "asc" ? "desc" : "asc"))}
               >
                 {yearOrder === "asc" ? "Years: oldest first" : "Years: newest first"}
               </Button>
-              <Button variant="default" size="xs" onClick={toggleAll}>
+              <Button variant="default" size="md" onClick={toggleAll}>
                 {allExpanded ? "Collapse all" : "Expand all"}
               </Button>
               <SegmentedControl
@@ -1473,7 +1473,7 @@ export function TimelineView() {
                   { label: "Horizontal", value: "horizontal" },
                   { label: "Vertical", value: "vertical" },
                 ]}
-                size="xs"
+                size="md"
               />
             </Group>
           </Group>

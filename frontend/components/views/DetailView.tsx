@@ -111,15 +111,15 @@ export function DetailView() {
   return (
     <>
       <Group justify="space-between" align="center" mb="xs" wrap="nowrap">
-        <Text c="dimmed" size="sm">
+        <Text c="dimmed" size="md">
           {records.length} row{records.length === 1 ? "" : "s"} × {columns.length} columns
         </Text>
-        <Button size="compact-sm" onClick={handleDownload}>
+        <Button size="md" onClick={handleDownload}>
           Download CSV
         </Button>
       </Group>
 
-      <Text c="dimmed" size="xs" mb="sm">
+      <Text c="dimmed" size="md" mb="sm">
         A blank cell means the source was queried but returned no value for that field.{" "}
         <span style={{ color: "var(--mantine-color-gray-5)" }}>{unavailMarker}</span>{" "}
         means the source does not provide that field at all. (For sources with status available,
