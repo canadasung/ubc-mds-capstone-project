@@ -1,7 +1,24 @@
 """
 GBIF API client.
 
-SpeciesAPI implementation for GBIF. GBIF is an international open-data infrastructure that aggregates occurrence records and taxonomic data from institutions worldwide, enabling free access to hundreds of millions of biodiversity observations.
+GBIF (Global Biodiversity Information Facility) is an international open-data
+infrastructure that aggregates occurrence records and taxonomic data contributed
+by institutions worldwide.  This client uses the GBIF backbone taxonomy via the
+``/species/match`` endpoint to resolve a name to a usage key, then retrieves its
+synonym list from ``/species/{id}/synonyms``.
+
+Documentation
+-------------
+https://www.gbif.org/developer/summary
+
+Fields implemented
+------------------
+- Taxonomy (kingdom → family): accepted name row only
+- author: both rows
+- publication_name: both rows
+- publication_year: both rows
+- status: both rows
+- api_link: both rows
 """
 
 import re
@@ -14,21 +31,23 @@ from .base import SpeciesAPI
 
 class GBIFAPI(SpeciesAPI):
     """
-    Implementation of SpeciesAPI for GBIF.
+    SpeciesAPI implementation for the GBIF backbone taxonomy.
     """
 
     BASE_URL = GBIF_PORTAL.base_url
 
-    # Regular expression to extract a year from a GBIF "publishedIn" string.
+    # Matches a year wrapped in parentheses, e.g. "(1788)" in publishedIn strings.
     _PUBLISHED_IN_RE: re.Pattern = re.compile(r"\((\d{4})\)")
+    # Matches a bare year NOT inside parentheses, e.g. "1860" in "Suckley, 1860".
+    # Negative lookbehind/lookahead ensure the digits aren't enclosed in parens.
+    _AUTHOR_YEAR_RE: re.Pattern = re.compile(r"(?<!\()\b(\d{4})\b(?!\))")
 
     def _fetch_query_data(self, name: str) -> dict:
         """
-        Query the GBIF backbone taxonomy to find a precise match for a species.
+        Match *name* against the GBIF backbone taxonomy and return the raw hit.
 
-        Uses the ``/species/match`` endpoint with strict matching enabled.
-        Returns an empty dict when GBIF reports no match so that the base
-        ``get_synonyms`` pipeline short-circuits cleanly.
+        Uses ``/species/match`` with ``strict=true``.  Returns ``{}`` when
+        GBIF reports ``matchType=NONE`` so the pipeline short-circuits cleanly.
 
         Parameters
         ----------
@@ -52,10 +71,10 @@ class GBIFAPI(SpeciesAPI):
 
     def _extract_internal_id(self, raw_data: dict) -> str:
         """
-        Extract the GBIF usage key from a raw API response dict.
+        Extract the GBIF usage key from a raw API response.
 
-        GBIF uses ``usageKey`` in ``/species/match`` responses and ``key`` in
-        ``/species/{id}`` responses. This method handles both.
+        Handles both ``/species/match`` responses (``usageKey``) and
+        ``/species/{id}`` responses (``key``).
 
         Parameters
         ----------
@@ -77,10 +96,10 @@ class GBIFAPI(SpeciesAPI):
 
     def _extract_internal_accepted_id(self, raw_data: dict) -> str:
         """
-        Extract the accepted taxon's GBIF usage key from match data.
+        Extract the accepted taxon's usage key from a match response.
 
-        If the matched taxon is a synonym, GBIF provides an
-        ``acceptedUsageKey`` pointing to the currently accepted name. Else, we get the "usageKey" or "key"
+        Returns ``acceptedUsageKey`` when present (synonym hit), otherwise
+        falls back to ``_extract_internal_id`` (accepted name hit).
 
         Parameters
         ----------
@@ -99,7 +118,7 @@ class GBIFAPI(SpeciesAPI):
 
     def _fetch_synonym_data(self, raw_data: dict) -> list[dict]:
         """
-        Fetch the raw synonyms list for an accepted taxon from GBIF.
+        Fetch the raw synonym list for the accepted taxon from ``/species/{id}/synonyms``.
 
         Parameters
         ----------
@@ -121,32 +140,39 @@ class GBIFAPI(SpeciesAPI):
             "results", []
         )  # TODO: add error handling for failed request rather than just returning an empty list
 
-    def _extract_publication_year(self, string: str) -> str:
+    def _extract_publication_year(self, published_in: str, author: str) -> str:
         """
-        Extract the publication year from a GBIF ``publishedIn`` string.
+        Extract a four-digit year from a GBIF ``publishedIn`` string.
+
+        Tries ``publishedIn`` first (year wrapped in parentheses), then falls
+        back to the bare year in the ``authorship`` string if not found there.
 
         Parameters
         ----------
-        string : str
+        published_in : str
             A GBIF ``publishedIn`` value, e.g.
             ``"(1788). Hist. Fung. Halifax (Huddersfield) 2: 46"``.
+        author : str
+            A GBIF ``authorship`` value, e.g. ``"Linnaeus, 1758"``.
 
         Returns
         -------
         str
-            Four-digit year string, or ``""`` if the pattern is absent.
+            Four-digit year string, or ``""`` if the pattern is absent in both.
         """
-        m = self._PUBLISHED_IN_RE.search(string)
+        m = self._PUBLISHED_IN_RE.search(published_in)
+        if m:
+            return m.group(1)
+        m = self._AUTHOR_YEAR_RE.search(author)
         return m.group(1) if m else ""
 
-    def _fetch_synonym_search_term_data(
-        self, raw_data: dict, synonym_data: list[dict]
-    ) -> dict:
+    def _fetch_accepted_data(self, raw_data: dict, synonym_data: list[dict]) -> dict:
         """
-        Return the accepted taxon's full species record for the synonym search term.
+        Fetch the accepted taxon's full ``/species/{id}`` record.
 
-        When the ``/species/match`` hit is the accepted name itself, ``raw_data``
-        already has the correct metadata. When the hit is a synonym, we fetch ``/species/{acceptedUsageKey}`` to get the accepted taxon's full record (same field structure as a match response: ``canonicalName``, ``authorship``, ``publishedIn``).
+        Always fetches ``/species/{acceptedUsageKey}`` regardless of whether the
+        initial match was an accepted name or a synonym, ensuring consistent
+        ``authorship``, ``publishedIn``, and ``taxonomicStatus`` fields.
 
         Parameters
         ----------
@@ -158,58 +184,56 @@ class GBIFAPI(SpeciesAPI):
         Returns
         -------
         dict
-            The accepted taxon's species record.
+            The accepted taxon's full species record from ``/species/{id}``.
         """
-        # Always fetch the full /species/{id} record for consistent authorship,
-        # publishedIn, and taxonomicStatus regardless of whether the query matched
-        # the accepted name directly or via a synonym.
+
         return self._fetch_JSON(
             f"{self.BASE_URL}/species/{self.accepted_id}"
         )  # TODO: add error handling for failed request
 
-    def _compile_synonym_search_term(
-        self, synonym_search_term_data: dict
-    ) -> list[dict]:
+    def _compile_accepted(self, accepted_data: dict) -> list[dict]:
         """
-        Build a pipeline-standard record for the synonym search term from the
-        GBIF match response.
+        Build a pipeline-standard record for the accepted name from the GBIF species record.
 
         Parameters
         ----------
-        synonym_search_term_data : dict
-            The ``/species/match`` response dict.
+        accepted_data : dict
+            The accepted taxon's full record from ``_fetch_accepted_data``.
 
         Returns
         -------
         list of dict
-            One-item list with the search term record, or ``[]`` if
+            One-item list with the accepted name record, or ``[]`` if
             ``canonicalName`` is absent.
         """
-        name = normalize_query_string(synonym_search_term_data["canonicalName"])
+        name = normalize_query_string(accepted_data["canonicalName"])
         if not name:
             return []
 
-        published_in = synonym_search_term_data.get("publishedIn", "")
-        key = self._extract_internal_id(synonym_search_term_data)
+        published_in = accepted_data.get("publishedIn", "")
+        key = self._extract_internal_id(accepted_data)
         genus, species = self._extract_genus_species(name)
+        author = accepted_data.get("authorship", "")
         return [
             self._format_row(
                 **{
                     "api_name": GBIF_PORTAL.display_name,
-                    "kingdom": synonym_search_term_data.get("kingdom", ""),
-                    "phylum": synonym_search_term_data.get("phylum", ""),
-                    "class_": synonym_search_term_data.get("class", ""),
-                    "order": synonym_search_term_data.get("order", ""),
-                    "family": synonym_search_term_data.get("family", ""),
+                    "kingdom": accepted_data.get("kingdom", ""),
+                    "phylum": accepted_data.get("phylum", ""),
+                    "class_": accepted_data.get("class", ""),
+                    "order": accepted_data.get("order", ""),
+                    "family": accepted_data.get("family", ""),
                     "genus": genus,
                     "species": species,
                     "api_internal_id": key,
-                    "author": synonym_search_term_data.get("authorship", ""),
-                    "publication_year": self._extract_publication_year(published_in),
+                    "author": author,
+                    "publication_year": self._extract_publication_year(
+                        published_in, author
+                    ),
                     "publication_name": published_in,
                     "api_link": f"https://www.gbif.org/species/{key}",
                     "status": self._extract_status(
-                        synonym_search_term_data.get("taxonomicStatus", "")
+                        accepted_data.get("taxonomicStatus", "")
                     ),
                 }
             )
@@ -219,7 +243,7 @@ class GBIFAPI(SpeciesAPI):
         """
         Convert raw GBIF synonym records into pipeline-standard synonym dicts.
 
-        Filters to species-rank results only and deduplicates by canonical name.
+        Filters to ``rank=SPECIES`` records only and deduplicates by canonical name.
 
         Parameters
         ----------
@@ -229,7 +253,7 @@ class GBIFAPI(SpeciesAPI):
         Returns
         -------
         list of dict
-            Pipeline-standard synonym records produced by ``_format_synonym``.
+            Pipeline-standard synonym records produced by ``_format_row``.
         """
         candidates = []
         seen = set()
@@ -241,6 +265,7 @@ class GBIFAPI(SpeciesAPI):
                     published_in = item.get("publishedIn", "")
                     item_id = self._extract_internal_id(item)
                     genus, species = self._extract_genus_species(canonical_name)
+                    author = item.get("authorship", "")
                     candidates.append(
                         self._format_row(
                             **{
@@ -248,9 +273,9 @@ class GBIFAPI(SpeciesAPI):
                                 "genus": genus,
                                 "species": species,
                                 "api_internal_id": item_id,
-                                "author": item.get("authorship", ""),
+                                "author": author,
                                 "publication_year": self._extract_publication_year(
-                                    published_in
+                                    published_in, author
                                 ),
                                 "publication_name": published_in,
                                 "api_link": f"https://www.gbif.org/species/{item_id}",
@@ -260,5 +285,5 @@ class GBIFAPI(SpeciesAPI):
                             }
                         )
                     )
-                    # TODO: bubble up as much as possible in terms of hardcoded strings/magic numbers
+
         return candidates
