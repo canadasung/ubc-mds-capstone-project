@@ -339,6 +339,7 @@ function RecordBlock({ entry, first }: { entry: TimelineEntry; first?: boolean }
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: COLOR_LINK }}
+            onClick={(e) => e.stopPropagation()}
           >
             <span style={{ textDecoration: "underline" }}>{entry.source}</span>
             <ExternalLinkIcon />
