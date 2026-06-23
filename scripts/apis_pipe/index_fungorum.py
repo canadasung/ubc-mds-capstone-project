@@ -13,10 +13,10 @@ Note that this service is notoriously slow and can time out on occasion, so the 
 
 import xml.etree.ElementTree as ET
 
+from scripts.config import INDEX_FUNGORUM_PORTAL
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from scripts.config import INDEX_FUNGORUM_PORTAL
 
 
 class IndexFungorumAPI(SpeciesAPI):
@@ -37,6 +37,8 @@ class IndexFungorumAPI(SpeciesAPI):
         "current_key": "CURRENT_x0020_NAME_x0020_RECORD_x0020_NUMBER",
         "rank": "INFRASPECIFIC_x0020_RANK",
         "authors": "AUTHORS",
+        "year": "YEAR_x0020_OF_x0020_PUBLICATION",
+        "original_source": "PUBLISHED_x0020_LIST_x0020_REFERENCE",
     }
 
     def _fetch_query_data(self, name: str) -> ET.Element:
@@ -96,20 +98,33 @@ class IndexFungorumAPI(SpeciesAPI):
 
     def _extract_internal_accepted_id(self, raw_data: ET.Element) -> str:
         """
-        Extract the accepted name's CurrentKey from a search result record.
+        Extract the accepted name's record number from a ``NamesByCurrentKey`` root element.
+
+        Every ``IndexFungorum`` child in the dataset shares the same
+        ``CURRENT_NAME_RECORD_NUMBER``, so reading from the first record is sufficient.
 
         Parameters
         ----------
         raw_data : xml.etree.ElementTree.Element
-            A single ``IndexFungorum`` record element as returned by
-            ``_fetch_query_data``.
+            Root element of the ``NamesByCurrentKey`` response (a ``NewDataSet``
+            containing ``IndexFungorum`` children).
 
         Returns
         -------
         str
             The ``CURRENT_NAME_RECORD_NUMBER`` value, or ``""`` if absent.
         """
-        return (raw_data.findtext(self._TAGS["current_key"]) or "").strip()
+        # When called from _fetch_synonym_data, raw_data is a single IndexFungorum
+        # record element. When called from the compile methods, it is the
+        # NamesByCurrentKey root element containing IndexFungorum children.
+        record = (
+            raw_data
+            if raw_data.tag == "IndexFungorum"
+            else raw_data.find("IndexFungorum")
+        )
+        if record is None:
+            return ""
+        return (record.findtext(self._TAGS["current_key"]) or "").strip()
 
     def _fetch_synonym_data(self, raw_data: ET.Element) -> ET.Element:
         """
@@ -141,11 +156,14 @@ class IndexFungorumAPI(SpeciesAPI):
 
     def _fetch_synonym_search_term_data(
         self, raw_data: ET.Element, synonym_data: ET.Element
-    ) -> list:
+    ) -> ET.Element:
         """
-        Return empty — ``NamesByCurrentKey`` already includes the accepted name
-        alongside all synonyms, so ``_compile_synonyms`` captures it without a
-        separate fetch.
+        Return ``synonym_data`` directly.
+
+        The ``NamesByCurrentKey`` response already contains the accepted name
+        record alongside all synonyms. Passing it through lets
+        ``_compile_synonym_search_term`` find and compile the accepted name
+        without an additional fetch.
 
         Parameters
         ----------
@@ -156,17 +174,18 @@ class IndexFungorumAPI(SpeciesAPI):
 
         Returns
         -------
-        list
-            Always ``[]``.
+        xml.etree.ElementTree.Element
+            The same ``synonym_data`` element passed in.
         """
-        return []
+        return synonym_data
 
     def _compile_synonyms(self, synonym_data: ET.Element) -> list[dict]:
         """
         Convert raw ``NamesByCurrentKey`` XML into pipeline-standard synonym dicts.
 
         Iterates over ``IndexFungorum`` child elements, keeping only species-level
-        records (``INFRASPECIFIC_x0020_RANK == "sp."``). Deduplicates by
+        records (``INFRASPECIFIC_x0020_RANK == "sp."``). Skips the accepted name
+        record (handled by ``_compile_synonym_search_term``). Deduplicates by
         lower-cased name during iteration.
 
         Parameters
@@ -177,8 +196,9 @@ class IndexFungorumAPI(SpeciesAPI):
         Returns
         -------
         list of dict
-            Pipeline-standard synonym records produced by ``_format_synonym``.
+            Pipeline-standard synonym records produced by ``_format_row``.
         """
+        current_name_record = self._extract_internal_accepted_id(synonym_data)
         candidates = []
         seen = set()
         for record in synonym_data.findall("IndexFungorum"):
@@ -187,14 +207,20 @@ class IndexFungorumAPI(SpeciesAPI):
             )
             if not syn_name or syn_name in seen:
                 continue
-            # remove names with rank = "sp.", which indicates collection-level annotation (e.g. "Amanita sp."), not a synonym
+            # remove names with rank != "sp.", which indicates collection-level annotation (e.g. "Amanita sp."), not a synonym
             rank = (record.findtext(self._TAGS["rank"]) or "").strip()
             if rank != "sp.":
                 continue
+            record_id = self._extract_internal_id(record)
+            if record_id == current_name_record:
+                continue  # accepted name — handled by _compile_synonym_search_term
             seen.add(syn_name)
             genus, species = self._extract_genus_species(syn_name)
-            record_id = self._extract_internal_id(record)
             author = (record.findtext(self._TAGS["authors"]) or "").strip()
+            year = (record.findtext(self._TAGS["year"]) or "").strip()
+            original_source = (
+                record.findtext(self._TAGS["original_source"]) or ""
+            ).strip()
             candidates.append(
                 self._format_row(
                     api_name=INDEX_FUNGORUM_PORTAL.display_name,
@@ -202,6 +228,9 @@ class IndexFungorumAPI(SpeciesAPI):
                     species=species,
                     api_internal_id=record_id,
                     author=author,
+                    publication_year=year,
+                    original_source=original_source,
+                    status="Synonym",
                     api_link=(
                         f"https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID={record_id}"
                         if record_id
@@ -212,20 +241,59 @@ class IndexFungorumAPI(SpeciesAPI):
         return candidates
 
     def _compile_synonym_search_term(
-        self, synonym_search_term_data: list
+        self, synonym_search_term_data: ET.Element
     ) -> list[dict]:
         """
-        Return empty — the search term (accepted name) is already included in
-        the output of ``_compile_synonyms`` via the ``NamesByCurrentKey`` response.
+        Extract the accepted name record from the ``NamesByCurrentKey`` response.
+
+        Finds the record whose ``RECORD_NUMBER`` matches
+        ``CURRENT_NAME_RECORD_NUMBER`` (i.e. the accepted name) and returns it
+        as a single pipeline-standard row with ``status="Accepted"``.
 
         Parameters
         ----------
-        synonym_search_term_data : list
-            Always ``[]`` as returned by ``_fetch_synonym_search_term_data``.
+        synonym_search_term_data : xml.etree.ElementTree.Element
+            Parsed root element from the ``NamesByCurrentKey`` response (same
+            element passed through by ``_fetch_synonym_search_term_data``).
 
         Returns
         -------
         list of dict
-            Always ``[]``.
+            One-item list with the accepted name record, or ``[]`` if not found.
         """
+        current_name_record = self._extract_internal_accepted_id(
+            synonym_search_term_data
+        )
+        for record in synonym_search_term_data.findall("IndexFungorum"):
+            record_id = self._extract_internal_id(record)
+            if record_id != current_name_record:
+                continue
+            syn_name = normalize_query_string(
+                (record.findtext(self._TAGS["name"]) or "").strip()
+            )
+            if not syn_name:
+                return []
+            genus, species = self._extract_genus_species(syn_name)
+            author = (record.findtext(self._TAGS["authors"]) or "").strip()
+            year = (record.findtext(self._TAGS["year"]) or "").strip()
+            original_source = (
+                record.findtext(self._TAGS["original_source"]) or ""
+            ).strip()
+            return [
+                self._format_row(
+                    api_name=INDEX_FUNGORUM_PORTAL.display_name,
+                    genus=genus,
+                    species=species,
+                    api_internal_id=record_id,
+                    author=author,
+                    publication_year=year,
+                    original_source=original_source,
+                    status="Accepted",
+                    api_link=(
+                        f"https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID={record_id}"
+                        if record_id
+                        else ""
+                    ),
+                )
+            ]
         return []

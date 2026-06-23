@@ -4,12 +4,13 @@ GenBank (NCBI Entrez) API client.
 SpeciesAPI implementation for GenBank, a genetic sequence database maintained by NCBI that also exposes a Taxonomy section providing accepted names and synonyms for species.
 """
 
+import re
 import xml.etree.ElementTree as ET
 
+from scripts.config import GENBANK_PORTAL
 from scripts.utils.normalize_query_string import normalize_query_string
 
 from .base import SpeciesAPI
-from scripts.config import GENBANK_PORTAL
 
 
 class GenBankAPI(SpeciesAPI):
@@ -48,6 +49,104 @@ class GenBankAPI(SpeciesAPI):
             if data.get("esearchresult", {}).get("idlist"):
                 return data
         return {}
+
+    def _extract_publication_year(self, string: str) -> str:
+        """
+        Extract a four-digit publication year from a GenBank ``DispName`` string.
+
+        Parameters
+        ----------
+        string : str
+            A ``DispName`` value, e.g. ``"Agaricus muscarius L., 1753"``.
+
+        Returns
+        -------
+        str
+            Four-digit year string, or ``""`` if not found.
+        """
+        m = re.search(r"\b(\d{4})\b\s*$", string)
+        return m.group(1) if m else ""
+
+    def _extract_author(self, string: str) -> str:
+        """
+        Extract the authorship string from a GenBank ``DispName`` string.
+
+        Expects the format ``"Genus species Author, YYYY"`` or
+        ``"Genus species (Author) Author, YYYY"``.
+
+        Parameters
+        ----------
+        string : str
+            A ``DispName`` value, e.g. ``"Amanita muscaria (L.) Lam., 1783"``.
+
+        Returns
+        -------
+        str
+            Authorship string (e.g. ``"(L.) Lam."``), or ``""`` if not found.
+        """
+        m = re.match(r"^\S+\s+\S+\s+(.+?)\s*,\s*\d{4}\s*$", string)
+        return m.group(1).strip() if m else ""
+
+    def _find_authority_disp_name(self, other_names: ET.Element, sci_name: str) -> str:
+        """
+        Find the authority ``DispName`` in ``OtherNames`` that corresponds to *sci_name*.
+
+        Looks for a ``<Name>`` child whose ``<ClassCDE>`` is ``"authority"`` and
+        whose ``<DispName>`` starts with *sci_name*.
+
+        Parameters
+        ----------
+        other_names : xml.etree.ElementTree.Element
+            The ``<OtherNames>`` element from a taxon record.
+        sci_name : str
+            The scientific name to match against (e.g. ``"Agaricus muscarius"``).
+
+        Returns
+        -------
+        str
+            The matching ``DispName`` text, or ``""`` if none is found.
+        """
+        for name_el in other_names.findall("Name"):
+            if (name_el.findtext("ClassCDE") or "").lower() == "authority":
+                disp = (name_el.findtext("DispName") or "").strip()
+                if disp.startswith(sci_name):
+                    return disp
+        return ""
+
+    def _extract_taxonomy(self, data: ET.Element) -> dict[str, str]:
+        """
+        Extract taxonomy fields from a GenBank ``<Taxon>`` XML element.
+
+        Walks the ``<LineageEx>`` children, building a rank-to-name map, then
+        returns the six pipeline-standard ranks.
+
+        Parameters
+        ----------
+        data : xml.etree.ElementTree.Element
+            A single ``<Taxon>`` element from an efetch XML response.
+
+        Returns
+        -------
+        dict[str, str]
+            Keys are ``"kingdom"``, ``"phylum"``, ``"class_"``, ``"order"``,
+            ``"family"``, and ``"subfamily"``.
+        """
+        rank_map = {}
+        lineage_ex = data.find("LineageEx")
+        if lineage_ex is not None:
+            for taxon in lineage_ex.findall("Taxon"):
+                rank = (taxon.findtext("Rank") or "").lower()
+                name = (taxon.findtext("ScientificName") or "").strip()
+                if rank and name:
+                    rank_map[rank] = name
+        return {
+            "kingdom": rank_map.get("kingdom", ""),
+            "phylum": rank_map.get("phylum", ""),
+            "class_": rank_map.get("class", ""),
+            "order": rank_map.get("order", ""),
+            "family": rank_map.get("family", ""),
+            "subfamily": rank_map.get("subfamily", ""),
+        }
 
     def _extract_internal_id(self, raw_data: ET.Element) -> str:
         """
@@ -141,13 +240,17 @@ class GenBankAPI(SpeciesAPI):
                     continue
                 seen.add(syn_name)
                 genus, species = self._extract_genus_species(syn_name)
+                disp_name = self._find_authority_disp_name(other_names, syn_name)
                 candidates.append(
                     self._format_row(
                         api_name=GENBANK_PORTAL.display_name,
                         genus=genus,
                         species=species,
                         api_internal_id=taxon_id,
-                        api_link=f"https://www.ncbi.nlm.nih.gov/taxonomy/{taxon_id}",
+                        author=self._extract_author(disp_name),
+                        publication_year=self._extract_publication_year(disp_name),
+                        status="Synonym",
+                        api_link=f"https://www.ncbi.nlm.nih.gov/datasets/taxonomy/{taxon_id}/",
                     )
                 )
         return candidates
@@ -181,13 +284,26 @@ class GenBankAPI(SpeciesAPI):
                 continue
             genus, species = self._extract_genus_species(sci_name)
             taxon_id = self._extract_internal_id(taxon)
+            other_names = taxon.find("OtherNames")
+            disp_name = (
+                self._find_authority_disp_name(other_names, sci_name)
+                if other_names is not None
+                else ""
+            )
+            taxonomy = self._extract_taxonomy(taxon)
             return [
                 self._format_row(
-                    api_name=GENBANK_PORTAL.display_name,
-                    genus=genus,
-                    species=species,
-                    api_internal_id=taxon_id,
-                    api_link=f"https://www.ncbi.nlm.nih.gov/taxonomy/{taxon_id}",  # TODO: seems that all synonyms have the accepted names ID without separate pages. Need to investigate further and check against the API documentation to see if this is expected behaviour, but guessing it is because when I search a synonym on the website it only pulls up results for the page for the accepted name.
+                    **{
+                        "api_name": GENBANK_PORTAL.display_name,
+                        **taxonomy,
+                        "genus": genus,
+                        "species": species,
+                        "api_internal_id": taxon_id,
+                        "author": self._extract_author(disp_name),
+                        "publication_year": self._extract_publication_year(disp_name),
+                        "status": "Accepted",
+                        "api_link": f"https://www.ncbi.nlm.nih.gov/datasets/taxonomy/{taxon_id}/",  # TODO: seems that all synonyms have the accepted names ID without separate pages. Need to investigate further and check against the API documentation to see if this is expected behaviour, but guessing it is because when I search a synonym on the website it only pulls up results for the page for the accepted name.
+                    }
                 )
             ]
         return []

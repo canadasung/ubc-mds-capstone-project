@@ -13,6 +13,7 @@ dependencies:
   - plotly
   - pytest
   - nodejs>=20  # provides node + npm for the React/Next.js frontend (see frontend/package.json)
+  - quarto  # renders reports/final-report.md (see README.md#final-report)
   - pip
   - pip:
     - -e . # install scripts as an editable package so that the scripts files are importable from anywhere — notebooks, the app, and tests — without any path configuration.

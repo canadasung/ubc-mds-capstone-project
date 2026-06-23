@@ -3,28 +3,25 @@
 /**
  * Timeline view for species name records.
  *
- * Renders dated taxonomy entries on either a horizontal Plotly chart (a
- * proportional time axis) or a vertical CSS timeline. Records that share a
- * publication year are combined into a single card for that year, headed by the
- * name and year and listing one labeled block per record (API, status, author,
- * source). A year card is treated as accepted when any of its records is
- * accepted: accepted years display square (green), synonym-only years rounded
- * (purple), and mixed years a split square-over-rounded border. Plotly
- * annotation boxes have no per-corner radius, so in the horizontal view the
- * card borders are drawn onto the SVG after each render. Axis dots are uniform
- * black circles and do not encode source or status. Undated entries appear in a
- * collapsible table below either view.
+ * Renders dated taxonomy entries on a CSS timeline, oriented either horizontally
+ * (a proportional time axis running left to right) or vertically, sharing one
+ * card component. Records that share a publication year are combined into a
+ * single card for that year, headed by the name and year and listing one labeled
+ * block per record (API, status, author, source). A year card is treated as
+ * accepted when any of its records is accepted: accepted years display square
+ * (green), synonym-only years rounded (purple), and mixed years a split
+ * square-over-rounded border. Axis dots are uniform black circles and do not
+ * encode source or status. Undated entries appear in a collapsible table below
+ * either view.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import dynamic from "next/dynamic";
 import {
   Alert,
   Anchor,
   Button,
   Collapse,
   Group,
-  Loader,
   SegmentedControl,
   Table,
   Text,
@@ -32,7 +29,6 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
-import type { Data, Layout } from "plotly.js";
 
 import { useFilteredRecords } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
@@ -42,11 +38,6 @@ import {
   type TimelineEntry,
   type YearGroup,
 } from "@/lib/transforms";
-
-const PlotlyChart = dynamic(() => import("./PlotlyChart"), {
-  ssr: false,
-  loading: () => <Loader />,
-});
 
 /** Accent color for accepted names (status text and card border), both views. */
 const COLOR_ACCEPTED = "#2f9e44";
@@ -75,12 +66,10 @@ function statusColor(status: string): string {
   return "#888";
 }
 
-/** Estimated rendered width in pixels of a collapsed year card. */
-const COLLAPSED_CARD_PX = 140;
 /** Extra horizontal margin in pixels past the first/last card on the axis. */
 const END_PAD_PX = 20;
-/** Estimated rendered height in pixels of a collapsed vertical card. */
-const COLLAPSED_VERTICAL_PX = 64;
+/** Estimated rendered height in pixels of a collapsed card (either view). */
+const COLLAPSED_CARD_HEIGHT_PX = 64;
 /**
  * Target text width in pixels of an expanded card box. Card text is wrapped to
  * fit this width so the box stays a predictable size and does not clip.
@@ -89,9 +78,10 @@ const CARD_WIDTH_EXPANDED = 300;
 /** Approximate monospace character advance at the card font size, in pixels. */
 const CARD_CHAR_PX = 7.8;
 /**
- * Maximum characters per wrapped line in an expanded horizontal card, derived
- * from the target card width. Plotly does not auto-wrap annotation text, so
- * card text is wrapped to this width with explicit line breaks.
+ * Approximate characters per wrapped line in an expanded card, derived from the
+ * target card width. The browser wraps the card text itself; this value lets the
+ * layout estimate how many lines a field wraps to, and therefore each card's
+ * height, before it is rendered.
  */
 const CARD_WRAP_CHARS = Math.floor((CARD_WIDTH_EXPANDED - 24) / CARD_CHAR_PX);
 
@@ -124,8 +114,8 @@ const COLUMN_Y_GAP_PX = 12;
  * Word-wrap plain text to a maximum line length.
  *
  * Words are kept whole where possible; a single word longer than the limit is
- * hard-broken. Used to wrap card text manually because Plotly annotations clip
- * rather than wrap.
+ * hard-broken. Used to estimate how many lines a field will wrap to, which feeds
+ * each card's height estimate for the layout.
  *
  * Parameters
  * ----------
@@ -164,141 +154,28 @@ function wrapLines(text: string, maxChars: number): string[] {
 }
 
 /**
- * Build one labeled, wrapped field ("Label: value") for a card.
+ * Count the rendered text lines of a single record block.
  *
- * The "Label:" prefix is rendered in gray; the value follows in the default
- * color. The whole line is wrapped to *maxChars*.
- *
- * Parameters
- * ----------
- * label : string
- *     Field label without the trailing colon, e.g. "Author".
- * value : string
- *     Field value.
- * maxChars : number
- *     Maximum number of characters per wrapped line.
- *
- * Returns
- * -------
- * { html: string; lines: number }
- *     The field HTML and the number of text lines it occupies.
- */
-function labeledField(
-  label: string,
-  value: string,
-  maxChars: number,
-): { html: string; lines: number } {
-  const lines = wrapLines(`${label}: ${value}`, maxChars);
-  const out = [...lines];
-  out[0] = out[0].replace(/^([^:]*:)/, '<span style="color:#888">$1</span>');
-  return { html: out.join("<br>"), lines: lines.length };
-}
-
-/**
- * Build the HTML for a single record as a block of labeled fields.
- *
- * Renders four labeled lines, each on its own line: API (the source database, a
- * link when the record has a URL), Status (colored by accepted/synonym), Author,
- * and Source (the publication). The line count is returned so the horizontal
- * view can reserve enough vertical room for the card.
+ * API and Status occupy one line each; Author and Source wrap to the card width.
  *
  * Parameters
  * ----------
  * e : TimelineEntry
- *     The record to render.
+ *     The record whose lines are counted.
  * maxChars : number
- *     Maximum number of characters per wrapped line.
+ *     Maximum number of characters per wrapped line, matching the rendered card.
  *
  * Returns
  * -------
- * { html: string; lines: number }
- *     The record's HTML and the number of text lines it occupies.
+ * number
+ *     The number of text lines the record occupies.
  */
-function recordHtml(e: TimelineEntry, maxChars: number): { html: string; lines: number } {
-  const apiValue = e.url
-    ? `<a href="${e.url}" target="_blank"><span style="color:${COLOR_LINK}"><u>${e.source}</u></span></a>`
-    : e.source;
-  const apiLine = `<span style="color:#888">API:</span> ${apiValue}`;
-  const statusLine = `<span style="color:#888">Status:</span> <span style="color:${statusColor(e.status)}">${e.status}</span>`;
-  const author = labeledField("Author", e.author, maxChars);
-  const source = labeledField("Source", e.publicationName, maxChars);
-  const html = [apiLine, statusLine, author.html, source.html].join("<br>");
-  return { html, lines: 2 + author.lines + source.lines };
-}
-
-/**
- * Build the HTML for an expanded year card.
- *
- * A bold "Name, Year" header sits at the top (using the accepted name when
- * present, otherwise the first record), followed by one labeled block per
- * record, accepted records first. Each record carries its own status field.
- *
- * Parameters
- * ----------
- * group : YearGroup
- *     The year group whose records are rendered.
- * maxChars : number
- *     Maximum number of characters per wrapped line.
- *
- * Returns
- * -------
- * string
- *     HTML string suitable for a Plotly annotation text property.
- */
-function groupCardHtml(group: YearGroup, maxChars: number): string {
-  const representative = group.accepted[0] ?? group.synonyms[0];
-  const header = `<span style="font-size:15px"><b>${representative.name}, ${group.year}</b></span>`;
-  const blocks = [...group.accepted, ...group.synonyms].map(
-    (e) => recordHtml(e, maxChars).html,
+function recordLineCount(e: TimelineEntry, maxChars: number): number {
+  return (
+    2 +
+    wrapLines(`Author: ${e.author}`, maxChars).length +
+    wrapLines(`Source: ${e.publicationName}`, maxChars).length
   );
-  return [header, ...blocks].join("<br><br>");
-}
-
-/**
- * Format a binomial name as two stacked lines for a collapsed card label.
- *
- * Splits the name on whitespace so the genus appears on the first line and
- * remaining tokens on the second. Single-word names are returned unchanged.
- *
- * Parameters
- * ----------
- * name : string
- *     Scientific name (e.g. "Amanita muscaria").
- *
- * Returns
- * -------
- * string
- *     HTML string with genus and species separated by a line break tag.
- */
-function nameStacked(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length <= 1) return `<b>${name}</b>`;
-  return `<b>${parts[0]}<br>${parts.slice(1).join(" ")}</b>`;
-}
-
-/**
- * Build the HTML for a collapsed year card.
- *
- * Shows a representative name (the accepted name when present, otherwise the
- * first synonym) plus a count of the remaining records in the year.
- *
- * Parameters
- * ----------
- * group : YearGroup
- *     The year group whose summary is rendered.
- *
- * Returns
- * -------
- * string
- *     HTML string suitable for a Plotly annotation text property.
- */
-function groupCollapsedHtml(group: YearGroup): string {
-  const representative = group.accepted[0] ?? group.synonyms[0];
-  const more =
-    group.count > 1
-      ? `<br><span style="color:#888">+${group.count - 1} more</span>`
-      : "";
-  return `${nameStacked(representative.name)}${more}`;
 }
 
 /**
@@ -306,8 +183,8 @@ function groupCollapsedHtml(group: YearGroup): string {
  *
  * Counts the header line plus, for each record, a separating blank line and its
  * labeled field lines. The estimate drives the lane and column spacing in both
- * views (and the vertical view's end padding) so expanded cards neither overlap
- * each other nor clip at the canvas edge.
+ * views (and the views' end padding) so expanded cards neither overlap each
+ * other nor clip at the canvas edge.
  *
  * Parameters
  * ----------
@@ -325,33 +202,35 @@ function estimateExpandedCardPx(group: YearGroup, maxChars: number): number {
   const LINE_PX = 18;
   let lines = 1; // header
   for (const e of [...group.accepted, ...group.synonyms]) {
-    lines += 1 + recordHtml(e, maxChars).lines; // separating gap + the record
+    lines += 1 + recordLineCount(e, maxChars); // separating gap + the record
   }
   return lines * LINE_PX + 24;
 }
 
 /**
- * Estimate the rendered pixel height of a collapsed year card.
+ * Estimate the rendered pixel width of a collapsed year card.
  *
- * A collapsed card shows the representative name (one line, or two when the name
- * has a genus and epithet) plus an optional "+N more" line. The estimate feeds
- * the lane spacing so collapsed cards in adjacent lanes do not overlap.
+ * A collapsed card shows the representative name (genus and epithet stacked) and
+ * an optional "+N more" line, centered; its width is the longest of those lines,
+ * clamped to the card's min and max width. The estimate feeds the horizontal
+ * lane packing and end padding so collapsed cards reserve the right room.
  *
  * Parameters
  * ----------
  * group : YearGroup
- *     The year group whose collapsed card height is estimated.
+ *     The year group whose collapsed card width is estimated.
  *
  * Returns
  * -------
  * number
- *     Estimated card height in pixels.
+ *     Estimated card width in pixels.
  */
-function estimateCollapsedCardPx(group: YearGroup): number {
+function estimateCollapsedCardWidthPx(group: YearGroup): number {
   const representative = group.accepted[0] ?? group.synonyms[0];
-  const nameLines = representative.name.trim().includes(" ") ? 2 : 1;
-  const moreLine = group.count > 1 ? 1 : 0;
-  return (nameLines + moreLine) * 18 + 24;
+  const parts = representative.name.trim().split(/\s+/);
+  const moreChars = group.count > 1 ? `+${group.count - 1} more`.length : 0;
+  const longest = Math.max(moreChars, ...parts.map((p) => p.length));
+  return Math.min(260, Math.max(120, Math.round(longest * CARD_CHAR_PX + 28)));
 }
 
 /**
@@ -367,14 +246,13 @@ function estimateCollapsedCardPx(group: YearGroup): number {
  * Parameters
  * ----------
  * centers : number[]
- *     Center of each item along the axis (years for horizontal, top pixels for
- *     vertical).
+ *     Pixel center of each item along the axis (the card's x for horizontal, its
+ *     y for vertical).
  * halves : number[]
- *     Half-size of each item along the axis (half width in years, or half height
- *     in pixels).
+ *     Half-size of each item along the axis in pixels (half width for horizontal,
+ *     half height for vertical).
  * gap : number
- *     Minimum empty space, in the same units as ``centers``, between two items
- *     sharing a lane.
+ *     Minimum empty space in pixels between two items sharing a lane.
  *
  * Returns
  * -------
@@ -401,142 +279,7 @@ function assignLanes(
   });
 }
 
-/**
- * Create or update one stroked border path on a card's annotation group.
- *
- * Each mixed card draws two of these: a green outline for the accepted section
- * and a purple outline for the synonym section. Paths are tagged by ``key`` so
- * they are reused (not duplicated) across Plotly's repeated render callbacks, and
- * never capture pointer events so card clicks still register.
- *
- * Parameters
- * ----------
- * group : SVGGElement
- *     The annotation group element that owns the card.
- * rect : SVGRectElement
- *     The card's rectangle; the path is inserted just after it.
- * key : string
- *     Stable identifier for this path within the card (e.g. "g" or "p").
- * d : string
- *     The SVG path data.
- * color : string
- *     Stroke color.
- *
- * Returns
- * -------
- * void
- */
-function upsertBorderPath(
-  group: SVGGElement,
-  rect: SVGRectElement,
-  key: string,
-  d: string,
-  color: string,
-): void {
-  let path = group.querySelector<SVGPathElement>(`path[data-card-border="${key}"]`);
-  if (!path) {
-    path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("data-card-border", key);
-    path.style.pointerEvents = "none"; // never block clicks on the card
-    rect.parentNode?.insertBefore(path, rect.nextSibling);
-  }
-  path.setAttribute("d", d);
-  path.setAttribute("fill", "none");
-  path.setAttribute("stroke", color);
-  path.setAttribute("stroke-width", "2");
-}
-
-/**
- * Style each year card's border in the horizontal Plotly view.
- *
- * Plotly annotation boxes are a single SVG rectangle, styled after each draw.
- * An accepted-only year gets square corners; a synonym-only year gets rounded
- * corners. A year holding both is split like the vertical card: its border is
- * drawn as two paths, a green outline over the accepted records (square top) and
- * a purple outline over the synonyms (rounded bottom). They meet at a separator
- * estimated from the record line counts, so the green border (and the green
- * separator line) stops at the accepted/synonym boundary rather than half-way.
- * The rectangle is kept for its white fill and click target, but its own border
- * is hidden.
- *
- * Parameters
- * ----------
- * graphDiv : HTMLElement or null
- *     The Plotly graph container supplied by the chart render callbacks.
- * annotationIndex : number[]
- *     Maps each annotation's array position to its year-group index, or -1 for
- *     non-card annotations such as year labels.
- * groups : YearGroup[]
- *     Year groups, used to look up each card's record statuses.
- *
- * Returns
- * -------
- * void
- */
-function styleCardBorders(
-  graphDiv: HTMLElement | null,
-  annotationIndex: number[],
-  groups: YearGroup[],
-): void {
-  if (!graphDiv) return;
-  const radius = 10;
-  graphDiv.querySelectorAll<SVGGElement>("g.annotation").forEach((el) => {
-    const pos = Number(el.getAttribute("data-index"));
-    const idx = Number.isNaN(pos) ? -1 : annotationIndex[pos];
-    const group = idx >= 0 ? groups[idx] : undefined;
-    if (!group) return;
-    const rect = el.querySelector<SVGRectElement>("rect");
-    if (!rect) return;
-    const mixed = group.accepted.length > 0 && group.synonyms.length > 0;
-
-    if (mixed) {
-      // Hide the rect's own border; keep its (square) white fill and clicks.
-      rect.style.stroke = "none";
-      rect.removeAttribute("rx");
-      rect.removeAttribute("ry");
-      const { x, y, width: w, height: h } = rect.getBBox();
-      const r = Math.min(radius, w / 2, h / 2);
-
-      // Estimate the accepted/synonym boundary from the rendered line counts so
-      // the separator falls where the synonyms start. The header counts as one
-      // line and each record adds a blank gap line plus its own lines; the +0.5
-      // centers the separator within the gap before the first synonym.
-      const pad = 10; // expanded-card border padding
-      let topLines = 1; // header
-      for (const e of group.accepted) topLines += 1 + recordHtml(e, CARD_WRAP_CHARS).lines;
-      let totalLines = 1;
-      for (const e of [...group.accepted, ...group.synonyms]) {
-        totalLines += 1 + recordHtml(e, CARD_WRAP_CHARS).lines;
-      }
-      const inner = Math.max(0, h - 2 * pad);
-      const sepY = y + pad + (Math.min(topLines + 0.5, totalLines) / totalLines) * inner;
-
-      // Green: closed outline of the accepted section; its bottom edge is the
-      // separator line. Purple: open outline of the synonym section with rounded
-      // bottom corners and no top edge, so the separator stays green only.
-      const greenD = `M${x},${y} L${x + w},${y} L${x + w},${sepY} L${x},${sepY} Z`;
-      const purpleD =
-        `M${x},${sepY} L${x},${y + h - r} ` +
-        `Q${x},${y + h} ${x + r},${y + h} ` +
-        `L${x + w - r},${y + h} Q${x + w},${y + h} ${x + w},${y + h - r} ` +
-        `L${x + w},${sepY}`;
-      upsertBorderPath(el, rect, "g", greenD, COLOR_ACCEPTED);
-      upsertBorderPath(el, rect, "p", purpleD, COLOR_SYNONYM);
-    } else {
-      el.querySelectorAll("path[data-card-border]").forEach((p) => p.remove());
-      rect.style.stroke = group.isAccepted ? COLOR_ACCEPTED : COLOR_SYNONYM;
-      if (group.isAccepted) {
-        rect.removeAttribute("rx");
-        rect.removeAttribute("ry");
-      } else {
-        rect.setAttribute("rx", String(radius));
-        rect.setAttribute("ry", String(radius));
-      }
-    }
-  });
-}
-
-// ---- Vertical timeline sub-components ------------------------------------
+// ---- Shared timeline card sub-components ----------------------------------
 
 /**
  * Small external-link glyph rendered inline after a link's text.
@@ -571,7 +314,7 @@ function ExternalLinkIcon() {
 }
 
 /**
- * Render one record as a block of labeled fields in a vertical year card.
+ * Render one record as a block of labeled fields in a year card.
  *
  * Shows API (the source database, a link when available), Status (colored by
  * accepted/synonym), Author, and Source (the publication), each on its own line.
@@ -595,9 +338,10 @@ function RecordBlock({ entry, first }: { entry: TimelineEntry; first?: boolean }
             href={entry.url}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: COLOR_LINK, textDecoration: "underline" }}
+            style={{ color: COLOR_LINK }}
+            onClick={(e) => e.stopPropagation()}
           >
-            {entry.source}
+            <span style={{ textDecoration: "underline" }}>{entry.source}</span>
             <ExternalLinkIcon />
           </a>
         ) : (
@@ -618,7 +362,7 @@ function RecordBlock({ entry, first }: { entry: TimelineEntry; first?: boolean }
   );
 }
 
-interface VerticalCardProps {
+interface TimelineCardProps {
   /** Year group rendered by the card. */
   group: YearGroup;
   /** Whether the card is currently in the expanded state. */
@@ -628,16 +372,16 @@ interface VerticalCardProps {
 }
 
 /**
- * Clickable year card for the vertical timeline view.
+ * Clickable year card shared by the horizontal and vertical timeline views.
  *
  * An accepted-only year gets a square green border; a synonym-only year gets a
  * rounded purple border. A year holding both is split into a green square-topped
  * accepted section over a purple rounded-bottom synonym section: when expanded,
- * the split (a green separator line) falls at the real accepted/synonym
- * boundary, so the green border stops there rather than half-way; when collapsed
- * it falls back to a half-and-half gradient border. Clicking toggles between a
- * compact representative-name display and an expanded view with a "Name, Year"
- * header followed by one labeled block per record (API, status, author, source).
+ * the border changes from green to purple at the real accepted/synonym boundary,
+ * so the green border stops there rather than half-way; when collapsed it falls
+ * back to a half-and-half gradient border. Clicking toggles between a compact
+ * representative-name display and an expanded view with a "Name, Year" header
+ * followed by one labeled block per record (API, status, author, source).
  *
  * Parameters
  * ----------
@@ -648,7 +392,7 @@ interface VerticalCardProps {
  * onToggle : () => void
  *     Callback invoked on click to toggle the expanded state.
  */
-function VerticalCard({ group, isOpen, onToggle }: VerticalCardProps) {
+function TimelineCard({ group, isOpen, onToggle }: TimelineCardProps) {
   const hasAccepted = group.accepted.length > 0;
   const hasSynonym = group.synonyms.length > 0;
   const representative = group.accepted[0] ?? group.synonyms[0];
@@ -667,15 +411,17 @@ function VerticalCard({ group, isOpen, onToggle }: VerticalCardProps) {
   };
 
   // Mixed and expanded: render two bordered sections, accepted (green, square
-  // top) over synonyms (purple, rounded bottom). The green section's bottom
-  // border is the separator, so the green border stops exactly at the
-  // accepted/synonym boundary instead of a fixed half-way split.
+  // top, no bottom border) over synonyms (purple, rounded bottom, no top border).
+  // The side borders change from green to purple at the accepted/synonym boundary
+  // with no line across it, instead of a fixed half-way split.
   if (hasAccepted && hasSynonym && isOpen) {
     return (
       <div onClick={onToggle} style={baseStyle}>
         <div
           style={{
-            border: `2px solid ${COLOR_ACCEPTED}`,
+            borderTop: `2px solid ${COLOR_ACCEPTED}`,
+            borderLeft: `2px solid ${COLOR_ACCEPTED}`,
+            borderRight: `2px solid ${COLOR_ACCEPTED}`,
             borderRadius: 0,
             padding: "10px 14px",
             backgroundColor: "white",
@@ -768,8 +514,6 @@ function VerticalCard({ group, isOpen, onToggle }: VerticalCardProps) {
 interface VerticalItem {
   /** Canonical group index. */
   ci: number;
-  /** Publication year (for keys and the dot label). */
-  year: number;
   /** Pixel offset from the top of the axis to the card's center. */
   top: number;
   /** True when the card sits on the left of the axis. */
@@ -827,7 +571,7 @@ function computeVerticalLayout(
 
   const years = order.map((ci) => groups[ci].year);
   const heights = order.map((ci) =>
-    expanded.has(ci) ? estimateExpandedCardPx(groups[ci], CARD_WRAP_CHARS) : COLLAPSED_VERTICAL_PX,
+    expanded.has(ci) ? estimateExpandedCardPx(groups[ci], CARD_WRAP_CHARS) : COLLAPSED_CARD_HEIGHT_PX,
   );
 
   // Proportional axis: years keep their spacing, set so the span fills
@@ -864,7 +608,6 @@ function computeVerticalLayout(
 
   const items: VerticalItem[] = order.map((ci, d) => ({
     ci,
-    year: years[d],
     top: tops[d],
     isLeft: laneOf[d].side === 0,
     dist: CENTER_WIDTH + laneOf[d].lane * columnStep,
@@ -978,7 +721,7 @@ function VerticalTimeline({ layout, groups, expanded, onToggle }: VerticalTimeli
                 zIndex: 1,
               }}
             >
-              <VerticalCard group={group} isOpen={isOpen} onToggle={() => onToggle(ci)} />
+              <TimelineCard group={group} isOpen={isOpen} onToggle={() => onToggle(ci)} />
             </div>
 
             {/* Year label, on the card's side next to the dot */}
@@ -1010,6 +753,279 @@ function VerticalTimeline({ layout, groups, expanded, onToggle }: VerticalTimeli
                 position: "absolute",
                 top,
                 left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                backgroundColor: "#000",
+                boxShadow: "0 0 0 2px white",
+                zIndex: 3,
+              }}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** A single laid-out horizontal card with its axis position and lane. */
+interface HorizontalItem {
+  /** Canonical group index. */
+  ci: number;
+  /** Pixel offset from the left edge to the card's horizontal center (its dot). */
+  centerX: number;
+  /** True when the card sits above the axis. */
+  isTop: boolean;
+  /** Vertical distance in pixels from the axis to the card's near edge. */
+  dist: number;
+}
+
+/** The computed horizontal-view layout: laid-out items and the canvas extent. */
+interface HorizontalLayout {
+  items: HorizontalItem[];
+  /** Pixel offset from the top to the horizontal axis line. */
+  axisY: number;
+  /** Total width of the axis area in pixels. */
+  totalWidth: number;
+  /** Total height needed to hold the farthest lanes on both sides. */
+  totalHeight: number;
+}
+
+/**
+ * Compute the absolute layout for the horizontal timeline.
+ *
+ * Cards sit at their publication year along a proportional axis whose length is
+ * fixed to the canvas width, so the whole span fits the view at zoom one. Cards
+ * alternate above and below the axis; when two same-side cards would overlap
+ * horizontally, the later one is pushed to a farther lane (greedy lane packing)
+ * so clustered cards stack outward instead of overlapping, and the canvas grows
+ * taller. The left and right padding grow to cover any wide card that reaches
+ * past the first or last dot. The axis is centered vertically so both sides get
+ * equal room.
+ *
+ * Parameters
+ * ----------
+ * groups : YearGroup[]
+ *     Year groups, oldest to newest.
+ * order : number[]
+ *     Canonical group indices in display order (left to right).
+ * expanded : Set<number>
+ *     Set of group indices whose cards are in the expanded state.
+ * canvasWidth : number
+ *     Width of the scrollable canvas; the axis length is fixed to it.
+ *
+ * Returns
+ * -------
+ * HorizontalLayout
+ *     The laid-out items plus the axis position and the canvas extent.
+ */
+function computeHorizontalLayout(
+  groups: YearGroup[],
+  order: number[],
+  expanded: Set<number>,
+  canvasWidth: number,
+): HorizontalLayout {
+  const AXIS_GAP = 30; // axis-to-near-edge distance for the innermost lane
+  const MARGIN = 14; // breathing room above the top lane and below the bottom lane
+  const n = order.length;
+  if (n === 0) {
+    return { items: [], axisY: MARGIN, totalWidth: canvasWidth, totalHeight: CANVAS_HEIGHT };
+  }
+
+  const years = order.map((ci) => groups[ci].year);
+  const widths = order.map((ci) =>
+    expanded.has(ci) ? CARD_WIDTH_EXPANDED + 28 : estimateCollapsedCardWidthPx(groups[ci]),
+  );
+  const heights = order.map((ci) =>
+    expanded.has(ci) ? estimateExpandedCardPx(groups[ci], CARD_WRAP_CHARS) : COLLAPSED_CARD_HEIGHT_PX,
+  );
+
+  // Proportional axis fixed to the canvas width: years keep their spacing and
+  // the whole span fits at zoom one. The base padding reserves the end cards'
+  // half-widths so they do not clip.
+  const span = Math.max(1, Math.abs(years[n - 1] - years[0]));
+  const baseLeft = Math.max(28, widths[0] / 2 + END_PAD_PX);
+  const baseRight = Math.max(28, widths[n - 1] / 2 + END_PAD_PX);
+  const usable = Math.max(60, canvasWidth - baseLeft - baseRight);
+  const pxPerYear = usable / span;
+  const offx = years.map((y) => Math.abs(y - years[0]) * pxPerYear);
+
+  // Cards are centered on their year dot, so a wide card can reach past the
+  // first or last dot. Grow the end padding to cover each card's overhang; the
+  // content then scrolls horizontally rather than clipping a card.
+  let leftPad = baseLeft;
+  let rightPad = baseRight;
+  for (let d = 0; d < n; d++) {
+    leftPad = Math.max(leftPad, END_PAD_PX + widths[d] / 2 - offx[d]);
+    rightPad = Math.max(rightPad, END_PAD_PX + widths[d] / 2 - (offx[n - 1] - offx[d]));
+  }
+  const totalWidth = leftPad + offx[n - 1] + rightPad;
+  const centers = offx.map((o) => leftPad + o);
+
+  // Lane packing: same-side cards that would overlap horizontally move to a
+  // farther lane (one tallest-card step out) instead of overlapping.
+  const laneOf = assignLanes(centers, widths.map((w) => w / 2), LANE_X_GAP_PX);
+  const rowStep = Math.max(60, ...heights) + LANE_GAP_PX;
+  const dists = laneOf.map((l) => AXIS_GAP + l.lane * rowStep);
+
+  // Symmetric vertical extent so the axis stays centered (both sides reserve the
+  // larger of the two far edges).
+  let above = AXIS_GAP;
+  let below = AXIS_GAP;
+  for (let d = 0; d < n; d++) {
+    const ext = dists[d] + heights[d];
+    if (laneOf[d].side === 0) above = Math.max(above, ext);
+    else below = Math.max(below, ext);
+  }
+  const half = Math.max(above, below);
+  const axisY = half + MARGIN;
+  const totalHeight = 2 * half + 2 * MARGIN;
+
+  const items: HorizontalItem[] = order.map((ci, d) => ({
+    ci,
+    centerX: centers[d],
+    isTop: laneOf[d].side === 0,
+    dist: dists[d],
+  }));
+
+  return { items, axisY, totalWidth, totalHeight };
+}
+
+interface HorizontalTimelineProps {
+  /** Precomputed layout (positions, lanes, axis, canvas extent). */
+  layout: HorizontalLayout;
+  /** Year groups (indexed by the items' canonical indices). */
+  groups: YearGroup[];
+  /** Indices (into groups) of currently expanded cards. */
+  expanded: Set<number>;
+  /** Callback to toggle the expanded state of the card at the given index. */
+  onToggle: (i: number) => void;
+}
+
+/**
+ * Horizontal CSS timeline for year-grouped taxonomy entries.
+ *
+ * Renders the cards from a precomputed layout. Cards sit by publication year
+ * along a central horizontal axis (a proportional time scale, matching the
+ * vertical view), alternating above and below, with clustered cards stacked into
+ * farther lanes so they do not overlap. Each year has a black dot and a year
+ * label. Accepted-only years use square cards, synonym-only years rounded cards,
+ * and mixed years a split square-over-rounded card.
+ *
+ * Parameters
+ * ----------
+ * layout : HorizontalLayout
+ *     Precomputed item positions and canvas extent from computeHorizontalLayout.
+ * groups : YearGroup[]
+ *     Year groups, indexed by each item's canonical index.
+ * expanded : Set<number>
+ *     Set of group indices whose cards are in the expanded state.
+ * onToggle : (i: number) => void
+ *     Callback invoked with the card index to toggle its expanded state.
+ */
+function HorizontalTimeline({ layout, groups, expanded, onToggle }: HorizontalTimelineProps) {
+  const { items, axisY, totalWidth, totalHeight } = layout;
+
+  return (
+    <div style={{ position: "relative", width: totalWidth, height: totalHeight }}>
+      {/* Central horizontal axis line */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: axisY,
+          left: 0,
+          right: 0,
+          height: 2,
+          transform: "translateY(-50%)",
+          backgroundColor: "#bdc3c7",
+          zIndex: 0,
+        }}
+      />
+      {/* End caps marking where the timeline starts and ends */}
+      {(["left", "right"] as const).map((edge) => (
+        <div
+          key={edge}
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: axisY,
+            [edge]: 0,
+            transform: "translateY(-50%)",
+            width: 3,
+            height: 26,
+            backgroundColor: "#868e96",
+            zIndex: 0,
+          }}
+        />
+      ))}
+
+      {items.map((item) => {
+        const { ci } = item;
+        const group = groups[ci];
+        const isOpen = expanded.has(ci);
+        const isTop = item.isTop;
+        const cx = item.centerX;
+        const nearEdge = isTop ? axisY - item.dist : axisY + item.dist;
+
+        return (
+          <div key={`year-${group.year}-${ci}`}>
+            {/* Dashed connector from the central axis to this card's near edge */}
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                left: cx,
+                top: isTop ? nearEdge : axisY,
+                transform: "translateX(-50%)",
+                height: item.dist,
+                borderLeft: "1px dashed #bdc3c7",
+                zIndex: 0,
+              }}
+            />
+
+            {/* Card, horizontally centered on its year position */}
+            <div
+              style={{
+                position: "absolute",
+                left: cx,
+                transform: "translateX(-50%)",
+                ...(isTop ? { bottom: totalHeight - nearEdge } : { top: nearEdge }),
+                zIndex: 1,
+              }}
+            >
+              <TimelineCard group={group} isOpen={isOpen} onToggle={() => onToggle(ci)} />
+            </div>
+
+            {/* Year label, on the card's side next to the dot */}
+            <div
+              style={{
+                position: "absolute",
+                left: cx,
+                top: isTop ? axisY - 14 : axisY + 14,
+                transform: "translate(-50%, -50%)",
+                fontFamily: "Courier New, monospace",
+                fontWeight: "bold",
+                fontSize: 11,
+                lineHeight: 1,
+                color: "#333",
+                backgroundColor: "rgba(255,255,255,0.85)",
+                padding: "1px 3px",
+                whiteSpace: "nowrap",
+                zIndex: 2,
+              }}
+            >
+              {group.year}
+            </div>
+
+            {/* Axis dot at the year position */}
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                left: cx,
+                top: axisY,
                 transform: "translate(-50%, -50%)",
                 width: 10,
                 height: 10,
@@ -1172,8 +1188,8 @@ function ZoomControls({ onZoomIn, onZoomOut, onReset }: ZoomControlsProps) {
  * Timeline view component for species name records.
  *
  * Combines records that share a publication year into one card per year, shown
- * either as a horizontal Plotly chart (a proportional time axis) or a vertical
- * CSS timeline, via a segmented toggle. Each card has a "Name, Year" header and
+ * as a CSS timeline oriented either horizontally (a proportional time axis) or
+ * vertically, via a segmented toggle. Each card has a "Name, Year" header and
  * one labeled block per record (API, status, author, source). A year is treated
  * as accepted when any record is accepted, which drives the card shape and
  * border color: square green for accepted, rounded purple for synonym, and a
@@ -1189,8 +1205,8 @@ export function TimelineView() {
   const [yearOrder, setYearOrder] = useState<"asc" | "desc">("asc");
 
   // Scale control for the timeline canvas. The content is scaled with a CSS
-  // transform (applied below), not CSS zoom: a transform scales the rendered SVG
-  // faithfully, whereas CSS zoom re-lays-out and clips Plotly annotation text.
+  // transform (applied below); the canvas reserves the scaled size so it scrolls
+  // correctly at any zoom.
   const [zoom, setZoom] = useState(1);
   const zoomIn = useCallback(
     () => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 100) / 100)),
@@ -1231,6 +1247,75 @@ export function TimelineView() {
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
+  }, []);
+
+  // Drag-to-pan: press and drag anywhere on the canvas to scroll the timeline,
+  // for both the Plotly horizontal view and the CSS vertical view (it only moves
+  // the scroll container, never the views themselves). A small movement
+  // threshold separates a pan from a click, and a real drag swallows the
+  // following click (captured before it reaches a card) so panning never
+  // toggles a card open or closed.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const DRAG_THRESHOLD_PX = 5;
+    let dragging = false;
+    let moved = false;
+    let startX = 0;
+    let startY = 0;
+    let startLeft = 0;
+    let startTop = 0;
+
+    const onMove = (e: MouseEvent) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!moved && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
+        moved = true;
+        el.style.cursor = "grabbing";
+        el.style.userSelect = "none";
+      }
+      if (moved) {
+        el.scrollLeft = startLeft - dx;
+        el.scrollTop = startTop - dy;
+        e.preventDefault();
+      }
+    };
+    const onUp = () => {
+      dragging = false;
+      el.style.cursor = "grab";
+      el.style.userSelect = "";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 0) return; // primary button only
+      dragging = true;
+      moved = false;
+      startX = e.clientX;
+      startY = e.clientY;
+      startLeft = el.scrollLeft;
+      startTop = el.scrollTop;
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
+    const onClickCapture = (e: MouseEvent) => {
+      if (moved) {
+        e.stopPropagation();
+        e.preventDefault();
+        moved = false;
+      }
+    };
+
+    el.style.cursor = "grab";
+    el.addEventListener("mousedown", onDown);
+    el.addEventListener("click", onClickCapture, true);
+    return () => {
+      el.removeEventListener("mousedown", onDown);
+      el.removeEventListener("click", onClickCapture, true);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
   }, []);
 
   // Dated records grouped into one entry per year (oldest to newest), plus
@@ -1311,192 +1396,13 @@ export function TimelineView() {
     });
   }, []);
 
-  // Builds all Plotly figure data for the horizontal view.
-  //
-  // Cards are placed at their real publication year (a proportional time axis)
-  // whose total length is fixed to the canvas width, so the whole span fits the
-  // view at zoom 1. Cards alternate above and below the axis; a card that would
-  // overlap its same-side neighbour is pushed to a farther lane (the plot grows
-  // taller). The display order (oldest/newest first) reverses the x-axis.
-  const figure = useMemo(() => {
-    if (groups.length === 0) return null;
-
-    // groups is sorted ascending by year, with one (distinct) year per group.
-    const n = groups.length;
-    const years = groups.map((g) => g.year);
-
-    // Estimated rendered width of each card, used to reserve room for the end
-    // cards so they sit fully inside the axis.
-    const widths = groups.map((_, i) =>
-      expanded.has(i) ? CARD_WIDTH_EXPANDED + 24 : COLLAPSED_CARD_PX,
-    );
-
-    const yearMin = years[0];
-    const yearMax = years[n - 1];
-    const yearSpan = Math.max(1, yearMax - yearMin);
-
-    // Fixed-length axis: the whole span fits the canvas width at zoom 1, with
-    // positions still proportional to year. The usable length reserves the end
-    // cards' half-widths so they do not clip. Clustered cards may overlap at base
-    // zoom; zoom in with the scale control to separate them.
-    const endHalf = widths[0] / 2 + widths[n - 1] / 2;
-    const usable = Math.max(60, canvasWidth - 40 - endHalf - 2 * END_PAD_PX);
-    const pxPerYear = usable / yearSpan;
-
-    const axisMin = yearMin - (widths[0] / 2 + END_PAD_PX) / pxPerYear;
-    const axisMax = yearMax + (widths[n - 1] / 2 + END_PAD_PX) / pxPerYear;
-    const minWidth = canvasWidth;
-
-    // Lane packing: cards alternate top/bottom by year order, but a card that
-    // would overlap its same-side neighbour is pushed to a further lane instead
-    // of overlapping. Only clustered cards move out; spread-out cards stay close
-    // to the axis. The plot grows taller as more lanes are needed.
-    const cardHeights = groups.map((g, i) =>
-      expanded.has(i) ? estimateExpandedCardPx(g, CARD_WRAP_CHARS) : estimateCollapsedCardPx(g),
-    );
-    const tallestCard = Math.max(60, ...cardHeights);
-    const halfYears = widths.map((w) => w / 2 / pxPerYear);
-    const laneOf = assignLanes(years, halfYears, LANE_X_GAP_PX / pxPerYear);
-    const maxLane = Math.max(0, ...laneOf.map((l) => l.lane));
-
-    // One lane step is the tallest card plus a gap; lane k centers sit at
-    // ±(k + 0.5) steps from the axis, so neighbours clear by a full step and the
-    // two innermost lanes leave a gap around the year labels. The y unit is one
-    // lane step, so the axis range is ±(maxLane + 1) and the pixel height makes
-    // one unit equal one lane step (plus the 50px top/bottom margins).
-    const laneStepPx = tallestCard + LANE_GAP_PX;
-    const yRange = maxLane + 1;
-    const yPos = laneOf.map((l) => (l.side === 0 ? 1 : -1) * (l.lane + 0.5));
-    const plotHeight = Math.min(8000, Math.max(360, Math.round(2 * yRange * laneStepPx + 50)));
-
-    const shapes: Partial<Layout>["shapes"] = [
-      {
-        type: "line",
-        x0: axisMin,
-        x1: axisMax,
-        y0: 0,
-        y1: 0,
-        line: { color: "#bdc3c7", width: 2 },
-      },
-      // Vertical end caps marking where the timeline starts and ends. Sized in
-      // pixels (ysizemode "pixel", anchored at the y=0 axis) so they keep a
-      // fixed length no matter how tall the plot grows when cards expand.
-      ...[axisMin, axisMax].map((x) => ({
-        type: "line" as const,
-        x0: x,
-        x1: x,
-        ysizemode: "pixel" as const,
-        yanchor: 0,
-        y0: -13,
-        y1: 13,
-        line: { color: "#495057", width: 4 },
-      })),
-      ...groups.map((_, i) => ({
-        type: "line" as const,
-        x0: years[i],
-        x1: years[i],
-        y0: 0,
-        y1: yPos[i],
-        line: { color: "#bdc3c7", width: 1, dash: "dot" as const },
-      })),
-    ];
-
-    type Ann = NonNullable<Partial<Layout>["annotations"]>[number];
-
-    // Card annotations tagged with their canonical group index so expanded cards
-    // can be reordered to the top layer without losing the click mapping.
-    const cards = groups.map((g, i) => {
-      const isOpen = expanded.has(i);
-      const borderColor = g.isAccepted ? COLOR_ACCEPTED : COLOR_SYNONYM;
-      const ann: Ann = {
-        x: years[i],
-        y: yPos[i],
-        text: isOpen ? groupCardHtml(g, CARD_WRAP_CHARS) : groupCollapsedHtml(g),
-        showarrow: false,
-        bgcolor: "white",
-        bordercolor: borderColor,
-        borderwidth: 2,
-        borderpad: isOpen ? 10 : 6,
-        align: "left",
-        font: { size: 13, color: "#333", family: "Courier New, monospace" },
-        xanchor: "center",
-        yanchor: "middle",
-        captureevents: true,
-        // Card text is pre-wrapped to CARD_WRAP_CHARS, so a fixed box width
-        // keeps every expanded card the same size without clipping.
-        ...(isOpen ? { width: CARD_WIDTH_EXPANDED } : {}),
-      };
-      return { ann, idx: i, isOpen };
-    });
-
-    // Year labels sit on the center line. Not clickable.
-    const yearLabels = groups.map((_, i) => {
-      const ann: Ann = {
-        x: years[i],
-        y: 0,
-        yshift: 9,
-        text: `<b>${years[i]}</b>`,
-        showarrow: false,
-        bgcolor: "rgba(255,255,255,0.85)",
-        borderpad: 1,
-        align: "center",
-        font: { size: 13, color: "#333", family: "Courier New, monospace" },
-        xanchor: "center",
-        yanchor: "bottom",
-        captureevents: false,
-      };
-      return { ann, idx: -1 };
-    });
-
-    // Draw order = z-order: collapsed cards, year labels, expanded cards last.
-    const ordered = [
-      ...cards.filter((c) => !c.isOpen),
-      ...yearLabels,
-      ...cards.filter((c) => c.isOpen),
-    ];
-    const annotations: Partial<Layout>["annotations"] = ordered.map((o) => o.ann);
-    // annotation array position -> group index (or -1 for non-card labels)
-    const annotationIndex = ordered.map((o) => o.idx);
-
-    const data: Data[] = [
-      {
-        type: "scatter",
-        mode: "markers",
-        x: years,
-        y: years.map(() => 0),
-        // Uniform black circles: dots no longer encode source or status.
-        marker: { size: 9, color: "#000", symbol: "circle" },
-        text: groups.map((g) => `${g.year}: ${g.count} name${g.count === 1 ? "" : "s"}`),
-        hoverinfo: "text",
-      },
-    ];
-
-    // Oldest-first keeps the natural axis; newest-first reverses it.
-    const xRange: [number, number] =
-      yearOrder === "asc" ? [axisMin, axisMax] : [axisMax, axisMin];
-
-    const layout: Partial<Layout> = {
-      height: plotHeight,
-      margin: { l: 20, r: 20, t: 30, b: 20 },
-      xaxis: {
-        title: { text: "Year of Publication" },
-        range: xRange,
-        showgrid: false,
-        zeroline: false,
-        showticklabels: false,
-        fixedrange: true,
-      },
-      yaxis: { visible: false, range: [-yRange, yRange], fixedrange: true },
-      plot_bgcolor: "white",
-      paper_bgcolor: "white",
-      showlegend: false,
-      dragmode: false,
-      shapes,
-      annotations,
-    };
-
-    return { data, layout, annotationIndex, minWidth };
-  }, [groups, expanded, yearOrder, canvasWidth]);
+  // Absolute layout for the horizontal view: card positions, lanes, the axis
+  // position, and the canvas extent (which grows taller as clustered cards stack
+  // into extra lanes). The axis length is fixed to the canvas width.
+  const horizontalLayout = useMemo(
+    () => computeHorizontalLayout(groups, order, expanded, canvasWidth),
+    [groups, order, expanded, canvasWidth],
+  );
 
   // Absolute layout for the vertical view (positions, sides, columns, and the
   // canvas width, which grows when clustered cards spill into extra columns).
@@ -1508,7 +1414,7 @@ export function TimelineView() {
   // Natural (unscaled) width of the active view. Horizontal uses the computed
   // timeline width; vertical uses the width its columns need on both sides.
   const contentWidth =
-    orientation === "horizontal" ? figure?.minWidth ?? 600 : verticalLayout.totalWidth;
+    orientation === "horizontal" ? horizontalLayout.totalWidth : verticalLayout.totalWidth;
 
   // Keep the axis centered in the scrollable canvas: horizontally for the
   // vertical view (its columns can be wider than the viewport) and vertically
@@ -1529,7 +1435,7 @@ export function TimelineView() {
   }, [orientation, contentWidth, naturalHeight]);
 
   if (records.length === 0) {
-    return <Text c="dimmed">No results to plot.</Text>;
+    return <Text c="dimmed">No results to display.</Text>;
   }
 
   return (
@@ -1602,25 +1508,12 @@ export function TimelineView() {
                   }}
                 >
                   {orientation === "horizontal" ? (
-                    figure != null && (
-                      <PlotlyChart
-                        data={figure.data}
-                        layout={figure.layout}
-                        config={{ scrollZoom: false, displayModeBar: false }}
-                        style={{ width: "100%" }}
-                        useResizeHandler
-                        onClickAnnotation={(e) => {
-                          const idx = figure.annotationIndex[e.index];
-                          if (idx != null && idx >= 0) toggleCard(idx);
-                        }}
-                        onInitialized={(_, gd) =>
-                          styleCardBorders(gd, figure.annotationIndex, groups)
-                        }
-                        onUpdate={(_, gd) =>
-                          styleCardBorders(gd, figure.annotationIndex, groups)
-                        }
-                      />
-                    )
+                    <HorizontalTimeline
+                      layout={horizontalLayout}
+                      groups={groups}
+                      expanded={expanded}
+                      onToggle={toggleCard}
+                    />
                   ) : (
                     <VerticalTimeline
                       layout={verticalLayout}

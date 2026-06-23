@@ -43,23 +43,23 @@ const HoverContext = createContext<HoverState>(null);
 
 const KIND_STYLE: Record<"source" | "genus" | "species", React.CSSProperties> = {
   source: {
-    background: "#e8f4fd",
-    border: "2px solid #228be6",
+    background: "#ffffff",
+    border: "1px solid #adb5bd",
     fontWeight: 600,
     minWidth: 160,
     textAlign: "center",
   },
   genus: {
-    background: "#f8f9fa",
-    border: "1.5px solid #74c0fc",
+    background: "#ffffff",
+    border: "1px solid #adb5bd",
     fontWeight: 500,
     fontStyle: "italic",
     minWidth: 140,
     textAlign: "center",
   },
   species: {
-    background: "#ffffff",
-    border: "1px solid #adb5bd",
+    background: "#f8f9fa",
+    border: "1.5px solid #74c0fc",
     fontStyle: "italic",
     minWidth: 180,
     textAlign: "left",
@@ -221,23 +221,25 @@ export function RelationsView() {
     <GenusElbowContext.Provider value={genusElbowX}>
     <HoverContext.Provider value={hoveredLabel}>
     <Stack gap="xs">
-      <Group>
-        <Switch
-          label="Align genus"
-          size="sm"
-          checked={alignByGenus}
-          onChange={(e) => setAlignByGenus(e.currentTarget.checked)}
-        />
-        <Switch
-          label="Align species"
-          size="sm"
-          checked={alignByName}
-          onChange={(e) => setAlignByName(e.currentTarget.checked)}
-        />
+      <Group justify="space-between" wrap="nowrap">
+        <Text style={{ flex: 1 }}>
+          Clicking a species name opens its page on the source website.
+        </Text>
+        <Group style={{ flex: 1 }} justify="flex-end">
+          <Switch
+            label="Align genus"
+            size="md"
+            checked={alignByGenus}
+            onChange={(e) => setAlignByGenus(e.currentTarget.checked)}
+          />
+          <Switch
+            label="Align species"
+            size="md"
+            checked={alignByName}
+            onChange={(e) => setAlignByName(e.currentTarget.checked)}
+          />
+        </Group>
       </Group>
-      <Text size="xs" c="dimmed">
-        Clicking a species name opens its page on the source website.
-      </Text>
     <div style={{ width: "100%", height: 680, border: "1px solid #e9ecef", borderRadius: 8 }}>
       <ReactFlow
         nodes={nodes}
