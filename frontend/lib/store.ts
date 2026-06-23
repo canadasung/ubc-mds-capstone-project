@@ -33,6 +33,7 @@ interface SearchState {
   searchProgress: { source: string; done: number; total: number } | null;
   searchError: string | null;
   searchSuggestions: string[] | null;
+  sourceErrors: Record<string, string>; // source key -> error message, for sources that failed this search
   _cancelStream: (() => void) | null; // close the active EventSource
   _wasCancelled: boolean; // consumed by useLiveSearchEffect to skip the filtering flash on rollback
 
@@ -55,6 +56,8 @@ interface SearchState {
   setSearchProgress: (p: { source: string; done: number; total: number } | null) => void;
   setSearchError: (e: string | null) => void;
   setSearchSuggestions: (names: string[] | null) => void;
+  setSourceError: (key: string, message: string) => void;
+  clearSourceErrors: () => void;
   setStreamCancel: (fn: (() => void) | null) => void;
   cancelSearch: () => void;
   submitVersion: number; // incremented only by forceResubmit; not persisted
@@ -81,6 +84,7 @@ export const useSearchStore = create<SearchState>()(
       searchProgress: null,
       searchError: null,
       searchSuggestions: null,
+      sourceErrors: {},
       _cancelStream: null,
       _wasCancelled: false,
       submitVersion: 0,
@@ -124,6 +128,11 @@ export const useSearchStore = create<SearchState>()(
 
       setSearchSuggestions: (names) => set({ searchSuggestions: names }),
 
+      setSourceError: (key, message) =>
+        set((s) => ({ sourceErrors: { ...s.sourceErrors, [key]: message } })),
+
+      clearSourceErrors: () => set({ sourceErrors: {} }),
+
       setStreamCancel: (fn) => set({ _cancelStream: fn }),
 
       cancelSearch: () => {
@@ -135,6 +144,7 @@ export const useSearchStore = create<SearchState>()(
           searchProgress: null,
           searchError: null,
           searchSuggestions: null,
+          sourceErrors: {},
           // Roll back submitted state to the last completed search so that
           // previous results reappear (or the start page if nothing was ever cached).
           // cachedQuery/cachedSources/cachedData are intentionally left intact so

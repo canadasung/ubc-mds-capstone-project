@@ -48,6 +48,8 @@ export function useLiveSearchEffect() {
   const setSearchProgress = useSearchStore((s) => s.setSearchProgress);
   const setSearchError = useSearchStore((s) => s.setSearchError);
   const setSearchSuggestions = useSearchStore((s) => s.setSearchSuggestions);
+  const setSourceError = useSearchStore((s) => s.setSourceError);
+  const clearSourceErrors = useSearchStore((s) => s.clearSourceErrors);
   const setStreamCancel = useSearchStore((s) => s.setStreamCancel);
   const submitVersion = useSearchStore((s) => s.submitVersion);
   const wasCancelled = useSearchStore((s) => s._wasCancelled);
@@ -94,6 +96,7 @@ export function useLiveSearchEffect() {
     setSearchProgress(null);
     setSearchError(null);
     setSearchSuggestions(null);
+    clearSourceErrors();
 
     const cleanup = openSearchStream(
       submittedQuery,
@@ -128,6 +131,9 @@ export function useLiveSearchEffect() {
         }
         setIsSearching(false);
         setSearchProgress(null);
+      },
+      (source, message) => {
+        setSourceError(keyForApiName(source), message);
       },
       (err: Error) => {
         setSearchError(err.message);
