@@ -89,7 +89,10 @@ class IndexFungorumAPI(SpeciesAPI):
 
     def _extract_internal_id(self, raw_data: ET.Element) -> str:
         """
-        Extract the ``RECORD_NUMBER`` from an ``IndexFungorum`` XML element.
+        Extract the record ID from an ``IndexFungorum`` XML element.
+
+        Reads the field mapped by ``_TAGS["record_id"]``
+        (``RECORD_x0020_NUMBER``).
 
         Parameters
         ----------
@@ -105,12 +108,12 @@ class IndexFungorumAPI(SpeciesAPI):
 
     def _extract_internal_accepted_id(self, raw_data: ET.Element) -> str:
         """
-        Extract ``CURRENT_NAME_RECORD_NUMBER`` from a record or ``NamesByCurrentKey`` root.
+        Extract the current-name key from a record or ``NamesByCurrentKey`` root.
 
-        All ``IndexFungorum`` children in a ``NamesByCurrentKey`` response share
-        the same ``CURRENT_NAME_RECORD_NUMBER``, so reading the first is
-        sufficient.  Also accepts a single ``IndexFungorum`` element directly
-        (as passed by ``_fetch_synonym_data``).
+        Reads the field mapped by ``_TAGS["current_key"]``
+        (``CURRENT_x0020_NAME_x0020_RECORD_x0020_NUMBER``).  All
+        ``IndexFungorum`` children in a ``NamesByCurrentKey`` response share the
+        same value, so reading the first is sufficient.
 
         Parameters
         ----------
@@ -121,7 +124,7 @@ class IndexFungorumAPI(SpeciesAPI):
         Returns
         -------
         str
-            The ``CURRENT_NAME_RECORD_NUMBER`` value, or ``""`` if absent.
+            The ``_TAGS["current_key"]`` field value, or ``""`` if absent.
         """
         # When called from _fetch_synonym_data, raw_data is a single IndexFungorum
         # record element. When called from the compile methods, it is the
@@ -186,7 +189,7 @@ class IndexFungorumAPI(SpeciesAPI):
         """
         Convert raw ``NamesByCurrentKey`` XML into pipeline-standard synonym dicts.
 
-        Keeps only species-level records (``INFRASPECIFIC_RANK == "sp."``),
+        Keeps only species-level records (``_TAGS["rank"] == "sp."``),
         skips the accepted name record, and deduplicates by name.
 
         Parameters
@@ -217,20 +220,19 @@ class IndexFungorumAPI(SpeciesAPI):
                 continue  # accepted name — handled by _compile_accepted
             seen.add(syn_name)
             genus, species = self._extract_genus_species(syn_name)
-            author = (record.findtext(self._TAGS["authors"]) or "").strip()
-            year = (record.findtext(self._TAGS["year"]) or "").strip()
-            original_source = (
-                record.findtext(self._TAGS["original_source"]) or ""
-            ).strip()
             candidates.append(
                 self._format_row(
                     api_name=INDEX_FUNGORUM_PORTAL.display_name,
                     genus=genus,
                     species=species,
                     api_internal_id=record_id,
-                    author=author,
-                    publication_year=year,
-                    original_source=original_source,
+                    author=(record.findtext(self._TAGS["authors"]) or "").strip(),
+                    publication_year=(
+                        record.findtext(self._TAGS["year"]) or ""
+                    ).strip(),
+                    original_source=(
+                        record.findtext(self._TAGS["original_source"]) or ""
+                    ).strip(),
                     status="Synonym",
                     api_link=(
                         f"https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID={record_id}"
@@ -270,20 +272,19 @@ class IndexFungorumAPI(SpeciesAPI):
             if not syn_name:
                 return []
             genus, species = self._extract_genus_species(syn_name)
-            author = (record.findtext(self._TAGS["authors"]) or "").strip()
-            year = (record.findtext(self._TAGS["year"]) or "").strip()
-            original_source = (
-                record.findtext(self._TAGS["original_source"]) or ""
-            ).strip()
             return [
                 self._format_row(
                     api_name=INDEX_FUNGORUM_PORTAL.display_name,
                     genus=genus,
                     species=species,
                     api_internal_id=record_id,
-                    author=author,
-                    publication_year=year,
-                    original_source=original_source,
+                    author=(record.findtext(self._TAGS["authors"]) or "").strip(),
+                    publication_year=(
+                        record.findtext(self._TAGS["year"]) or ""
+                    ).strip(),
+                    original_source=(
+                        record.findtext(self._TAGS["original_source"]) or ""
+                    ).strip(),
                     status="Accepted",
                     api_link=(
                         f"https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID={record_id}"
