@@ -180,9 +180,11 @@ The following table lists the individual data sources integrated into our pipeli
 | [NE Herbaria Portal](https://portal.neherbaria.org/portal/) | Northeastern US herbarium collections | Yes |
 | [PteridoPortal](https://pteridoportal.org/portal/) | Pteridophytes (ferns & allies) | Yes |
 | [SERNEC](https://sernecportal.org/portal/index.php) | 233 herbaria in southeastern USA | Yes |
+| [Species Fungorum](http://www.speciesfungorum.org/) | Scientific names of fungi | No |
 | [SW Biodiversity](https://swbiodiversity.org/) | Botanical data (Arizona—New Mexico) | Yes |
 | [Symbiota Portals](https://symbiota.org/symbiota-portals/) | Many taxonomic groups depending on portal | Yes |
 | [Tropicos](https://www.tropicos.org/home) | Plants / herbs | Yes |
 | [VertNet](https://vertnet.org/) | Vertebrate biodiversity data | No |
+| [Wikipedia](https://www.wikipedia.org/) | General reference across all taxonomic groups | No |
 
 : {tbl-colwidths="[35,50,15]"}
