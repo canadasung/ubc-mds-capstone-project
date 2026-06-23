@@ -347,7 +347,7 @@ A GitHub Actions workflow runs the suite on every pull request.
 
 - **Backend**: a Docker image ([Dockerfile](Dockerfile)) is deployed to a Hugging
   Face Space, which serves the FastAPI app on port 7860. The Space README is kept
-  as [README.hf.md](README.hf.md) in this repository so it does not clash with this
+  as [huggingface_readme.md](huggingface_readme.md) in this repository so it does not clash with this
   project README. Allowed frontend origins are configured through the
   `ALLOWED_ORIGINS` Space variable.
 - **Frontend**: the Next.js app is deployed to Vercel and points at the backend
