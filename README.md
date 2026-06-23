@@ -301,10 +301,10 @@ consistently while keeping the source-specific parsing isolated:
 
 1. `_fetch_query_data`: resolve the searched name to the source's internal record.
 2. `_fetch_synonym_data`: retrieve the synonyms for that record.
-3. `_fetch_synonym_search_term_data`: retrieve metadata (and taxonomy, if
+3. `_fetch_accepted_data`: retrieve metadata (and taxonomy, if
    available) for the searched record itself.
 4. `_compile_synonyms`: format the synonym data into standard rows.
-5. `_compile_synonym_search_term`: format the searched record into a standard row.
+5. `_compile_accepted`: format the searched record into a standard row.
 
 The two outputs are combined and returned as a DataFrame in the schema format.
 The base class also provides optional helpers (for example, extracting a

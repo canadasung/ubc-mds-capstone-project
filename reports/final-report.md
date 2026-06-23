@@ -98,9 +98,9 @@ The main purpose of our project is to process and filter the raw data from the A
 2. The query string is normalized to "Amanita muscaria"
 3. `_fetch_query_data()` turns "Amanita muscaria" into "99487"
 4. `_fetch_synonym_data()` gets synonyms for "99487", including metadata such as author, publication name, etc. for each synonym
-5. `_fetch_synonym_search_term_data()` gets metadata for "99487" itself, as well as taxonomy if available
+5. `_fetch_accepted_data()` gets metadata for "99487" itself, as well as taxonomy if available
 6. `_compile_synonym_data()` turns the synonym data into a formatted output
-7. `_compile_synonym_search_term_data()` turns the raw synonym search term data into a formatted output
+7. `_compile_accepted_data()` turns the raw synonym search term data into a formatted output
 8. The two outputs are combined and returned
 
 While the actual implementation of each function is unique to each API, the overall purpose, inputs and outputs, and call order of the functions are standardized.
