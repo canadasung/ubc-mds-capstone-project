@@ -245,9 +245,11 @@ The frontend depends on the backend. Start the backend first, then the frontend.
 
 ### Backend
 
-With the environment active, from the repository root:
+With the environment active (added in the following code blocks as a reminder), 
+from the repository root:
 
 ```bash
+conda activate mds-project
 uvicorn backend_api.main:app --reload --port 8000
 ```
 
@@ -258,6 +260,7 @@ The API is then available at <http://localhost:8000>.
 In a second terminal, with the environment active from the repository root:
 
 ```bash
+conda activate mds-project
 cd frontend
 cp .env.local.example .env.local   # points at http://localhost:8000 by default
 npm install
@@ -347,7 +350,7 @@ A GitHub Actions workflow runs the suite on every pull request.
 
 - **Backend**: a Docker image ([Dockerfile](Dockerfile)) is deployed to a Hugging
   Face Space, which serves the FastAPI app on port 7860. The Space README is kept
-  as [README.hf.md](README.hf.md) in this repository so it does not clash with this
+  as [huggingface_readme.md](huggingface_readme.md) in this repository so it does not clash with this
   project README. Allowed frontend origins are configured through the
   `ALLOWED_ORIGINS` Space variable.
 - **Frontend**: the Next.js app is deployed to Vercel and points at the backend
