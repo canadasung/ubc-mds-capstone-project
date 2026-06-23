@@ -92,7 +92,7 @@ const STEPS: { label: string; title: string; body: React.ReactNode }[] = [
     ),
   },
   {
-    label: "Next Steps",
+    label: "Done",
     title: "Step 3 — Go To Original Sources",
     body: (
       <Stack gap="sm">

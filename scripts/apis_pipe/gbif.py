@@ -140,12 +140,10 @@ class GBIFAPI(SpeciesAPI):
             "results", []
         )  # TODO: add error handling for failed request rather than just returning an empty list
 
-    def _extract_publication_year(self, published_in: str, author: str) -> str:
+    def _extract_publication_year(self, published_in: str, author: str = "") -> str:
         """
-        Extract a four-digit year from a GBIF ``publishedIn`` string.
-
-        Tries ``publishedIn`` first (year wrapped in parentheses), then falls
-        back to the bare year in the ``authorship`` string if not found there.
+        Extract the publication year from a GBIF ``publishedIn`` string, falling
+        back to the ``authorship`` string if no year is found there.
 
         Parameters
         ----------

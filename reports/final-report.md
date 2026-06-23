@@ -46,11 +46,11 @@ To achieve this, our app queries a list of well-known databases relevant to the 
 
 ## Data Sources
 
-All data is sourced on-demand via APIs and web scraping from 30+ individual websites hosting species synonyms and taxonomic information. Because taxonomy is updated frequently, data is collected dynamically to ensure our web app always displays the most current information. A full list of sources — including those currently implemented, suggested for future use, and those we were unable to implement — is provided in [Appendix B](#sec-appendix-b).
+All data is sourced on-demand via APIs and web scraping from multiple websites hosting species synonyms and taxonomic information. Because taxonomy is updated frequently, data is collected dynamically to ensure our web app always displays the most current information. A full list of sources — including those currently implemented, suggested for future use, and those we were unable to implement — is provided in [Appendix B](#sec-appendix-b).
 
 ## Data Size and Structure
 
-Most search queries will yield fewer than 100 synonym names (and associated data, such as author and publication year) per source, across under 30 sources, yielding fewer than 3000 results per query, each containing 16 short-string fields. Because data is fetched dynamically, no long-term storage is needed. Given this small data volume, we chose to organize the raw data into a structured data table because it is the most intuitive for both the developers and end users.
+Most search queries will yield fewer than 100 synonym names (and associated data, such as author and publication year) per source, across multiple sources, yielding fewer than 3000 results per query, each containing 16 short-string fields. Because data is fetched dynamically, no long-term storage is needed. Given this small data volume, we chose to organize the raw data into a structured data table because it is the most intuitive for both the developers and end users.
 
 The original raw data enters our pipeline from API calls to each source, which return data in JSON, HTML, or XML format. For each source, we parse the raw data to collect as many of the following fields as possible. Four fields are required: the API name, genus and species names, and the source's internal record ID. All remaining fields are optional, as not all APIs will include all fields. For most sources, the taxonomic information is only added to the row(s) for accepted name(s).
 
@@ -68,7 +68,7 @@ The original raw data enters our pipeline from API calls to each source, which r
 - `publication_name`: name of the publication where the species synonym name was published (optional)
 - `publication_year`: year when the species synonym name was published (optional)
 - `status`: whether the species name is considered "accepted" or a "synonym" for that API source (optional)
-- `source_name`: if the API source includes a citation of their information source, such as a journal article or book, it is included here (optional)
+- `original_source`: if the API source includes a citation of their information source, such as a journal article or book, it is included here (optional)
 - `api_link`: link to the search result on the API source's website (optional)
 - `api_internal_id`: the unique identifier in the API source's database (required)
 
@@ -88,7 +88,7 @@ Many of the API sources are sparsely maintained and subject to network outages. 
 
 ## Biases
 
-While we aim to avoid designating any single source as ground truth, as the lack of such a consensus is the central problem our project addresses, where a baseline or default source is required, we use GBIF because it contains general information for every species. The "suggest" feature uses GBIF to determine the kingdom of a search term; we are comfortable with this given expert input that disputed kingdoms are extremely rare. The taxonomy comparison view, by default, calculates edit distance between GBIF's taxonomy and the other sources, and we have also included the option for the user to choose any of the sources as the comparison source. We consider this design decision sufficient to mitigate possible bias from choosing GBIF as the default comparison source.
+We deliberately avoid designating any single source as ground truth. The lack of such a consensus is, in fact, the central problem our project addresses. So when a baseline or default source is required, we use GBIF, because it provides general information for every species. The "suggest" feature uses GBIF to determine the kingdom of a search term; we are comfortable with this given expert input that disputed kingdoms are extremely rare. The taxonomy comparison view, by default, calculates edit distance between GBIF's taxonomy and the other sources, and we have also included the option for the user to choose any of the sources as the comparison source. We consider this design decision sufficient to mitigate possible bias from choosing GBIF as the default comparison source.
 
 ## Processing and Filtering Raw Data
 
@@ -133,7 +133,7 @@ The structure of the site does include some limitations; a real-time fan-out mak
 
 # Conclusions and Recommendations {#sec-conclusions}
 
-The Beaty Biodiversity Museum must keep an accurate physical and digital record of millions of specimens as taxonomy continually changes. Curators previously resolved synonym conflicts, basionyms, and classification changes by consulting many separate online databases by hand. We built a web application that aggregates synonymy and taxonomic data from up to 30 biodiversity sources and presents it through five linked views (Overview, Detail, Relations, Timeline, and Taxonomy), each with direct links back to the source. This meets the partner's core need by consolidating the evidence a curator must gather and cutting the time spent on it. The tool is decision support only; it organizes evidence but never selects or overwrites a name, leaving the final judgment to curatorial expertise.
+The Beaty Biodiversity Museum must keep an accurate physical and digital record of millions of specimens as taxonomy continually changes. Curators previously resolved synonym conflicts, basionyms, and classification changes by consulting many separate online databases by hand. We built a web application that aggregates synonymy and taxonomic data from multiple biodiversity sources and presents it through five linked views (Overview, Detail, Relations, Timeline, and Taxonomy), each with direct links back to the source. This meets the partner's core need by consolidating the evidence a curator must gather and cutting the time spent on it. The tool is decision support only; it organizes evidence but never selects or overwrites a name, leaving the final judgment to curatorial expertise.
 
 The project taught us how much biodiversity APIs differ in structure, coverage, and reliability. Managing this required careful data validation, including a clear distinction between data that is temporarily missing and fields a source never provides. The main technical outcome is a modular, object-oriented pipeline whose template class lets future developers add new sources without changing the rest of the application.
 
@@ -155,31 +155,36 @@ We recommend that the museum assign technical staff to add secure credential man
 
 The following table lists the individual data sources integrated into our pipeline, along with their primary taxonomic scope.
 
-| Source | Taxonomic Scope |
-| ------ | --------------- |
-| [AlgaeBase](https://www.algaebase.org/) | Global algal taxonomy |
-| [AntWeb](https://antweb.org/) | Ant taxonomy |
-| [Bryophyte Portal](https://bryophyteportal.org/portal/) | Mosses, liverworts, hornworts |
-| [Catalogue of Life](https://www.catalogueoflife.org/) | Global species checklist across all kingdoms |
-| [CCH2](https://cch2.org/portal/index.php) | Plant species & herbarium collections |
-| [Darwin Core (TDWG)](https://dwc.tdwg.org/) | Biodiversity data standard (terms for species, specimens, occurrences) |
-| [FishBase](https://www.fishbase.se/search.php) | Fish / marine life |
-| [GBIF Occurrence Portal](https://www.gbif.org/occurrence/search) | Global biodiversity occurrences |
-| [GenBank](https://www.ncbi.nlm.nih.gov/genbank/) | Nucleotide sequences across all life (genomic DNA, mRNA, rRNA, viral genomes, metagenomes) |
-| [iDigBio Portal](https://portal.idigbio.org/portal/search) | Aggregated US biodiversity data |
-| [iNaturalist](https://www.inaturalist.org/) | Plants, animals, fungi (citizen science) |
-| [Index Fungorum](https://www.indexfungorum.org/) | Scientific names of fungi |
-| [Lichen Portal](https://lichenportal.org/portal/) | Lichenized fungi |
-| [Macroalgae.org](https://macroalgae.org/portal/) | Algae herbarium data |
-| [Mid-Atlantic Herbaria](https://midatlanticherbaria.org/portal/) | Mid-Atlantic plant collections |
-| [Mushroom Observer](https://mushroomobserver.org/) | Mushrooms / fungi |
-| [MycoMap](https://www.mycomap.com/) | Fungal observations & analytics |
-| [MyCoPortal](https://mycoportal.org/portal/) | Fungi / fungal collections |
-| [NANSH](https://nansh.org/portal/index.php) | Small Herbaria (plants) |
-| [NE Herbaria Portal](https://portal.neherbaria.org/portal/) | Northeastern US herbarium collections |
-| [PteridoPortal](https://pteridoportal.org/portal/) | Pteridophytes (ferns & allies) |
-| [SERNEC](https://sernecportal.org/portal/index.php) | 233 herbaria in southeastern USA |
-| [SW Biodiversity](https://swbiodiversity.org/) | Botanical data (Arizona—New Mexico) |
-| [Symbiota Portals](https://symbiota.org/symbiota-portals/) | Many taxonomic groups depending on portal |
-| [Tropicos](https://www.tropicos.org/home) | Plants / herbs |
-| [VertNet](https://vertnet.org/) | Vertebrate biodiversity data |
+| Source | Taxonomic Scope | Implementation Status |
+| ------ | --------------- | :---: |
+| [AlgaeBase](https://www.algaebase.org/) | Global algal taxonomy | No |
+| [AntWeb](https://antweb.org/) | Ant taxonomy | No |
+| [Bryophyte Portal](https://bryophyteportal.org/portal/) | Mosses, liverworts, hornworts | Yes |
+| [Catalogue of Life](https://www.catalogueoflife.org/) | Global species checklist across all kingdoms | Yes |
+| [CCH2](https://cch2.org/portal/index.php) | Plant species & herbarium collections | Yes |
+| [Darwin Core (TDWG)](https://dwc.tdwg.org/) | Biodiversity data standard (terms for species, specimens, occurrences) | No |
+| [FishBase](https://www.fishbase.se/search.php) | Fish / marine life | Yes |
+| [GBIF Occurrence Portal](https://www.gbif.org/occurrence/search) | Global biodiversity occurrences | Yes |
+| [GenBank](https://www.ncbi.nlm.nih.gov/genbank/) | Nucleotide sequences across all life (genomic DNA, mRNA, rRNA, viral genomes, metagenomes) | Yes |
+| [iDigBio Portal](https://portal.idigbio.org/portal/search) | Aggregated US biodiversity data | No |
+| [iNaturalist](https://www.inaturalist.org/) | Plants, animals, fungi (citizen science) | No |
+| [Index Fungorum](https://www.indexfungorum.org/) | Scientific names of fungi | Yes |
+| [ITIS](https://www.itis.gov/) | Plants, animals, fungi, microbes (US federal taxonomic database) | Yes |
+| [Lichen Portal](https://lichenportal.org/portal/) | Lichenized fungi | Yes |
+| [Macroalgae.org](https://macroalgae.org/portal/) | Algae herbarium data | Yes |
+| [Mid-Atlantic Herbaria](https://midatlanticherbaria.org/portal/) | Mid-Atlantic plant collections | Yes |
+| [Mushroom Observer](https://mushroomobserver.org/) | Mushrooms / fungi | Yes |
+| [MycoMap](https://www.mycomap.com/) | Fungal observations & analytics | No |
+| [MyCoPortal](https://mycoportal.org/portal/) | Fungi / fungal collections | Yes |
+| [NANSH](https://nansh.org/portal/index.php) | Small Herbaria (plants) | Yes |
+| [NE Herbaria Portal](https://portal.neherbaria.org/portal/) | Northeastern US herbarium collections | Yes |
+| [PteridoPortal](https://pteridoportal.org/portal/) | Pteridophytes (ferns & allies) | Yes |
+| [SERNEC](https://sernecportal.org/portal/index.php) | 233 herbaria in southeastern USA | Yes |
+| [Species Fungorum](http://www.speciesfungorum.org/) | Scientific names of fungi | No |
+| [SW Biodiversity](https://swbiodiversity.org/) | Botanical data (Arizona—New Mexico) | Yes |
+| [Symbiota Portals](https://symbiota.org/symbiota-portals/) | Many taxonomic groups depending on portal | Yes |
+| [Tropicos](https://www.tropicos.org/home) | Plants / herbs | Yes |
+| [VertNet](https://vertnet.org/) | Vertebrate biodiversity data | No |
+| [Wikipedia](https://www.wikipedia.org/) | General reference across all taxonomic groups | No |
+
+: {tbl-colwidths="[35,50,15]"}
