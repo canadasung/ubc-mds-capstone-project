@@ -1,0 +1,120 @@
+{
+  "created": "2026-04-14T22:06:17.246189",
+  "createdBy": 102,
+  "modified": "2026-04-14T22:06:17.246189",
+  "modifiedBy": 102,
+  "datasetKey": 315192,
+  "id": "5KTTT",
+  "sectorKey": 66228,
+  "verbatimSourceKey": 320785028,
+  "name": {
+    "created": "2026-04-14T22:06:17.246189",
+    "createdBy": 102,
+    "modified": "2026-04-14T22:06:17.246189",
+    "modifiedBy": 102,
+    "datasetKey": 315192,
+    "id": "Ln_OIFC9MDQ334NwDRdN0",
+    "sectorKey": 66228,
+    "verbatimSourceKey": 320785028,
+    "namesIndexId": 18940905,
+    "namesIndexType": "variant",
+    "scientificName": "Quercus robur subsp. robur",
+    "rank": "subspecies",
+    "genus": "Quercus",
+    "specificEpithet": "robur",
+    "infraspecificEpithet": "robur",
+    "code": "botanical",
+    "publishedInId": "1235c169-15b9-4cb8-8e21-92ef1c9d4aa8",
+    "publishedInPage": "996",
+    "origin": "source",
+    "type": "scientific",
+    "link": "http://www.worldplants.de/?deeplink=Quercus-robur-subsp.-robur",
+    "merged": false,
+    "parsed": true
+  },
+  "status": "accepted",
+  "origin": "source",
+  "parentId": "4R5YN",
+  "identifier": [
+    "wfo:wfo-0000292948-2025-12",
+    "grin:sp:402765",
+    "inat:https://www.inaturalist.org/taxa/748394",
+    "wikidata:Q21384336"
+  ],
+  "link": "http://www.worldplants.de/?deeplink=Quercus-robur-subsp.-robur",
+  "referenceIds": [
+    "1235c169-15b9-4cb8-8e21-92ef1c9d4aa8"
+  ],
+  "label": "Quercus robur subsp. robur",
+  "labelHtml": "<i>Quercus robur</i> subsp. <i>robur</i>",
+  "merged": false,
+  "classification": [
+    {
+      "id": "CS5HF",
+      "name": "Eukaryota",
+      "authorship": "(Chatton, 1925) Whittaker & Margulis, 1978",
+      "rank": "domain",
+      "labelHtml": "Eukaryota (Chatton, 1925) Whittaker & Margulis, 1978"
+    },
+    {
+      "id": "P",
+      "name": "Plantae",
+      "rank": "kingdom",
+      "labelHtml": "Plantae"
+    },
+    {
+      "id": "CMQ8S",
+      "name": "Pteridobiotina",
+      "authorship": "Britton & Brown",
+      "rank": "subkingdom",
+      "labelHtml": "Pteridobiotina Britton & Brown"
+    },
+    {
+      "id": "TP",
+      "name": "Tracheophyta",
+      "rank": "phylum",
+      "labelHtml": "Tracheophyta"
+    },
+    {
+      "id": "MG",
+      "name": "Magnoliopsida",
+      "rank": "class",
+      "labelHtml": "Magnoliopsida"
+    },
+    {
+      "id": "384",
+      "name": "Fagales",
+      "authorship": "Engl.",
+      "rank": "order",
+      "labelHtml": "Fagales Engl."
+    },
+    {
+      "id": "NPBN9",
+      "name": "Fagaceae",
+      "authorship": "Dumort.",
+      "rank": "family",
+      "labelHtml": "Fagaceae Dumort."
+    },
+    {
+      "id": "V58RW",
+      "name": "Quercoideae",
+      "authorship": "Irvine",
+      "rank": "subfamily",
+      "labelHtml": "Quercoideae Irvine"
+    },
+    {
+      "id": "8W2YL",
+      "name": "Quercus",
+      "authorship": "L.",
+      "rank": "genus",
+      "labelHtml": "<i>Quercus</i> L."
+    },
+    {
+      "id": "4R5YN",
+      "name": "Quercus robur",
+      "authorship": "L.",
+      "rank": "species",
+      "labelHtml": "<i>Quercus robur</i> L."
+    }
+  ]
+}

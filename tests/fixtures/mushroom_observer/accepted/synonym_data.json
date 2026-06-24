@@ -1,0 +1,278 @@
+[
+  {
+    "id": 31199,
+    "name": "Amanita muscarea",
+    "rank": "species",
+    "deprecated": true,
+    "misspelled": true,
+    "synonym_id": 9473
+  },
+  {
+    "id": 59289,
+    "name": "Amanita mascaria",
+    "rank": "species",
+    "deprecated": true,
+    "misspelled": true,
+    "synonym_id": 9473
+  },
+  {
+    "id": 109028,
+    "name": "Aminata mascura",
+    "rank": "species",
+    "deprecated": true,
+    "misspelled": true,
+    "synonym_id": 9473
+  },
+  {
+    "id": 110413,
+    "name": "Aminita muscaria",
+    "rank": "species",
+    "deprecated": true,
+    "misspelled": true,
+    "synonym_id": 9473
+  },
+  {
+    "id": 111780,
+    "name": "Amanita",
+    "author": "Musccaria",
+    "rank": "genus",
+    "deprecated": true,
+    "misspelled": true,
+    "synonym_id": 9473
+  },
+  {
+    "id": 5066,
+    "name": "Amanita muscaria subsp. flavivolvata",
+    "author": "Singer",
+    "rank": "subspecies",
+    "synonym_id": 4383
+  },
+  {
+    "id": 16015,
+    "name": "Amanita amerimuscaria",
+    "author": "Tulloss & Geml nom. prov.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 28495,
+    "name": "Amanita muscaria",
+    "author": "sensu auct. amer.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 41324,
+    "name": "Amanita muscaria f. flavivolvata",
+    "author": "(Singer) Neville & Poumarat",
+    "rank": "form",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 59384,
+    "name": "Amanita sp. 'LG882'",
+    "author": "Tulloss crypt. temp.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 374,
+    "name": "Amanita muscaria var. flavivolvata",
+    "author": "(Singer) Dav. T. Jenkins",
+    "rank": "variety",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 16015,
+    "name": "Amanita amerimuscaria",
+    "author": "Tulloss & Geml nom. prov.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 28495,
+    "name": "Amanita muscaria",
+    "author": "sensu auct. amer.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 41324,
+    "name": "Amanita muscaria f. flavivolvata",
+    "author": "(Singer) Neville & Poumarat",
+    "rank": "form",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 59384,
+    "name": "Amanita sp. 'LG882'",
+    "author": "Tulloss crypt. temp.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 374,
+    "name": "Amanita muscaria var. flavivolvata",
+    "author": "(Singer) Dav. T. Jenkins",
+    "rank": "variety",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 5066,
+    "name": "Amanita muscaria subsp. flavivolvata",
+    "author": "Singer",
+    "rank": "subspecies",
+    "synonym_id": 4383
+  },
+  {
+    "id": 28495,
+    "name": "Amanita muscaria",
+    "author": "sensu auct. amer.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 41324,
+    "name": "Amanita muscaria f. flavivolvata",
+    "author": "(Singer) Neville & Poumarat",
+    "rank": "form",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 59384,
+    "name": "Amanita sp. 'LG882'",
+    "author": "Tulloss crypt. temp.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 374,
+    "name": "Amanita muscaria var. flavivolvata",
+    "author": "(Singer) Dav. T. Jenkins",
+    "rank": "variety",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 5066,
+    "name": "Amanita muscaria subsp. flavivolvata",
+    "author": "Singer",
+    "rank": "subspecies",
+    "synonym_id": 4383
+  },
+  {
+    "id": 16015,
+    "name": "Amanita amerimuscaria",
+    "author": "Tulloss & Geml nom. prov.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 41324,
+    "name": "Amanita muscaria f. flavivolvata",
+    "author": "(Singer) Neville & Poumarat",
+    "rank": "form",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 59384,
+    "name": "Amanita sp. 'LG882'",
+    "author": "Tulloss crypt. temp.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 374,
+    "name": "Amanita muscaria var. flavivolvata",
+    "author": "(Singer) Dav. T. Jenkins",
+    "rank": "variety",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 5066,
+    "name": "Amanita muscaria subsp. flavivolvata",
+    "author": "Singer",
+    "rank": "subspecies",
+    "synonym_id": 4383
+  },
+  {
+    "id": 16015,
+    "name": "Amanita amerimuscaria",
+    "author": "Tulloss & Geml nom. prov.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 28495,
+    "name": "Amanita muscaria",
+    "author": "sensu auct. amer.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 59384,
+    "name": "Amanita sp. 'LG882'",
+    "author": "Tulloss crypt. temp.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 374,
+    "name": "Amanita muscaria var. flavivolvata",
+    "author": "(Singer) Dav. T. Jenkins",
+    "rank": "variety",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 5066,
+    "name": "Amanita muscaria subsp. flavivolvata",
+    "author": "Singer",
+    "rank": "subspecies",
+    "synonym_id": 4383
+  },
+  {
+    "id": 16015,
+    "name": "Amanita amerimuscaria",
+    "author": "Tulloss & Geml nom. prov.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 28495,
+    "name": "Amanita muscaria",
+    "author": "sensu auct. amer.",
+    "rank": "species",
+    "deprecated": true,
+    "synonym_id": 4383
+  },
+  {
+    "id": 41324,
+    "name": "Amanita muscaria f. flavivolvata",
+    "author": "(Singer) Neville & Poumarat",
+    "rank": "form",
+    "deprecated": true,
+    "synonym_id": 4383
+  }
+]

@@ -6,6 +6,18 @@ All commands are run from the **project root** directory.
 
 ```
 tests/
+├── fixtures/
+│   ├── _fetchers.py             — shared fetch logic (imported by both scripts below)
+│   ├── regenerate_fixtures.py   — fetch live responses and save as fixture files
+│   ├── check_fixtures.py        — compare live responses to saved fixtures (read-only)
+│   ├── gbif/
+│   ├── col/
+│   ├── tropicos/
+│   ├── fishbase/
+│   ├── genbank/
+│   ├── index_fungorum/
+│   ├── mushroom_observer/
+│   └── itis/
 ├── integration/
 │   ├── test_env_configured.py   — verifies .env file and credentials
 │   ├── test_API_online.py       — live HTTP connectivity checks for all APIs
@@ -21,7 +33,7 @@ tests/
 
 The `utils/` tests are **unit tests** — they mock all network calls and run offline. The `apis_pipe/` tests are also **unit tests**, but instead of synthetic mock data they replay saved real API responses captured from live calls; this keeps them offline while still exercising the actual response shapes each API returns. The `integration/` tests make real HTTP requests and require internet access and a configured `.env` file.
 
-Two helper scripts will accompany the `apis_pipe/` tests:
+Two helper scripts manage the fixture files:
 
 - **`regenerate_fixtures.py`** — fetches a fresh set of real responses from every API and overwrites the saved fixture files. Run this when an API changes its response format. The newly saved responses must be **manually reviewed** before committing, since the tests will pass against whatever is saved.
 - **`check_fixtures.py`** — fetches current live responses and compares them to the saved fixtures without overwriting anything. Run this to find out whether the saved fixtures are still accurate, i.e. whether `regenerate_fixtures.py` needs to be run.
@@ -81,6 +93,30 @@ pytest tests/scripts/utils/test_schema.py::TestMakeSynonymRowSuccess -v
 # One specific test
 pytest tests/scripts/utils/test_schema.py::TestMakeSynonymRowSuccess::test_minimal_required_fields -v
 ```
+
+---
+
+## Fixture management
+
+Fixture files capture the return values of `_fetch_query_data`, `_fetch_synonym_data`, and `_fetch_accepted_data` for each API so that `apis_pipe` unit tests can run offline. Each API has three scenarios — `accepted/`, `synonym/`, and `not_found/` — and each scenario folder contains up to three files with extensions matching the return type (`.json`, `.xml`, or `.html`).
+
+**Generate or update fixture files** (requires internet access and a configured `.env`):
+
+```bash
+python tests/fixtures/regenerate_fixtures.py
+```
+
+Only changed files are written. After running, manually review every changed file before committing — verify that `get_synonyms()` output for each test query is still correct. The script prints a warning listing all changed paths.
+
+Tropicos fixtures are skipped automatically if `TROPICOS_API_KEY` is not set in `.env`.
+
+**Check whether saved fixtures are still accurate** (requires internet access, never writes):
+
+```bash
+python tests/fixtures/check_fixtures.py
+```
+
+Prints `OK`, `CHANGED`, or `MISSING` for each fixture file. Run this periodically to detect API response drift; run `regenerate_fixtures.py` when you see `CHANGED` or `MISSING`.
 
 ---
 

@@ -1,0 +1,16 @@
+[
+  {
+    "NameId": 13100004,
+    "ScientificName": "Quercus robur",
+    "ScientificNameWithAuthors": "Quercus robur L.",
+    "Family": "Fagaceae",
+    "RankAbbreviation": "sp.",
+    "NomenclatureStatusID": 1,
+    "NomenclatureStatusName": "Legitimate",
+    "Symbol": "!",
+    "Author": "L.",
+    "DisplayReference": "Sp. Pl. 2: 996",
+    "DisplayDate": "1753",
+    "TotalRows": 1
+  }
+]

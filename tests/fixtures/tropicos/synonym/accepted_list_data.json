@@ -1,0 +1,24 @@
+[
+  {
+    "SynonymName": {
+      "NameId": 13100434,
+      "ScientificName": "Quercus pedunculata",
+      "ScientificNameWithAuthors": "Quercus pedunculata Ehrh.",
+      "Family": "Fagaceae"
+    },
+    "AcceptedName": {
+      "NameId": 13100004,
+      "ScientificName": "Quercus robur",
+      "ScientificNameWithAuthors": "Quercus robur L.",
+      "Family": "Fagaceae"
+    },
+    "Reference": {
+      "ReferenceId": 23908,
+      "PublicationId": 15422,
+      "AuthorString": "Czerepanov, S. K.",
+      "Collation": "509 pages",
+      "AbbreviatedTitle": "Sosud. Rast. SSSR",
+      "TitlePageYear": "1981"
+    }
+  }
+]

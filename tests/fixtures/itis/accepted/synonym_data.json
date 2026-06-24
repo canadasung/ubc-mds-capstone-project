@@ -1,0 +1,792 @@
+[
+  {
+    "acceptedNameList": {
+      "acceptedNames": [
+        {
+          "acceptedName": "Oncorhynchus mykiss",
+          "acceptedTsn": "161989",
+          "author": null,
+          "class": "gov.usgs.itis.itis_service.data.SvcAcceptedName"
+        }
+      ],
+      "class": "gov.usgs.itis.itis_service.data.SvcAcceptedNameList",
+      "tsn": "161990"
+    },
+    "class": "gov.usgs.itis.itis_service.data.SvcFullRecord",
+    "commentList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonCommentList",
+      "comments": [
+        null
+      ],
+      "tsn": "161990"
+    },
+    "commonNameList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCommonNameList",
+      "commonNames": [
+        null
+      ],
+      "tsn": "161990"
+    },
+    "completenessRating": {
+      "class": "gov.usgs.itis.itis_service.data.SvcGlobalSpeciesCompleteness",
+      "completeness": "",
+      "rankId": 220,
+      "tsn": "161990"
+    },
+    "coreMetadata": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCoreMetadata",
+      "credRating": "TWG standards met",
+      "rankId": 220,
+      "taxonCoverage": "",
+      "taxonCurrency": "",
+      "taxonUsageRating": "invalid",
+      "tsn": "161990",
+      "unacceptReason": "original name/combination"
+    },
+    "credibilityRating": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCredibilityData",
+      "credRating": "TWG standards met",
+      "tsn": "161990"
+    },
+    "currencyRating": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCurrencyData",
+      "rankId": 220,
+      "taxonCurrency": "",
+      "tsn": "161990"
+    },
+    "dateData": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonDateData",
+      "initialTimeStamp": "1996-06-13 14:51:08.0",
+      "tsn": "161990",
+      "updateDate": "2004-01-22"
+    },
+    "expertList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonExpertList",
+      "experts": [
+        null
+      ],
+      "tsn": "161990"
+    },
+    "geographicDivisionList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonGeoDivisionList",
+      "geoDivisions": [
+        null
+      ],
+      "tsn": "161990"
+    },
+    "hierarchyUp": {
+      "author": null,
+      "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+      "parentName": null,
+      "parentTsn": null,
+      "rankName": null,
+      "taxonName": null,
+      "tsn": "161990"
+    },
+    "jurisdictionalOriginList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonJurisdictionalOriginList",
+      "jurisdictionalOrigins": [
+        null
+      ],
+      "tsn": "161990"
+    },
+    "kingdom": {
+      "class": "gov.usgs.itis.itis_service.data.SvcKingdomInfo",
+      "kingdomId": "5",
+      "kingdomName": "Animalia  ",
+      "tsn": "161990"
+    },
+    "otherSourceList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonOtherSourceList",
+      "otherSources": [
+        {
+          "acquisitionDate": "2003-03-17",
+          "class": "gov.usgs.itis.itis_service.data.SvcTaxonOtherSource",
+          "referenceFor": [
+            {
+              "class": "gov.usgs.itis.itis_service.data.SvcReferenceForElement",
+              "name": "Salmo mykiss",
+              "refLanguage": null,
+              "referredTsn": "161990"
+            }
+          ],
+          "source": "Catalog of Fishes, 17-Mar-2003",
+          "sourceComment": "http://www.calacademy.org/research/ichthyology/catalog/",
+          "sourceType": "website",
+          "updateDate": "2004-02-11",
+          "version": "13-Mar-03"
+        },
+        {
+          "acquisitionDate": "1996-07-29",
+          "class": "gov.usgs.itis.itis_service.data.SvcTaxonOtherSource",
+          "referenceFor": [
+            {
+              "class": "gov.usgs.itis.itis_service.data.SvcReferenceForElement",
+              "name": "Salmo mykiss",
+              "refLanguage": null,
+              "referredTsn": "161990"
+            }
+          ],
+          "source": "NODC Taxonomic Code",
+          "sourceComment": "",
+          "sourceType": "database",
+          "updateDate": "2010-01-14",
+          "version": "8.0"
+        }
+      ],
+      "tsn": "161990"
+    },
+    "parentTSN": {
+      "class": "gov.usgs.itis.itis_service.data.SvcParentTsn",
+      "parentTsn": "0",
+      "tsn": "161990"
+    },
+    "publicationList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonPublicationList",
+      "publications": [
+        {
+          "actualPubDate": "1930-01-01",
+          "class": "gov.usgs.itis.itis_service.data.SvcTaxonPublication",
+          "isbn": "",
+          "issn": "",
+          "listedPubDate": "1930-01-01",
+          "pages": "670",
+          "pubComment": "Reprinted 1955",
+          "pubName": "Report of the United States Commissioner of Fisheries for the fiscal year 1928",
+          "pubPlace": "Washington, D.C., USA",
+          "publisher": "United States Department of Interior, Fish and Wildlife Service",
+          "referenceAuthor": "Jordan, David Starr, Barton Warren Evermann, and Howard Walton Clark",
+          "referenceFor": [
+            {
+              "class": "gov.usgs.itis.itis_service.data.SvcReferenceForElement",
+              "name": "Salmo mykiss",
+              "refLanguage": null,
+              "referredTsn": "161990"
+            }
+          ],
+          "title": "Checklist of the fishes and fishlike vertebrates of North America north of the northern boundary of Venezuela and Colombia",
+          "updateDate": "2017-08-28"
+        }
+      ],
+      "tsn": "161990"
+    },
+    "scientificName": {
+      "author": "Walbaum, 1792",
+      "class": "gov.usgs.itis.itis_service.data.SvcScientificName",
+      "combinedName": "Salmo mykiss",
+      "kingdom": null,
+      "tsn": "161990",
+      "unitInd1": null,
+      "unitInd2": null,
+      "unitInd3": null,
+      "unitInd4": null,
+      "unitName1": "Salmo                              ",
+      "unitName2": "mykiss",
+      "unitName3": null,
+      "unitName4": null
+    },
+    "synonymList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcSynonymNameList",
+      "synonyms": [
+        null
+      ],
+      "tsn": "161990"
+    },
+    "taxRank": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonRankInfo",
+      "kingdomId": "5",
+      "kingdomName": "Animalia  ",
+      "rankId": "220",
+      "rankName": "Species        ",
+      "tsn": "161990"
+    },
+    "taxonAuthor": {
+      "authorship": "Walbaum, 1792",
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonAuthorship",
+      "tsn": "161990",
+      "updateDate": "2004-01-22"
+    },
+    "tsn": "161990",
+    "unacceptReason": {
+      "class": "gov.usgs.itis.itis_service.data.SvcUnacceptData",
+      "tsn": "161990",
+      "unacceptReason": "original name/combination"
+    },
+    "usage": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonUsageData",
+      "taxonUsageRating": "invalid",
+      "tsn": "161990"
+    }
+  },
+  {
+    "acceptedNameList": {
+      "acceptedNames": [
+        {
+          "acceptedName": "Oncorhynchus mykiss",
+          "acceptedTsn": "161989",
+          "author": null,
+          "class": "gov.usgs.itis.itis_service.data.SvcAcceptedName"
+        }
+      ],
+      "class": "gov.usgs.itis.itis_service.data.SvcAcceptedNameList",
+      "tsn": "633905"
+    },
+    "class": "gov.usgs.itis.itis_service.data.SvcFullRecord",
+    "commentList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonCommentList",
+      "comments": [
+        {
+          "class": "gov.usgs.itis.itis_service.data.SvcTaxonComment",
+          "commentDetail": "Common literature misspelling of Oncorhynchus mykiss (Walbaum, 1792)",
+          "commentId": "11970",
+          "commentTimeStamp": "2004-07-06 10:52:28.0",
+          "commentator": "T.M. Orrell, ITIS Taxonomic Expert",
+          "updateDate": "2004-07-06"
+        }
+      ],
+      "tsn": "633905"
+    },
+    "commonNameList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCommonNameList",
+      "commonNames": [
+        null
+      ],
+      "tsn": "633905"
+    },
+    "completenessRating": {
+      "class": "gov.usgs.itis.itis_service.data.SvcGlobalSpeciesCompleteness",
+      "completeness": "",
+      "rankId": 220,
+      "tsn": "633905"
+    },
+    "coreMetadata": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCoreMetadata",
+      "credRating": "TWG standards met",
+      "rankId": 220,
+      "taxonCoverage": "",
+      "taxonCurrency": "",
+      "taxonUsageRating": "invalid",
+      "tsn": "633905",
+      "unacceptReason": "unavailable, literature misspelling"
+    },
+    "credibilityRating": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCredibilityData",
+      "credRating": "TWG standards met",
+      "tsn": "633905"
+    },
+    "currencyRating": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCurrencyData",
+      "rankId": 220,
+      "taxonCurrency": "",
+      "tsn": "633905"
+    },
+    "dateData": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonDateData",
+      "initialTimeStamp": "2004-07-06 10:52:07.0",
+      "tsn": "633905",
+      "updateDate": "2004-07-06"
+    },
+    "expertList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonExpertList",
+      "experts": [
+        null
+      ],
+      "tsn": "633905"
+    },
+    "geographicDivisionList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonGeoDivisionList",
+      "geoDivisions": [
+        null
+      ],
+      "tsn": "633905"
+    },
+    "hierarchyUp": {
+      "author": null,
+      "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+      "parentName": null,
+      "parentTsn": null,
+      "rankName": null,
+      "taxonName": null,
+      "tsn": "633905"
+    },
+    "jurisdictionalOriginList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonJurisdictionalOriginList",
+      "jurisdictionalOrigins": [
+        null
+      ],
+      "tsn": "633905"
+    },
+    "kingdom": {
+      "class": "gov.usgs.itis.itis_service.data.SvcKingdomInfo",
+      "kingdomId": "5",
+      "kingdomName": "Animalia  ",
+      "tsn": "633905"
+    },
+    "otherSourceList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonOtherSourceList",
+      "otherSources": [
+        null
+      ],
+      "tsn": "633905"
+    },
+    "parentTSN": {
+      "class": "gov.usgs.itis.itis_service.data.SvcParentTsn",
+      "parentTsn": "0",
+      "tsn": "633905"
+    },
+    "publicationList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonPublicationList",
+      "publications": [
+        {
+          "actualPubDate": "2003-07-01",
+          "class": "gov.usgs.itis.itis_service.data.SvcTaxonPublication",
+          "isbn": "",
+          "issn": "0013-9351",
+          "listedPubDate": "2003-07-01",
+          "pages": "262-270",
+          "pubComment": "",
+          "pubName": "Environmental Research, vol. 92, no. 3",
+          "pubPlace": "",
+          "publisher": "",
+          "referenceAuthor": "Uguz, Cevdet, Mesude Iscan, Ayse Ergüven, Belgin Isgor, and Inci Togan",
+          "referenceFor": [
+            {
+              "class": "gov.usgs.itis.itis_service.data.SvcReferenceForElement",
+              "name": "Onchorynchus mykiss",
+              "refLanguage": null,
+              "referredTsn": "633905"
+            }
+          ],
+          "title": "The bioaccumulation of nonyphenol and its adverse effect on the liver of rainbow trout (Onchorynchus mykiss)",
+          "updateDate": "2004-07-06"
+        }
+      ],
+      "tsn": "633905"
+    },
+    "scientificName": {
+      "author": "(Walbaum, 1792)",
+      "class": "gov.usgs.itis.itis_service.data.SvcScientificName",
+      "combinedName": "Onchorynchus mykiss",
+      "kingdom": null,
+      "tsn": "633905",
+      "unitInd1": null,
+      "unitInd2": null,
+      "unitInd3": null,
+      "unitInd4": null,
+      "unitName1": "Onchorynchus                       ",
+      "unitName2": "mykiss",
+      "unitName3": null,
+      "unitName4": null
+    },
+    "synonymList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcSynonymNameList",
+      "synonyms": [
+        null
+      ],
+      "tsn": "633905"
+    },
+    "taxRank": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonRankInfo",
+      "kingdomId": "5",
+      "kingdomName": "Animalia  ",
+      "rankId": "220",
+      "rankName": "Species        ",
+      "tsn": "633905"
+    },
+    "taxonAuthor": {
+      "authorship": "(Walbaum, 1792)",
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonAuthorship",
+      "tsn": "633905",
+      "updateDate": "2004-02-23"
+    },
+    "tsn": "633905",
+    "unacceptReason": {
+      "class": "gov.usgs.itis.itis_service.data.SvcUnacceptData",
+      "tsn": "633905",
+      "unacceptReason": "unavailable, literature misspelling"
+    },
+    "usage": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonUsageData",
+      "taxonUsageRating": "invalid",
+      "tsn": "633905"
+    }
+  },
+  {
+    "acceptedNameList": {
+      "acceptedNames": [
+        {
+          "acceptedName": "Oncorhynchus mykiss",
+          "acceptedTsn": "161989",
+          "author": null,
+          "class": "gov.usgs.itis.itis_service.data.SvcAcceptedName"
+        }
+      ],
+      "class": "gov.usgs.itis.itis_service.data.SvcAcceptedNameList",
+      "tsn": "914074"
+    },
+    "class": "gov.usgs.itis.itis_service.data.SvcFullRecord",
+    "commentList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonCommentList",
+      "comments": [
+        null
+      ],
+      "tsn": "914074"
+    },
+    "commonNameList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCommonNameList",
+      "commonNames": [
+        null
+      ],
+      "tsn": "914074"
+    },
+    "completenessRating": {
+      "class": "gov.usgs.itis.itis_service.data.SvcGlobalSpeciesCompleteness",
+      "completeness": "",
+      "rankId": 220,
+      "tsn": "914074"
+    },
+    "coreMetadata": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCoreMetadata",
+      "credRating": "TWG standards met",
+      "rankId": 220,
+      "taxonCoverage": "",
+      "taxonCurrency": "",
+      "taxonUsageRating": "invalid",
+      "tsn": "914074",
+      "unacceptReason": "junior synonym"
+    },
+    "credibilityRating": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCredibilityData",
+      "credRating": "TWG standards met",
+      "tsn": "914074"
+    },
+    "currencyRating": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCurrencyData",
+      "rankId": 220,
+      "taxonCurrency": "",
+      "tsn": "914074"
+    },
+    "dateData": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonDateData",
+      "initialTimeStamp": "2013-08-14 11:58:29.0",
+      "tsn": "914074",
+      "updateDate": "2013-08-14"
+    },
+    "expertList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonExpertList",
+      "experts": [
+        null
+      ],
+      "tsn": "914074"
+    },
+    "geographicDivisionList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonGeoDivisionList",
+      "geoDivisions": [
+        null
+      ],
+      "tsn": "914074"
+    },
+    "hierarchyUp": {
+      "author": null,
+      "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+      "parentName": null,
+      "parentTsn": null,
+      "rankName": null,
+      "taxonName": null,
+      "tsn": "914074"
+    },
+    "jurisdictionalOriginList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonJurisdictionalOriginList",
+      "jurisdictionalOrigins": [
+        null
+      ],
+      "tsn": "914074"
+    },
+    "kingdom": {
+      "class": "gov.usgs.itis.itis_service.data.SvcKingdomInfo",
+      "kingdomId": "5",
+      "kingdomName": "Animalia  ",
+      "tsn": "914074"
+    },
+    "otherSourceList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonOtherSourceList",
+      "otherSources": [
+        {
+          "acquisitionDate": "2013-06-27",
+          "class": "gov.usgs.itis.itis_service.data.SvcTaxonOtherSource",
+          "referenceFor": [
+            {
+              "class": "gov.usgs.itis.itis_service.data.SvcReferenceForElement",
+              "name": "Salmo gibbsii",
+              "refLanguage": null,
+              "referredTsn": "914074"
+            }
+          ],
+          "source": "Catalog of Fishes, 10-Jun-2013",
+          "sourceComment": "http://research.calacademy.org/research/ichthyology/catalog/fishcatmain.asp",
+          "sourceType": "website",
+          "updateDate": "2013-08-14",
+          "version": "10-Jun-13"
+        }
+      ],
+      "tsn": "914074"
+    },
+    "parentTSN": {
+      "class": "gov.usgs.itis.itis_service.data.SvcParentTsn",
+      "parentTsn": "0",
+      "tsn": "914074"
+    },
+    "publicationList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonPublicationList",
+      "publications": [
+        null
+      ],
+      "tsn": "914074"
+    },
+    "scientificName": {
+      "author": "Suckley, 1859",
+      "class": "gov.usgs.itis.itis_service.data.SvcScientificName",
+      "combinedName": "Salmo gibbsii",
+      "kingdom": null,
+      "tsn": "914074",
+      "unitInd1": null,
+      "unitInd2": null,
+      "unitInd3": null,
+      "unitInd4": null,
+      "unitName1": "Salmo                              ",
+      "unitName2": "gibbsii",
+      "unitName3": null,
+      "unitName4": null
+    },
+    "synonymList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcSynonymNameList",
+      "synonyms": [
+        null
+      ],
+      "tsn": "914074"
+    },
+    "taxRank": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonRankInfo",
+      "kingdomId": "5",
+      "kingdomName": "Animalia  ",
+      "rankId": "220",
+      "rankName": "Species        ",
+      "tsn": "914074"
+    },
+    "taxonAuthor": {
+      "authorship": "Suckley, 1859",
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonAuthorship",
+      "tsn": "914074",
+      "updateDate": "2013-08-14"
+    },
+    "tsn": "914074",
+    "unacceptReason": {
+      "class": "gov.usgs.itis.itis_service.data.SvcUnacceptData",
+      "tsn": "914074",
+      "unacceptReason": "junior synonym"
+    },
+    "usage": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonUsageData",
+      "taxonUsageRating": "invalid",
+      "tsn": "914074"
+    }
+  },
+  {
+    "acceptedNameList": {
+      "acceptedNames": [
+        {
+          "acceptedName": "Oncorhynchus mykiss",
+          "acceptedTsn": "161989",
+          "author": null,
+          "class": "gov.usgs.itis.itis_service.data.SvcAcceptedName"
+        }
+      ],
+      "class": "gov.usgs.itis.itis_service.data.SvcAcceptedNameList",
+      "tsn": "914094"
+    },
+    "class": "gov.usgs.itis.itis_service.data.SvcFullRecord",
+    "commentList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonCommentList",
+      "comments": [
+        {
+          "class": "gov.usgs.itis.itis_service.data.SvcTaxonComment",
+          "commentDetail": "US ESA: Potential candidate without sufficient data on vulnerability, as published in Federal Register Volume 59, Number 219, Pages 58982 - 59028, November 15, 1994",
+          "commentId": "21591",
+          "commentTimeStamp": "2011-05-27 13:26:03.0",
+          "commentator": "David F. Mitchell, ITIS Data Development Specialist",
+          "updateDate": "2026-03-18"
+        }
+      ],
+      "tsn": "914094"
+    },
+    "commonNameList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCommonNameList",
+      "commonNames": [
+        {
+          "class": "gov.usgs.itis.itis_service.data.SvcCommonName",
+          "commonName": "interior redband trout",
+          "language": "English",
+          "tsn": "914094"
+        }
+      ],
+      "tsn": "914094"
+    },
+    "completenessRating": {
+      "class": "gov.usgs.itis.itis_service.data.SvcGlobalSpeciesCompleteness",
+      "completeness": "",
+      "rankId": 230,
+      "tsn": "914094"
+    },
+    "coreMetadata": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCoreMetadata",
+      "credRating": "TWG standards met",
+      "rankId": 230,
+      "taxonCoverage": "",
+      "taxonCurrency": "",
+      "taxonUsageRating": "invalid",
+      "tsn": "914094",
+      "unacceptReason": "junior synonym"
+    },
+    "credibilityRating": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCredibilityData",
+      "credRating": "TWG standards met",
+      "tsn": "914094"
+    },
+    "currencyRating": {
+      "class": "gov.usgs.itis.itis_service.data.SvcCurrencyData",
+      "rankId": 230,
+      "taxonCurrency": "",
+      "tsn": "914094"
+    },
+    "dateData": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonDateData",
+      "initialTimeStamp": "2013-08-14 11:58:34.0",
+      "tsn": "914094",
+      "updateDate": "2013-08-14"
+    },
+    "expertList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonExpertList",
+      "experts": [
+        null
+      ],
+      "tsn": "914094"
+    },
+    "geographicDivisionList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonGeoDivisionList",
+      "geoDivisions": [
+        null
+      ],
+      "tsn": "914094"
+    },
+    "hierarchyUp": {
+      "author": null,
+      "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+      "parentName": null,
+      "parentTsn": null,
+      "rankName": null,
+      "taxonName": null,
+      "tsn": "914094"
+    },
+    "jurisdictionalOriginList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonJurisdictionalOriginList",
+      "jurisdictionalOrigins": [
+        null
+      ],
+      "tsn": "914094"
+    },
+    "kingdom": {
+      "class": "gov.usgs.itis.itis_service.data.SvcKingdomInfo",
+      "kingdomId": "5",
+      "kingdomName": "Animalia  ",
+      "tsn": "914094"
+    },
+    "otherSourceList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonOtherSourceList",
+      "otherSources": [
+        null
+      ],
+      "tsn": "914094"
+    },
+    "parentTSN": {
+      "class": "gov.usgs.itis.itis_service.data.SvcParentTsn",
+      "parentTsn": "0",
+      "tsn": "914094"
+    },
+    "publicationList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonPublicationList",
+      "publications": [
+        {
+          "actualPubDate": "1994-11-15",
+          "class": "gov.usgs.itis.itis_service.data.SvcTaxonPublication",
+          "isbn": "",
+          "issn": "",
+          "listedPubDate": "1994-11-15",
+          "pages": "58982-59028",
+          "pubComment": "",
+          "pubName": "Federal Register, vol. 59, no. 219",
+          "pubPlace": "",
+          "publisher": "",
+          "referenceAuthor": "U. S. Fish and Wildlife Service",
+          "referenceFor": [
+            {
+              "class": "gov.usgs.itis.itis_service.data.SvcReferenceForElement",
+              "name": "Oncorhynchus mykiss gibbsi",
+              "refLanguage": null,
+              "referredTsn": "914094"
+            }
+          ],
+          "title": "Endangered and Threatened Wildlife and Plants; Animal Candidate Review for Listing as Endangered or Threatened Species",
+          "updateDate": "2026-03-18"
+        }
+      ],
+      "tsn": "914094"
+    },
+    "scientificName": {
+      "author": "(Suckley, 1859)",
+      "class": "gov.usgs.itis.itis_service.data.SvcScientificName",
+      "combinedName": "Oncorhynchus mykiss gibbsi",
+      "kingdom": null,
+      "tsn": "914094",
+      "unitInd1": null,
+      "unitInd2": null,
+      "unitInd3": null,
+      "unitInd4": null,
+      "unitName1": "Oncorhynchus                       ",
+      "unitName2": "mykiss",
+      "unitName3": "gibbsi",
+      "unitName4": null
+    },
+    "synonymList": {
+      "class": "gov.usgs.itis.itis_service.data.SvcSynonymNameList",
+      "synonyms": [
+        null
+      ],
+      "tsn": "914094"
+    },
+    "taxRank": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonRankInfo",
+      "kingdomId": "5",
+      "kingdomName": "Animalia  ",
+      "rankId": "230",
+      "rankName": "Subspecies     ",
+      "tsn": "914094"
+    },
+    "taxonAuthor": {
+      "authorship": "(Suckley, 1859)",
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonAuthorship",
+      "tsn": "914094",
+      "updateDate": "2004-01-22"
+    },
+    "tsn": "914094",
+    "unacceptReason": {
+      "class": "gov.usgs.itis.itis_service.data.SvcUnacceptData",
+      "tsn": "914094",
+      "unacceptReason": "junior synonym"
+    },
+    "usage": {
+      "class": "gov.usgs.itis.itis_service.data.SvcTaxonUsageData",
+      "taxonUsageRating": "invalid",
+      "tsn": "914094"
+    }
+  }
+]

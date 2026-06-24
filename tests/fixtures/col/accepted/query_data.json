@@ -1,0 +1,456 @@
+{
+  "offset": 0,
+  "limit": 10,
+  "total": 2,
+  "result": [
+    {
+      "id": "4R5YN",
+      "classification": [
+        {
+          "id": "CS5HF",
+          "name": "Eukaryota",
+          "authorship": "(Chatton, 1925) Whittaker & Margulis, 1978",
+          "rank": "domain",
+          "status": "accepted",
+          "labelHtml": "Eukaryota (Chatton, 1925) Whittaker & Margulis, 1978"
+        },
+        {
+          "id": "P",
+          "name": "Plantae",
+          "rank": "kingdom",
+          "status": "accepted",
+          "labelHtml": "Plantae"
+        },
+        {
+          "id": "CMQ8S",
+          "name": "Pteridobiotina",
+          "authorship": "Britton & Brown",
+          "rank": "subkingdom",
+          "status": "accepted",
+          "labelHtml": "Pteridobiotina Britton & Brown"
+        },
+        {
+          "id": "TP",
+          "name": "Tracheophyta",
+          "rank": "phylum",
+          "status": "accepted",
+          "labelHtml": "Tracheophyta"
+        },
+        {
+          "id": "MG",
+          "name": "Magnoliopsida",
+          "rank": "class",
+          "status": "accepted",
+          "labelHtml": "Magnoliopsida"
+        },
+        {
+          "id": "384",
+          "name": "Fagales",
+          "authorship": "Engl.",
+          "rank": "order",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "Fagales Engl."
+        },
+        {
+          "id": "NPBN9",
+          "name": "Fagaceae",
+          "authorship": "Dumort.",
+          "rank": "family",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "Fagaceae Dumort."
+        },
+        {
+          "id": "V58RW",
+          "name": "Quercoideae",
+          "authorship": "Irvine",
+          "rank": "subfamily",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "Quercoideae Irvine"
+        },
+        {
+          "id": "8W2YL",
+          "name": "Quercus",
+          "authorship": "L.",
+          "rank": "genus",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "<i>Quercus</i> L."
+        },
+        {
+          "id": "4R5YN",
+          "name": "Quercus robur",
+          "authorship": "L.",
+          "rank": "species",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "<i>Quercus robur</i> L."
+        }
+      ],
+      "usage": {
+        "created": "2026-04-14T22:05:53.134642",
+        "createdBy": 102,
+        "modified": "2026-04-14T22:05:53.134642",
+        "modifiedBy": 102,
+        "datasetKey": 315192,
+        "id": "4R5YN",
+        "sectorKey": 66228,
+        "verbatimSourceKey": 320776883,
+        "name": {
+          "created": "2026-04-14T22:05:53.134642",
+          "createdBy": 102,
+          "modified": "2026-04-14T22:05:53.134642",
+          "modifiedBy": 102,
+          "datasetKey": 315192,
+          "id": "O3PF8o6GnVvM2OAvyXqEP1",
+          "sectorKey": 66228,
+          "verbatimSourceKey": 320776883,
+          "namesIndexId": 18938128,
+          "namesIndexType": "exact",
+          "scientificName": "Quercus robur",
+          "authorship": "L.",
+          "rank": "species",
+          "genus": "Quercus",
+          "specificEpithet": "robur",
+          "combinationAuthorship": {
+            "authors": [
+              "L."
+            ]
+          },
+          "code": "botanical",
+          "publishedInId": "58d80489-b216-4ebf-b05a-22945345c325",
+          "origin": "source",
+          "type": "scientific",
+          "link": "http://www.worldplants.de/?deeplink=Quercus-robur",
+          "parsed": true
+        },
+        "status": "accepted",
+        "origin": "source",
+        "parentId": "8W2YL",
+        "identifier": [
+          "wfo:wfo-0000292858-2025-12",
+          "grin:sp:30739"
+        ],
+        "link": "http://www.worldplants.de/?deeplink=Quercus-robur",
+        "referenceIds": [
+          "58d80489-b216-4ebf-b05a-22945345c325"
+        ],
+        "label": "Quercus robur L.",
+        "labelHtml": "<i>Quercus robur</i> L.",
+        "merged": false
+      },
+      "sectorDatasetKey": 1141,
+      "group": "angiosperms",
+      "vernacularNames": [
+        {
+          "name": "Chene pedoncule",
+          "language": "fra"
+        },
+        {
+          "name": "Dub Cereščatyj",
+          "language": "rus"
+        },
+        {
+          "name": "Pelarek",
+          "language": "swe"
+        },
+        {
+          "name": "dub čereščatyj",
+          "language": "rus"
+        },
+        {
+          "name": "xia li",
+          "language": "zho"
+        },
+        {
+          "name": "carvalho",
+          "language": "por"
+        },
+        {
+          "name": "carvalho-alemão",
+          "language": "por"
+        },
+        {
+          "name": "carvalho-comum",
+          "language": "por"
+        },
+        {
+          "name": "carvalho-da-europa",
+          "language": "por"
+        },
+        {
+          "name": "carvalho-europeu",
+          "language": "por"
+        },
+        {
+          "name": "carvalho-inglês",
+          "language": "por"
+        },
+        {
+          "name": "English oak",
+          "language": "eng"
+        },
+        {
+          "name": "European oak",
+          "language": "eng"
+        },
+        {
+          "name": "chêne pédonculé",
+          "language": "fra"
+        },
+        {
+          "name": "pedunculate oak",
+          "language": "eng"
+        },
+        {
+          "name": "Almindelig eg",
+          "language": "dan"
+        },
+        {
+          "name": "Stilk-eg/almindelig eg",
+          "language": "dan"
+        },
+        {
+          "name": "ek",
+          "language": "swe"
+        },
+        {
+          "name": "skogsek",
+          "language": "swe"
+        },
+        {
+          "name": "sommarek",
+          "language": "swe"
+        },
+        {
+          "name": "stjälkek",
+          "language": "swe"
+        },
+        {
+          "name": "Zomereik",
+          "language": "nld"
+        },
+        {
+          "name": "metsätammi",
+          "language": "fin"
+        },
+        {
+          "name": "sommareik",
+          "language": "nno"
+        },
+        {
+          "name": "sommereik",
+          "language": "nob"
+        },
+        {
+          "name": "Common Oak",
+          "language": "eng"
+        },
+        {
+          "name": "Derwen Goesog",
+          "language": "cym"
+        },
+        {
+          "name": "Derwen Gyffredin",
+          "language": "cym"
+        },
+        {
+          "name": "Derwen Mes Coesynnog",
+          "language": "cym"
+        },
+        {
+          "name": "Dâr",
+          "language": "cym"
+        },
+        {
+          "name": "Stiel-Eiche",
+          "language": "deu"
+        },
+        {
+          "name": "Farnia",
+          "language": "ita"
+        },
+        {
+          "name": "Quercia comune",
+          "language": "ita"
+        }
+      ]
+    },
+    {
+      "id": "SFTX6",
+      "classification": [
+        {
+          "id": "CS5HF",
+          "name": "Eukaryota",
+          "authorship": "(Chatton, 1925) Whittaker & Margulis, 1978",
+          "rank": "domain",
+          "status": "accepted",
+          "labelHtml": "Eukaryota (Chatton, 1925) Whittaker & Margulis, 1978"
+        },
+        {
+          "id": "P",
+          "name": "Plantae",
+          "rank": "kingdom",
+          "status": "accepted",
+          "labelHtml": "Plantae"
+        },
+        {
+          "id": "CMQ8S",
+          "name": "Pteridobiotina",
+          "authorship": "Britton & Brown",
+          "rank": "subkingdom",
+          "status": "accepted",
+          "labelHtml": "Pteridobiotina Britton & Brown"
+        },
+        {
+          "id": "TP",
+          "name": "Tracheophyta",
+          "rank": "phylum",
+          "status": "accepted",
+          "labelHtml": "Tracheophyta"
+        },
+        {
+          "id": "MG",
+          "name": "Magnoliopsida",
+          "rank": "class",
+          "status": "accepted",
+          "labelHtml": "Magnoliopsida"
+        },
+        {
+          "id": "384",
+          "name": "Fagales",
+          "authorship": "Engl.",
+          "rank": "order",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "Fagales Engl."
+        },
+        {
+          "id": "NPBN9",
+          "name": "Fagaceae",
+          "authorship": "Dumort.",
+          "rank": "family",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "Fagaceae Dumort."
+        },
+        {
+          "id": "V58RW",
+          "name": "Quercoideae",
+          "authorship": "Irvine",
+          "rank": "subfamily",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "Quercoideae Irvine"
+        },
+        {
+          "id": "8W2YL",
+          "name": "Quercus",
+          "authorship": "L.",
+          "rank": "genus",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "<i>Quercus</i> L."
+        },
+        {
+          "id": "4R5YN",
+          "name": "Quercus robur",
+          "authorship": "L.",
+          "rank": "species",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "<i>Quercus robur</i> L."
+        },
+        {
+          "id": "7KPMG",
+          "name": "Quercus robur subsp. brutia",
+          "authorship": "(Ten.) O.Schwarz",
+          "rank": "subspecies",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "<i>Quercus robur</i> subsp. <i>brutia</i> (Ten.) O.Schwarz"
+        },
+        {
+          "id": "SFTX6",
+          "name": "Quercus robur",
+          "authorship": "Asso",
+          "rank": "species",
+          "code": "botanical",
+          "status": "synonym",
+          "labelHtml": "<i>Quercus robur</i> Asso"
+        }
+      ],
+      "usage": {
+        "created": "2026-05-15T21:24:32.030241",
+        "createdBy": 466,
+        "modified": "2026-05-15T21:24:32.030241",
+        "modifiedBy": 466,
+        "datasetKey": 315192,
+        "id": "SFTX6",
+        "sectorKey": 49811,
+        "verbatimSourceKey": 324439383,
+        "name": {
+          "created": "2026-05-15T21:24:32.030241",
+          "createdBy": 466,
+          "modified": "2026-05-15T21:24:32.030241",
+          "modifiedBy": 466,
+          "datasetKey": 315192,
+          "id": "~CY0",
+          "sectorKey": 49811,
+          "verbatimSourceKey": 324439383,
+          "namesIndexId": 18938118,
+          "namesIndexType": "exact",
+          "identifier": [
+            "tpl:tro-50280607",
+            "lsid:urn:lsid:ipni.org:names:296691-1"
+          ],
+          "scientificName": "Quercus robur",
+          "authorship": "Asso",
+          "rank": "species",
+          "genus": "Quercus",
+          "specificEpithet": "robur",
+          "combinationAuthorship": {
+            "authors": [
+              "Asso"
+            ]
+          },
+          "code": "botanical",
+          "publishedInId": "a86c1dff-508a-4d0b-a81f-36dd8f925bbf",
+          "origin": "source",
+          "type": "scientific",
+          "link": "https://list.worldfloraonline.org/wfo-0001275587",
+          "parsed": true
+        },
+        "status": "synonym",
+        "origin": "source",
+        "parentId": "7KPMG",
+        "identifier": [
+          "wfo:wfo-0001275587-2025-12"
+        ],
+        "accepted": {
+          "id": "7KPMG",
+          "name": {
+            "scientificName": "Quercus robur subsp. brutia",
+            "authorship": "(Ten.) O.Schwarz",
+            "rank": "subspecies",
+            "code": "botanical",
+            "type": "scientific",
+            "parsed": false
+          },
+          "status": "accepted",
+          "label": "Quercus robur subsp. brutia (Ten.) O.Schwarz",
+          "labelHtml": "<i>Quercus robur</i> subsp. <i>brutia</i> (Ten.) O.Schwarz"
+        },
+        "label": "Quercus robur Asso",
+        "labelHtml": "<i>Quercus robur</i> Asso",
+        "merged": true
+      },
+      "sectorDatasetKey": 2004,
+      "group": "angiosperms"
+    }
+  ],
+  "empty": false,
+  "last": true
+}

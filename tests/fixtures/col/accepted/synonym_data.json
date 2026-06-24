@@ -1,0 +1,804 @@
+[
+  {
+    "created": "2026-05-15T21:24:31.550271",
+    "createdBy": 466,
+    "modified": "2026-05-15T21:24:31.550271",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "SF5RP",
+    "sectorKey": 49811,
+    "verbatimSourceKey": 324439365,
+    "name": {
+      "created": "2026-05-15T21:24:31.550271",
+      "createdBy": 466,
+      "modified": "2026-05-15T21:24:31.550271",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~CXs",
+      "sectorKey": 49811,
+      "verbatimSourceKey": 324439365,
+      "namesIndexId": 18842816,
+      "namesIndexType": "exact",
+      "identifier": [
+        "tpl:kew-171681",
+        "lsid:urn:lsid:ipni.org:names:295814-1"
+      ],
+      "scientificName": "Quercus atrosanguinea",
+      "authorship": "hort.",
+      "rank": "species",
+      "genus": "Quercus",
+      "specificEpithet": "atrosanguinea",
+      "combinationAuthorship": {
+        "authors": [
+          "hort."
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "9bef744c-9ed4-45f4-831e-a74ec8703189",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://list.worldfloraonline.org/wfo-0000289653",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "wfo:wfo-0000289653-2025-12"
+    ],
+    "label": "Quercus atrosanguinea hort.",
+    "labelHtml": "<i>Quercus atrosanguinea</i> hort."
+  },
+  {
+    "created": "2026-05-15T21:24:31.597499",
+    "createdBy": 466,
+    "modified": "2026-05-15T21:24:31.597499",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "8X4Z4",
+    "sectorKey": 49811,
+    "verbatimSourceKey": 324439367,
+    "name": {
+      "created": "2026-05-15T21:24:31.597499",
+      "createdBy": 466,
+      "modified": "2026-05-15T21:24:31.597499",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~CXt",
+      "sectorKey": 49811,
+      "verbatimSourceKey": 324439367,
+      "namesIndexId": 18845229,
+      "namesIndexType": "exact",
+      "identifier": [
+        "tpl:kew-171766",
+        "lsid:urn:lsid:ipni.org:names:77246031-1"
+      ],
+      "scientificName": "Quercus belgica",
+      "authorship": "Gand.",
+      "rank": "species",
+      "genus": "Quercus",
+      "specificEpithet": "belgica",
+      "combinationAuthorship": {
+        "authors": [
+          "Gand."
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "59cc2556-7a99-41cc-a820-b1a9d557dfcf",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://list.worldfloraonline.org/wfo-0000289743",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "wfo:wfo-0000289743-2025-12"
+    ],
+    "label": "Quercus belgica Gand.",
+    "labelHtml": "<i>Quercus belgica</i> Gand."
+  },
+  {
+    "created": "2026-05-15T21:24:31.63269",
+    "createdBy": 466,
+    "modified": "2026-05-15T21:24:31.63269",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "SFBKJ",
+    "sectorKey": 49811,
+    "verbatimSourceKey": 324439369,
+    "name": {
+      "created": "2026-05-15T21:24:31.63269",
+      "createdBy": 466,
+      "modified": "2026-05-15T21:24:31.63269",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~CXu",
+      "sectorKey": 49811,
+      "verbatimSourceKey": 324439369,
+      "namesIndexId": 18864648,
+      "namesIndexType": "exact",
+      "identifier": [
+        "tpl:kew-172387",
+        "lsid:urn:lsid:ipni.org:names:296022-1"
+      ],
+      "scientificName": "Quercus cupressoides",
+      "authorship": "hort.",
+      "rank": "species",
+      "genus": "Quercus",
+      "specificEpithet": "cupressoides",
+      "combinationAuthorship": {
+        "authors": [
+          "hort."
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "495674e0-4654-4243-8bf5-a1a89f456486",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://list.worldfloraonline.org/wfo-0000290388",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "wfo:wfo-0000290388-2025-12"
+    ],
+    "label": "Quercus cupressoides hort.",
+    "labelHtml": "<i>Quercus cupressoides</i> hort."
+  },
+  {
+    "created": "2026-05-15T23:18:53.489515",
+    "createdBy": 466,
+    "modified": "2026-05-15T23:18:53.489515",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "SFDVF",
+    "sectorKey": 2172,
+    "verbatimSourceKey": 324581529,
+    "name": {
+      "created": "2026-05-15T23:18:53.489515",
+      "createdBy": 466,
+      "modified": "2026-05-15T23:18:53.489515",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~Uw7",
+      "sectorKey": 2172,
+      "verbatimSourceKey": 324581529,
+      "namesIndexId": 18875714,
+      "namesIndexType": "exact",
+      "scientificName": "Quercus feminea",
+      "authorship": "Mill.",
+      "rank": "species",
+      "genus": "Quercus",
+      "specificEpithet": "feminea",
+      "combinationAuthorship": {
+        "authors": [
+          "Mill."
+        ]
+      },
+      "code": "botanical",
+      "origin": "source",
+      "type": "scientific",
+      "link": "http://reflora.jbrj.gov.br/reflora/listaBrasil/FichaPublicaTaxonUC/FichaPublicaTaxonUC.do?id=FB613397",
+      "remarks": "VARIANTE_ORTOGRAFICA",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "label": "Quercus feminea Mill.",
+    "labelHtml": "<i>Quercus feminea</i> Mill."
+  },
+  {
+    "created": "2026-05-15T21:24:31.667692",
+    "createdBy": 466,
+    "modified": "2026-05-15T21:24:31.667692",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "SFDXP",
+    "sectorKey": 49811,
+    "verbatimSourceKey": 324439371,
+    "name": {
+      "created": "2026-05-15T21:24:31.667692",
+      "createdBy": 466,
+      "modified": "2026-05-15T21:24:31.667692",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~CXv",
+      "sectorKey": 49811,
+      "verbatimSourceKey": 324439371,
+      "namesIndexId": 18875983,
+      "namesIndexType": "variant",
+      "identifier": [
+        "tpl:kew-172772",
+        "lsid:urn:lsid:ipni.org:names:296147-1"
+      ],
+      "scientificName": "Quercus filicifolia",
+      "authorship": "hort. ex A.DC.",
+      "rank": "species",
+      "genus": "Quercus",
+      "specificEpithet": "filicifolia",
+      "combinationAuthorship": {
+        "authors": [
+          "A.DC."
+        ],
+        "exAuthors": [
+          "hort."
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "6a6c6d93-2ba0-4e3e-bd1e-f9a435e8b7dd",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://list.worldfloraonline.org/wfo-0000290788",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "wfo:wfo-0000290788-2025-12"
+    ],
+    "label": "Quercus filicifolia hort. ex A.DC.",
+    "labelHtml": "<i>Quercus filicifolia</i> hort. ex A.DC."
+  },
+  {
+    "created": "2026-05-15T21:24:31.667692",
+    "createdBy": 466,
+    "modified": "2026-05-15T21:24:31.667692",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "4R4Y4",
+    "sectorKey": 49811,
+    "verbatimSourceKey": 324439373,
+    "name": {
+      "created": "2026-05-15T21:24:31.667692",
+      "createdBy": 466,
+      "modified": "2026-05-15T21:24:31.667692",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~CXw",
+      "sectorKey": 49811,
+      "verbatimSourceKey": 324439373,
+      "namesIndexId": 18876456,
+      "namesIndexType": "exact",
+      "identifier": [
+        "tpl:kew-172791"
+      ],
+      "scientificName": "Quercus foemida",
+      "authorship": "Mill.",
+      "rank": "species",
+      "genus": "Quercus",
+      "specificEpithet": "foemida",
+      "combinationAuthorship": {
+        "authors": [
+          "Mill."
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "d1ab6192-9264-49e2-8eb0-3abce1a3d481",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://list.worldfloraonline.org/wfo-0000290808",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "wfo:wfo-0000290808-2025-12"
+    ],
+    "label": "Quercus foemida Mill.",
+    "labelHtml": "<i>Quercus foemida</i> Mill."
+  },
+  {
+    "created": "2026-05-15T21:24:31.715401",
+    "createdBy": 466,
+    "modified": "2026-05-15T21:24:31.715401",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "SFGZ6",
+    "sectorKey": 49811,
+    "verbatimSourceKey": 324439375,
+    "name": {
+      "created": "2026-05-15T21:24:31.715401",
+      "createdBy": 466,
+      "modified": "2026-05-15T21:24:31.715401",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~CXx",
+      "sectorKey": 49811,
+      "verbatimSourceKey": 324439375,
+      "namesIndexId": 18884545,
+      "namesIndexType": "exact",
+      "identifier": [
+        "tpl:kew-173060",
+        "lsid:urn:lsid:ipni.org:names:296248-1"
+      ],
+      "scientificName": "Quercus hentzei",
+      "authorship": "Petz.",
+      "rank": "species",
+      "genus": "Quercus",
+      "specificEpithet": "hentzei",
+      "combinationAuthorship": {
+        "authors": [
+          "Petz."
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "ed7f13d4-0172-463b-842a-74f833c40b02",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://list.worldfloraonline.org/wfo-0000291092",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "wfo:wfo-0000291092-2025-12"
+    ],
+    "label": "Quercus hentzei Petz.",
+    "labelHtml": "<i>Quercus hentzei</i> Petz."
+  },
+  {
+    "created": "2026-05-15T21:24:31.736365",
+    "createdBy": 466,
+    "modified": "2026-05-15T21:24:31.736365",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "8X52M",
+    "sectorKey": 49811,
+    "verbatimSourceKey": 324439376,
+    "name": {
+      "created": "2026-05-15T21:24:31.736365",
+      "createdBy": 466,
+      "modified": "2026-05-15T21:24:31.736365",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~CXy",
+      "sectorKey": 49811,
+      "verbatimSourceKey": 324439376,
+      "namesIndexId": 18885318,
+      "namesIndexType": "exact",
+      "identifier": [
+        "tpl:kew-173093",
+        "lsid:urn:lsid:ipni.org:names:77245936-1"
+      ],
+      "scientificName": "Quercus hohenackeri",
+      "authorship": "Gand.",
+      "rank": "species",
+      "genus": "Quercus",
+      "specificEpithet": "hohenackeri",
+      "combinationAuthorship": {
+        "authors": [
+          "Gand."
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "59cc2556-7a99-41cc-a820-b1a9d557dfcf",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://list.worldfloraonline.org/wfo-0000291126",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "wfo:wfo-0000291126-2025-12"
+    ],
+    "label": "Quercus hohenackeri Gand.",
+    "labelHtml": "<i>Quercus hohenackeri</i> Gand."
+  },
+  {
+    "created": "2026-05-15T21:24:31.771206",
+    "createdBy": 466,
+    "modified": "2026-05-15T21:24:31.771206",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "SFMTB",
+    "sectorKey": 49811,
+    "verbatimSourceKey": 324439377,
+    "name": {
+      "created": "2026-05-15T21:24:31.771206",
+      "createdBy": 466,
+      "modified": "2026-05-15T21:24:31.771206",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~CXz",
+      "sectorKey": 49811,
+      "verbatimSourceKey": 324439377,
+      "namesIndexId": 18904397,
+      "namesIndexType": "exact",
+      "identifier": [
+        "tpl:kew-173713"
+      ],
+      "scientificName": "Quercus louettii",
+      "authorship": "Dippel",
+      "rank": "species",
+      "genus": "Quercus",
+      "specificEpithet": "louettii",
+      "combinationAuthorship": {
+        "authors": [
+          "Dippel"
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "cb15caa5-a861-4a21-96c0-69f301236402",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://list.worldfloraonline.org/wfo-0000291768",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "wfo:wfo-0000291768-2025-12"
+    ],
+    "label": "Quercus louettii Dippel",
+    "labelHtml": "<i>Quercus louettii</i> Dippel"
+  },
+  {
+    "created": "2026-05-15T21:24:31.800805",
+    "createdBy": 466,
+    "modified": "2026-05-15T21:24:31.800805",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "5R46R",
+    "sectorKey": 49811,
+    "verbatimSourceKey": 324439379,
+    "name": {
+      "created": "2026-05-15T21:24:31.800805",
+      "createdBy": 466,
+      "modified": "2026-05-15T21:24:31.800805",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~CX_",
+      "sectorKey": 49811,
+      "verbatimSourceKey": 324439379,
+      "namesIndexId": 18908627,
+      "namesIndexType": "exact",
+      "identifier": [
+        "tpl:kew-173853"
+      ],
+      "scientificName": "Quercus malacophylla var. asterotricha",
+      "authorship": "Borbás",
+      "rank": "variety",
+      "genus": "Quercus",
+      "specificEpithet": "malacophylla",
+      "infraspecificEpithet": "asterotricha",
+      "combinationAuthorship": {
+        "authors": [
+          "Borbás"
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "b8221ab6-ac88-40b6-bf70-14c5b9a5af9f",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://list.worldfloraonline.org/wfo-0000291912",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "wfo:wfo-0000291912-2025-12"
+    ],
+    "label": "Quercus malacophylla var. asterotricha Borbás",
+    "labelHtml": "<i>Quercus malacophylla</i> var. <i>asterotricha</i> Borbás"
+  },
+  {
+    "created": "2026-05-15T23:18:53.482883",
+    "createdBy": 466,
+    "modified": "2026-05-15T23:18:53.482883",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "SFRGP",
+    "sectorKey": 2172,
+    "verbatimSourceKey": 324581528,
+    "name": {
+      "created": "2026-05-16T03:05:23.518955",
+      "createdBy": 466,
+      "modified": "2026-05-16T03:05:23.518955",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~Uw6",
+      "sectorKey": 2172,
+      "verbatimSourceKey": 324581528,
+      "namesIndexId": 18922422,
+      "namesIndexType": "exact",
+      "scientificName": "Quercus pedunculata",
+      "authorship": "Ehrh.",
+      "rank": "species",
+      "genus": "Quercus",
+      "specificEpithet": "pedunculata",
+      "combinationAuthorship": {
+        "authors": [
+          "Ehrh."
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "a5dc36a2-a2c6-488e-a32f-f53d828b08ce",
+      "origin": "source",
+      "type": "scientific",
+      "link": "http://reflora.jbrj.gov.br/reflora/listaBrasil/FichaPublicaTaxonUC/FichaPublicaTaxonUC.do?id=FB613392",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "grin:sp:418450"
+    ],
+    "label": "Quercus pedunculata Ehrh.",
+    "labelHtml": "<i>Quercus pedunculata</i> Ehrh."
+  },
+  {
+    "created": "2026-05-15T21:24:31.947505",
+    "createdBy": 466,
+    "modified": "2026-05-15T21:24:31.947505",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "SFSTJ",
+    "sectorKey": 49811,
+    "verbatimSourceKey": 324439381,
+    "name": {
+      "created": "2026-05-15T21:24:31.947505",
+      "createdBy": 466,
+      "modified": "2026-05-15T21:24:31.947505",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~CX-",
+      "sectorKey": 49811,
+      "verbatimSourceKey": 324439381,
+      "namesIndexId": 18932636,
+      "namesIndexType": "exact",
+      "identifier": [
+        "tpl:kew-174574",
+        "lsid:urn:lsid:ipni.org:names:296630-1"
+      ],
+      "scientificName": "Quercus pseudopeduncula",
+      "authorship": "Vuk.",
+      "rank": "species",
+      "genus": "Quercus",
+      "specificEpithet": "pseudopeduncula",
+      "combinationAuthorship": {
+        "authors": [
+          "Vuk."
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "331d1704-dfa2-4f2a-ad72-958fab78abf1",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://list.worldfloraonline.org/wfo-0000292666",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "wfo:wfo-0000292666-2025-12"
+    ],
+    "label": "Quercus pseudopeduncula Vuk.",
+    "labelHtml": "<i>Quercus pseudopeduncula</i> Vuk."
+  },
+  {
+    "created": "2026-05-16T03:05:23.509805",
+    "createdBy": 466,
+    "modified": "2026-05-16T03:05:23.509805",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "SFV5H",
+    "sectorKey": 2171,
+    "verbatimSourceKey": 325372781,
+    "name": {
+      "created": "2026-05-16T03:05:23.509805",
+      "createdBy": 466,
+      "modified": "2026-05-16T03:05:23.509805",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~2GC0",
+      "sectorKey": 2171,
+      "verbatimSourceKey": 325372781,
+      "namesIndexId": 18939558,
+      "namesIndexType": "exact",
+      "scientificName": "Quercus robur f. pendula",
+      "authorship": "(Loudon) O. Schwarz",
+      "rank": "form",
+      "genus": "Quercus",
+      "specificEpithet": "robur",
+      "infraspecificEpithet": "pendula",
+      "combinationAuthorship": {
+        "authors": [
+          "O.Schwarz"
+        ]
+      },
+      "basionymAuthorship": {
+        "authors": [
+          "Loudon"
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "673f4704-2330-4ab6-ac69-82553d3b7638",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://npgsweb.ars-grin.gov/gringlobal/taxon/taxonomydetail?id=30743",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "grin:sp:30743"
+    ],
+    "remarks": "= Quercus robur 'Pendula'",
+    "referenceIds": [
+      "15b65785-b0ed-4ac9-8f58-d200bac173eb"
+    ],
+    "label": "Quercus robur f. pendula (Loudon) O. Schwarz",
+    "labelHtml": "<i>Quercus robur</i> f. <i>pendula</i> (Loudon) O. Schwarz"
+  },
+  {
+    "created": "2026-05-15T21:24:32.06921",
+    "createdBy": 466,
+    "modified": "2026-05-15T21:24:32.06921",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "5R4FK",
+    "sectorKey": 49811,
+    "verbatimSourceKey": 324439385,
+    "name": {
+      "created": "2026-05-15T21:24:32.06921",
+      "createdBy": 466,
+      "modified": "2026-05-15T21:24:32.06921",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~CY1",
+      "sectorKey": 49811,
+      "verbatimSourceKey": 324439385,
+      "namesIndexId": 18942300,
+      "namesIndexType": "exact",
+      "identifier": [
+        "tpl:kew-174781",
+        "lsid:urn:lsid:ipni.org:names:77290894-1"
+      ],
+      "scientificName": "Quercus robur var. cuneifolia",
+      "authorship": "Vuk.",
+      "rank": "variety",
+      "genus": "Quercus",
+      "specificEpithet": "robur",
+      "infraspecificEpithet": "cuneifolia",
+      "combinationAuthorship": {
+        "authors": [
+          "Vuk."
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "40ed0dee-883c-41bc-9548-35abca648274",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://list.worldfloraonline.org/wfo-0000292890",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "wfo:wfo-0000292890-2025-12"
+    ],
+    "label": "Quercus robur var. cuneifolia Vuk.",
+    "labelHtml": "<i>Quercus robur</i> var. <i>cuneifolia</i> Vuk."
+  },
+  {
+    "created": "2026-05-15T21:24:32.197203",
+    "createdBy": 466,
+    "modified": "2026-05-15T21:24:32.197203",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "5R4GP",
+    "sectorKey": 49811,
+    "verbatimSourceKey": 324439389,
+    "name": {
+      "created": "2026-05-15T21:24:32.197203",
+      "createdBy": 466,
+      "modified": "2026-05-15T21:24:32.197203",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~CY3",
+      "sectorKey": 49811,
+      "verbatimSourceKey": 324439389,
+      "namesIndexId": 18942943,
+      "namesIndexType": "exact",
+      "identifier": [
+        "tpl:kew-174830"
+      ],
+      "scientificName": "Quercus robur var. pedunculata",
+      "authorship": "(Hoffm.) Hook.f.",
+      "rank": "variety",
+      "genus": "Quercus",
+      "specificEpithet": "robur",
+      "infraspecificEpithet": "pedunculata",
+      "combinationAuthorship": {
+        "authors": [
+          "Hook.f."
+        ]
+      },
+      "basionymAuthorship": {
+        "authors": [
+          "Hoffm."
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "0e381eb0-deca-4f8a-b60c-ddcdd8f71e6c",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://list.worldfloraonline.org/wfo-0000292937",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "wfo:wfo-0000292937-2025-12"
+    ],
+    "label": "Quercus robur var. pedunculata (Hoffm.) Hook.f.",
+    "labelHtml": "<i>Quercus robur</i> var. <i>pedunculata</i> (Hoffm.) Hook.f."
+  },
+  {
+    "created": "2026-05-15T21:24:32.81846",
+    "createdBy": 466,
+    "modified": "2026-05-15T21:24:32.81846",
+    "modifiedBy": 466,
+    "datasetKey": 315192,
+    "id": "CDY39",
+    "sectorKey": 49811,
+    "verbatimSourceKey": 324439408,
+    "name": {
+      "created": "2026-05-15T21:24:32.81846",
+      "createdBy": 466,
+      "modified": "2026-05-15T21:24:32.81846",
+      "modifiedBy": 466,
+      "datasetKey": 315192,
+      "id": "~CYC",
+      "sectorKey": 49811,
+      "verbatimSourceKey": 324439408,
+      "namesIndexId": 18966134,
+      "namesIndexType": "exact",
+      "identifier": [
+        "tpl:kew-175544",
+        "lsid:urn:lsid:ipni.org:names:360199-1"
+      ],
+      "scientificName": "Quercus transiens",
+      "authorship": "A.Reyn.",
+      "rank": "species",
+      "genus": "Quercus",
+      "specificEpithet": "transiens",
+      "combinationAuthorship": {
+        "authors": [
+          "A.Reyn."
+        ]
+      },
+      "code": "botanical",
+      "publishedInId": "41ff9a03-50df-4849-802a-f55f362ec4c3",
+      "origin": "source",
+      "type": "scientific",
+      "link": "https://list.worldfloraonline.org/wfo-0000293692",
+      "parsed": true
+    },
+    "status": "synonym",
+    "origin": "source",
+    "parentId": "4R5YN",
+    "identifier": [
+      "wfo:wfo-0000293692-2025-12"
+    ],
+    "label": "Quercus transiens A.Reyn.",
+    "labelHtml": "<i>Quercus transiens</i> A.Reyn."
+  }
+]
