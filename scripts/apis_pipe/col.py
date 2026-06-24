@@ -20,6 +20,8 @@ Fields implemented
 - api_link: both rows
 """
 
+import re
+
 from scripts.config import COL_PORTAL
 from scripts.utils.normalize_query_string import normalize_query_string
 
@@ -34,6 +36,8 @@ class COLAPI(SpeciesAPI):
     BASE_URL = COL_PORTAL.base_url
     # COL26.5 — update this key when a newer COL release is published on ChecklistBank
     DATASET_KEY = 315192
+
+    _AUTHOR_YEAR_RE: re.Pattern = re.compile(r"(?<!\()\b(\d{4})\b(?!\))")
 
     def _fetch_query_data(self, name: str) -> dict:
         """
@@ -232,6 +236,27 @@ class COLAPI(SpeciesAPI):
             "subfamily": rank_map.get("subfamily", ""),
         }
 
+    def _extract_publication_year(self, authorship: str) -> str:
+        """
+        Extract a four-digit publication year from a COL authorship string.
+
+        Matches a year that is not enclosed in parentheses, e.g. ``"Walbaum, 1792"``
+        returns ``"1792"`` but ``"(Walbaum, 1792)"`` returns ``""``.
+
+        Parameters
+        ----------
+        authorship : str
+            A COL authorship value, e.g. ``"Walbaum, 1792"`` or
+            ``"(L., 1678) Walbaum, 1792"``.
+
+        Returns
+        -------
+        str
+            Four-digit year string, or ``""`` if not found.
+        """
+        m = self._AUTHOR_YEAR_RE.search(authorship)
+        return m.group(1) if m else ""
+
     def _compile_accepted(self, accepted_data: dict) -> list[dict]:
         """
         Build a pipeline-standard record for the accepted name from a COL name-usage record.
@@ -266,6 +291,9 @@ class COLAPI(SpeciesAPI):
                     "species": species,
                     "api_internal_id": str(taxon_id),
                     "author": name_obj.get("authorship", ""),
+                    "publication_year": self._extract_publication_year(
+                        name_obj.get("authorship", "")
+                    ),
                     "original_source": name_obj.get("link", ""),
                     "status": self._extract_status(usage.get("status", "")),
                     "api_link": (
@@ -313,6 +341,9 @@ class COLAPI(SpeciesAPI):
                         "species": species,
                         "api_internal_id": str(taxon_id),
                         "author": name_obj.get("authorship", ""),
+                        "publication_year": self._extract_publication_year(
+                            name_obj.get("authorship", "")
+                        ),
                         "original_source": name_obj.get("link", ""),
                         "status": self._extract_status(s.get("status", "")),
                         "api_link": (
