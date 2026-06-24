@@ -16,6 +16,7 @@ declare module "@tabler/icons-react" {
   export const IconChevronDown: Icon;
   export const IconChevronRight: Icon;
   export const IconInfoCircle: Icon;
+  export const IconAlertCircle: Icon;
   export const IconAlertTriangle: Icon;
   export const IconCircleCheck: Icon;
   export const IconX: Icon;
