@@ -1,0 +1,47 @@
+[
+  {
+    "SynonymName": {
+      "NameId": 13100434,
+      "ScientificName": "Quercus pedunculata",
+      "ScientificNameWithAuthors": "Quercus pedunculata Ehrh.",
+      "Family": "Fagaceae"
+    },
+    "AcceptedName": {
+      "NameId": 13100004,
+      "ScientificName": "Quercus robur",
+      "ScientificNameWithAuthors": "Quercus robur L.",
+      "Family": "Fagaceae"
+    },
+    "Reference": {
+      "ReferenceId": 23908,
+      "PublicationId": 15422,
+      "AuthorString": "Czerepanov, S. K.",
+      "Collation": "509 pages",
+      "AbbreviatedTitle": "Sosud. Rast. SSSR",
+      "TitlePageYear": "1981"
+    }
+  },
+  {
+    "SynonymName": {
+      "NameId": 13101404,
+      "ScientificName": "Quercus robur subsp. eurobur",
+      "ScientificNameWithAuthors": "Quercus robur subsp. eurobur A. Camus",
+      "Family": "Fagaceae"
+    },
+    "AcceptedName": {
+      "NameId": 13100004,
+      "ScientificName": "Quercus robur",
+      "ScientificNameWithAuthors": "Quercus robur L.",
+      "Family": "Fagaceae"
+    },
+    "Reference": {
+      "ReferenceId": 42480,
+      "PublicationId": 11746,
+      "AuthorString": "Flora of China Editorial Committee",
+      "ArticleTitle": "Flora of China (Checklist & Addendum)",
+      "Collation": "Unpaginated",
+      "AbbreviatedTitle": "Fl. China",
+      "TitlePageYear": "1988-2013"
+    }
+  }
+]

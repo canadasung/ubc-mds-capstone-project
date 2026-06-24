@@ -1,0 +1,84 @@
+{
+  "tid": 527987,
+  "kingdomName": "Fungi",
+  "rankID": 220,
+  "rankName": null,
+  "unitInd1": null,
+  "unitName1": "Psalliota",
+  "unitInd2": null,
+  "unitName2": "villatica",
+  "unitInd3": null,
+  "unitName3": null,
+  "cultivarEpithet": null,
+  "tradeName": null,
+  "author": "(Brond.) Bres.",
+  "reviewStatus": null,
+  "displayStatus": null,
+  "isLegitimate": null,
+  "source": "Index Fungorum",
+  "notes": null,
+  "securityStatus": 0,
+  "modifiedTimestamp": null,
+  "initialTimestamp": "2011-11-19 14:07:42",
+  "parentTid": 17617,
+  "status": "synonym",
+  "accepted": {
+    "tid": 214862,
+    "scientificName": "Agaricus campestris",
+    "scientificNameAuthorship": "L.",
+    "taxonomicSource": null,
+    "unacceptabilityReason": null,
+    "taxonRemarks": null
+  },
+  "classification": [
+    {
+      "tid": 7,
+      "scientificName": "Fungi",
+      "author": "R.T. Moore",
+      "rankid": 10
+    },
+    {
+      "tid": 188,
+      "scientificName": "Basidiomycota",
+      "author": "R.T. Moore",
+      "rankid": 30
+    },
+    {
+      "tid": 1128,
+      "scientificName": "Agaricomycotina",
+      "author": "Doweld",
+      "rankid": 40
+    },
+    {
+      "tid": 1431,
+      "scientificName": "Agaricomycetes",
+      "author": "Doweld",
+      "rankid": 60
+    },
+    {
+      "tid": 5489,
+      "scientificName": "Agaricomycetidae",
+      "author": "Parmasto",
+      "rankid": 70
+    },
+    {
+      "tid": 6519,
+      "scientificName": "Agaricales",
+      "author": "Underw.",
+      "rankid": 100
+    },
+    {
+      "tid": 7561,
+      "scientificName": "Agaricaceae",
+      "author": "Chevall.",
+      "rankid": 140
+    },
+    {
+      "tid": 17617,
+      "scientificName": "Psalliota",
+      "author": "(Fr.) P. Kumm.",
+      "rankid": 180
+    }
+  ],
+  "scientificName": "Psalliota villatica"
+}

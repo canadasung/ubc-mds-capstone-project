@@ -1,0 +1,25 @@
+{
+  "header": {
+    "type": "esearch",
+    "version": "0.3"
+  },
+  "esearchresult": {
+    "count": "1",
+    "retmax": "1",
+    "retstart": "0",
+    "idlist": [
+      "41956"
+    ],
+    "translationset": [],
+    "translationstack": [
+      {
+        "term": "Amanita muscaria[Scientific Name]",
+        "field": "Scientific Name",
+        "count": "1",
+        "explode": "N"
+      },
+      "GROUP"
+    ],
+    "querytranslation": "Amanita muscaria[Scientific Name]"
+  }
+}

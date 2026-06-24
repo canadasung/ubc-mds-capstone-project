@@ -1,0 +1,14 @@
+{
+  "author": "(Walbaum, 1792)",
+  "class": "gov.usgs.itis.itis_service.data.SvcItisTerm",
+  "commonNames": [
+    "rainbow trout",
+    "redband trout",
+    "truite arc-en-ciel",
+    "steelhead",
+    "trucha arcoiris"
+  ],
+  "nameUsage": "valid",
+  "scientificName": "Oncorhynchus mykiss",
+  "tsn": "161989"
+}

@@ -1,0 +1,587 @@
+{
+  "version": 2.0,
+  "query": "SELECT DISTINCT `names`.* FROM `names` WHERE (`names`.`id` IN (374, 5066, 16015, 28495, 41324, 59384)) AND (`names`.`correct_spelling_id` IS NULL) AND (`names`.`correct_spelling_id` IS NULL) ORDER BY `names`.`id` ASC",
+  "number_of_records": 6,
+  "number_of_pages": 1,
+  "page_number": 1,
+  "results": [
+    {
+      "id": 374,
+      "type": "name",
+      "name": "Amanita muscaria var. flavivolvata",
+      "author": "(Singer) Dav. T. Jenkins",
+      "rank": "variety",
+      "deprecated": true,
+      "misspelled": false,
+      "citation": "Bibliotheca Mycologica 57: 56 (1977) [MB#487346]",
+      "created_at": "2007-01-10T05:03:59.000Z",
+      "updated_at": "2025-05-23T22:24:35.000Z",
+      "ok_for_export": true,
+      "parents": [
+        {
+          "name": "Eukarya",
+          "rank": "domain"
+        },
+        {
+          "name": "Fungi",
+          "rank": "kingdom"
+        },
+        {
+          "name": "Basidiomycota",
+          "rank": "phylum"
+        },
+        {
+          "name": "Agaricomycotina",
+          "rank": "subphylum"
+        },
+        {
+          "name": "Agaricomycetes",
+          "rank": "class"
+        },
+        {
+          "name": "Agaricomycetidae",
+          "rank": "subclass"
+        },
+        {
+          "name": "Agaricales",
+          "rank": "order"
+        },
+        {
+          "name": "Amanitineae",
+          "rank": "suborder"
+        },
+        {
+          "name": "Amanitaceae",
+          "rank": "family"
+        }
+      ],
+      "synonyms": [
+        {
+          "id": 5066,
+          "name": "Amanita muscaria subsp. flavivolvata",
+          "author": "Singer",
+          "rank": "subspecies",
+          "synonym_id": 4383
+        },
+        {
+          "id": 16015,
+          "name": "Amanita amerimuscaria",
+          "author": "Tulloss & Geml nom. prov.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 28495,
+          "name": "Amanita muscaria",
+          "author": "sensu auct. amer.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 41324,
+          "name": "Amanita muscaria f. flavivolvata",
+          "author": "(Singer) Neville & Poumarat",
+          "rank": "form",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 59384,
+          "name": "Amanita sp. 'LG882'",
+          "author": "Tulloss crypt. temp.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        }
+      ],
+      "comments": [
+        {
+          "id": 45557,
+          "summary": "Deprecated",
+          "content": "Technically both <a href=\"https://mushroomobserver.org/lookups/lookup_name/Amanita+muscaria+var.+flavivolvata\"><i>Amanita muscaria var. flavivolvata</i></a> and <a href=\"https://mushroomobserver.org/lookups/lookup_name/Amanita+muscaria+subsp.+flavivolvata\"><i>Amanita muscaria subsp. flavivolvata</i></a> are valid. However, to ensure that we aren&#8217;t exporting both to third parties like EOL, I&#8217;m suggesting that we prefer the subspecies. This follows what Rod is currently doing on Amanitaceae.org and I believe there is good evidence that this is a distinct species that will eventually be published as <a href=\"https://mushroomobserver.org/lookups/lookup_name/Amanita+amerimuscaria\"><i>Amanita amerimuscaria</i></a>. Given this subspecies status seems more appropriate than a variety.",
+          "created_at": "2011-12-13T14:57:29.000Z",
+          "updated_at": "2011-12-13T14:57:29.000Z",
+          "owner": {
+            "id": 1,
+            "login_name": "nathan",
+            "legal_name": "Nathan Wilson"
+          }
+        }
+      ]
+    },
+    {
+      "id": 5066,
+      "type": "name",
+      "name": "Amanita muscaria subsp. flavivolvata",
+      "author": "Singer",
+      "rank": "subspecies",
+      "deprecated": false,
+      "misspelled": false,
+      "citation": "<a href=\"https://www.zobodat.at/pdf/Sydowia_11_0354-0374.pdf#page=21\"><cite>Sydowia</cite> 11(1-6): 374</a> (1958) [1957]",
+      "created_at": "2007-09-23T01:34:49.000Z",
+      "updated_at": "2025-04-02T18:28:07.000Z",
+      "ok_for_export": true,
+      "parents": [
+        {
+          "name": "Eukarya",
+          "rank": "domain"
+        },
+        {
+          "name": "Fungi",
+          "rank": "kingdom"
+        },
+        {
+          "name": "Basidiomycota",
+          "rank": "phylum"
+        },
+        {
+          "name": "Agaricomycotina",
+          "rank": "subphylum"
+        },
+        {
+          "name": "Agaricomycetes",
+          "rank": "class"
+        },
+        {
+          "name": "Agaricomycetidae",
+          "rank": "subclass"
+        },
+        {
+          "name": "Agaricales",
+          "rank": "order"
+        },
+        {
+          "name": "Amanitineae",
+          "rank": "suborder"
+        },
+        {
+          "name": "Amanitaceae",
+          "rank": "family"
+        }
+      ],
+      "synonyms": [
+        {
+          "id": 374,
+          "name": "Amanita muscaria var. flavivolvata",
+          "author": "(Singer) Dav. T. Jenkins",
+          "rank": "variety",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 16015,
+          "name": "Amanita amerimuscaria",
+          "author": "Tulloss & Geml nom. prov.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 28495,
+          "name": "Amanita muscaria",
+          "author": "sensu auct. amer.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 41324,
+          "name": "Amanita muscaria f. flavivolvata",
+          "author": "(Singer) Neville & Poumarat",
+          "rank": "form",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 59384,
+          "name": "Amanita sp. 'LG882'",
+          "author": "Tulloss crypt. temp.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        }
+      ]
+    },
+    {
+      "id": 16015,
+      "type": "name",
+      "name": "Amanita amerimuscaria",
+      "author": "Tulloss & Geml nom. prov.",
+      "rank": "species",
+      "deprecated": true,
+      "misspelled": false,
+      "created_at": "2009-02-13T03:42:08.000Z",
+      "updated_at": "2025-05-23T22:24:33.000Z",
+      "ok_for_export": true,
+      "parents": [
+        {
+          "name": "Eukarya",
+          "rank": "domain"
+        },
+        {
+          "name": "Fungi",
+          "rank": "kingdom"
+        },
+        {
+          "name": "Basidiomycota",
+          "rank": "phylum"
+        },
+        {
+          "name": "Agaricomycotina",
+          "rank": "subphylum"
+        },
+        {
+          "name": "Agaricomycetes",
+          "rank": "class"
+        },
+        {
+          "name": "Agaricomycetidae",
+          "rank": "subclass"
+        },
+        {
+          "name": "Agaricales",
+          "rank": "order"
+        },
+        {
+          "name": "Amanitineae",
+          "rank": "suborder"
+        },
+        {
+          "name": "Amanitaceae",
+          "rank": "family"
+        }
+      ],
+      "synonyms": [
+        {
+          "id": 374,
+          "name": "Amanita muscaria var. flavivolvata",
+          "author": "(Singer) Dav. T. Jenkins",
+          "rank": "variety",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 5066,
+          "name": "Amanita muscaria subsp. flavivolvata",
+          "author": "Singer",
+          "rank": "subspecies",
+          "synonym_id": 4383
+        },
+        {
+          "id": 28495,
+          "name": "Amanita muscaria",
+          "author": "sensu auct. amer.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 41324,
+          "name": "Amanita muscaria f. flavivolvata",
+          "author": "(Singer) Neville & Poumarat",
+          "rank": "form",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 59384,
+          "name": "Amanita sp. 'LG882'",
+          "author": "Tulloss crypt. temp.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        }
+      ],
+      "comments": [
+        {
+          "id": 167081,
+          "summary": "What ever happened to this name?",
+          "content": "<p>What ever happened to this name?   Was it decided that it didn&#8217;t need to be published because Amanita muscaria subsp. flavivolvata is a good name for this taxon?</p>",
+          "created_at": "2019-02-20T17:59:29.000Z",
+          "updated_at": "2019-02-20T17:59:29.000Z",
+          "owner": {
+            "id": 123,
+            "login_name": "Alan Rockefeller",
+            "legal_name": "Alan Rockefeller"
+          }
+        }
+      ]
+    },
+    {
+      "id": 28495,
+      "type": "name",
+      "name": "Amanita muscaria",
+      "author": "sensu auct. amer.",
+      "rank": "species",
+      "deprecated": true,
+      "misspelled": false,
+      "created_at": "2011-08-10T22:18:52.000Z",
+      "updated_at": "2025-05-24T22:12:18.000Z",
+      "ok_for_export": true,
+      "parents": [
+        {
+          "name": "Eukarya",
+          "rank": "domain"
+        },
+        {
+          "name": "Fungi",
+          "rank": "kingdom"
+        },
+        {
+          "name": "Basidiomycota",
+          "rank": "phylum"
+        },
+        {
+          "name": "Agaricomycotina",
+          "rank": "subphylum"
+        },
+        {
+          "name": "Agaricomycetes",
+          "rank": "class"
+        },
+        {
+          "name": "Agaricomycetidae",
+          "rank": "subclass"
+        },
+        {
+          "name": "Agaricales",
+          "rank": "order"
+        },
+        {
+          "name": "Amanitineae",
+          "rank": "suborder"
+        },
+        {
+          "name": "Amanitaceae",
+          "rank": "family"
+        }
+      ],
+      "synonyms": [
+        {
+          "id": 374,
+          "name": "Amanita muscaria var. flavivolvata",
+          "author": "(Singer) Dav. T. Jenkins",
+          "rank": "variety",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 5066,
+          "name": "Amanita muscaria subsp. flavivolvata",
+          "author": "Singer",
+          "rank": "subspecies",
+          "synonym_id": 4383
+        },
+        {
+          "id": 16015,
+          "name": "Amanita amerimuscaria",
+          "author": "Tulloss & Geml nom. prov.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 41324,
+          "name": "Amanita muscaria f. flavivolvata",
+          "author": "(Singer) Neville & Poumarat",
+          "rank": "form",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 59384,
+          "name": "Amanita sp. 'LG882'",
+          "author": "Tulloss crypt. temp.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        }
+      ]
+    },
+    {
+      "id": 41324,
+      "type": "name",
+      "name": "Amanita muscaria f. flavivolvata",
+      "author": "(Singer) Neville & Poumarat",
+      "rank": "form",
+      "deprecated": true,
+      "misspelled": false,
+      "created_at": "2013-11-13T09:11:24.000Z",
+      "updated_at": "2025-04-02T22:12:09.000Z",
+      "ok_for_export": true,
+      "parents": [
+        {
+          "name": "Eukarya",
+          "rank": "domain"
+        },
+        {
+          "name": "Fungi",
+          "rank": "kingdom"
+        },
+        {
+          "name": "Basidiomycota",
+          "rank": "phylum"
+        },
+        {
+          "name": "Agaricomycotina",
+          "rank": "subphylum"
+        },
+        {
+          "name": "Agaricomycetes",
+          "rank": "class"
+        },
+        {
+          "name": "Agaricomycetidae",
+          "rank": "subclass"
+        },
+        {
+          "name": "Agaricales",
+          "rank": "order"
+        },
+        {
+          "name": "Amanitineae",
+          "rank": "suborder"
+        },
+        {
+          "name": "Amanitaceae",
+          "rank": "family"
+        }
+      ],
+      "synonyms": [
+        {
+          "id": 374,
+          "name": "Amanita muscaria var. flavivolvata",
+          "author": "(Singer) Dav. T. Jenkins",
+          "rank": "variety",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 5066,
+          "name": "Amanita muscaria subsp. flavivolvata",
+          "author": "Singer",
+          "rank": "subspecies",
+          "synonym_id": 4383
+        },
+        {
+          "id": 16015,
+          "name": "Amanita amerimuscaria",
+          "author": "Tulloss & Geml nom. prov.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 28495,
+          "name": "Amanita muscaria",
+          "author": "sensu auct. amer.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 59384,
+          "name": "Amanita sp. 'LG882'",
+          "author": "Tulloss crypt. temp.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        }
+      ]
+    },
+    {
+      "id": 59384,
+      "type": "name",
+      "name": "Amanita sp. 'LG882'",
+      "author": "Tulloss crypt. temp.",
+      "rank": "species",
+      "deprecated": true,
+      "misspelled": false,
+      "notes": "<p>Geographic origin: Santa Cruz Island, California, USA</p>\n<p>Geml, J., Tulloss, R.E., Laursen, G.A., Sazanova, N.A. and Taylor, D.L., 2010. Phylogeographic analyses of a boreal-temperate ectomycorrhizal basidiomycete, Amanita muscaria, suggest forest refugia in Alaska during the last glacial maximum. In Relict Species (pp. 173-186). Springer Berlin Heidelberg.</p>\n<p><a href=\"http://taylorlabunm.weebly.com/uploads/2/5/0/2/25029144/geml_relict-species-phylogeography-and-conservation-biology_2010.pdf\">http://taylorlabunm.weebly.com/...</a></p>",
+      "created_at": "2016-10-17T14:30:57.000Z",
+      "updated_at": "2026-04-28T18:32:58.000Z",
+      "ok_for_export": true,
+      "parents": [
+        {
+          "name": "Eukarya",
+          "rank": "domain"
+        },
+        {
+          "name": "Fungi",
+          "rank": "kingdom"
+        },
+        {
+          "name": "Basidiomycota",
+          "rank": "phylum"
+        },
+        {
+          "name": "Agaricomycotina",
+          "rank": "subphylum"
+        },
+        {
+          "name": "Agaricomycetes",
+          "rank": "class"
+        },
+        {
+          "name": "Agaricomycetidae",
+          "rank": "subclass"
+        },
+        {
+          "name": "Agaricales",
+          "rank": "order"
+        },
+        {
+          "name": "Amanitineae",
+          "rank": "suborder"
+        },
+        {
+          "name": "Amanitaceae",
+          "rank": "family"
+        }
+      ],
+      "synonyms": [
+        {
+          "id": 374,
+          "name": "Amanita muscaria var. flavivolvata",
+          "author": "(Singer) Dav. T. Jenkins",
+          "rank": "variety",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 5066,
+          "name": "Amanita muscaria subsp. flavivolvata",
+          "author": "Singer",
+          "rank": "subspecies",
+          "synonym_id": 4383
+        },
+        {
+          "id": 16015,
+          "name": "Amanita amerimuscaria",
+          "author": "Tulloss & Geml nom. prov.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 28495,
+          "name": "Amanita muscaria",
+          "author": "sensu auct. amer.",
+          "rank": "species",
+          "deprecated": true,
+          "synonym_id": 4383
+        },
+        {
+          "id": 41324,
+          "name": "Amanita muscaria f. flavivolvata",
+          "author": "(Singer) Neville & Poumarat",
+          "rank": "form",
+          "deprecated": true,
+          "synonym_id": 4383
+        }
+      ]
+    }
+  ]
+}

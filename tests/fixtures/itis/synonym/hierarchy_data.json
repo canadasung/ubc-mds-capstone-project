@@ -1,0 +1,200 @@
+[
+  {
+    "author": null,
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "",
+    "parentTsn": "",
+    "rankName": "Kingdom",
+    "taxonName": "Animalia",
+    "tsn": "202423"
+  },
+  {
+    "author": null,
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Animalia",
+    "parentTsn": "202423",
+    "rankName": "Subkingdom",
+    "taxonName": "Bilateria",
+    "tsn": "914154"
+  },
+  {
+    "author": null,
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Bilateria",
+    "parentTsn": "914154",
+    "rankName": "Infrakingdom",
+    "taxonName": "Deuterostomia",
+    "tsn": "914156"
+  },
+  {
+    "author": null,
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Deuterostomia",
+    "parentTsn": "914156",
+    "rankName": "Phylum",
+    "taxonName": "Chordata",
+    "tsn": "158852"
+  },
+  {
+    "author": null,
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Chordata",
+    "parentTsn": "158852",
+    "rankName": "Subphylum",
+    "taxonName": "Vertebrata",
+    "tsn": "331030"
+  },
+  {
+    "author": null,
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Vertebrata",
+    "parentTsn": "331030",
+    "rankName": "Infraphylum",
+    "taxonName": "Gnathostomata",
+    "tsn": "914179"
+  },
+  {
+    "author": null,
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Gnathostomata",
+    "parentTsn": "914179",
+    "rankName": "Superclass",
+    "taxonName": "Actinopterygii",
+    "tsn": "161061"
+  },
+  {
+    "author": null,
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Actinopterygii",
+    "parentTsn": "161061",
+    "rankName": "Class",
+    "taxonName": "Teleostei",
+    "tsn": "161105"
+  },
+  {
+    "author": null,
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Teleostei",
+    "parentTsn": "161105",
+    "rankName": "Superorder",
+    "taxonName": "Protacanthopterygii",
+    "tsn": "161928"
+  },
+  {
+    "author": null,
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Protacanthopterygii",
+    "parentTsn": "161928",
+    "rankName": "Order",
+    "taxonName": "Salmoniformes",
+    "tsn": "161929"
+  },
+  {
+    "author": null,
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Salmoniformes",
+    "parentTsn": "161929",
+    "rankName": "Family",
+    "taxonName": "Salmonidae",
+    "tsn": "161931"
+  },
+  {
+    "author": null,
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Salmonidae",
+    "parentTsn": "161931",
+    "rankName": "Subfamily",
+    "taxonName": "Salmoninae",
+    "tsn": "623286"
+  },
+  {
+    "author": "Suckley, 1861",
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Salmoninae",
+    "parentTsn": "623286",
+    "rankName": "Genus",
+    "taxonName": "Oncorhynchus",
+    "tsn": "161974"
+  },
+  {
+    "author": "(Walbaum, 1792)",
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Oncorhynchus",
+    "parentTsn": "161974",
+    "rankName": "Species",
+    "taxonName": "Oncorhynchus mykiss",
+    "tsn": "161989"
+  },
+  {
+    "author": "(Snyder, 1917)",
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Oncorhynchus mykiss",
+    "parentTsn": "161989",
+    "rankName": "Subspecies",
+    "taxonName": "Oncorhynchus mykiss aquilarum",
+    "tsn": "914087"
+  },
+  {
+    "author": "(Richardson, 1836)",
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Oncorhynchus mykiss",
+    "parentTsn": "161989",
+    "rankName": "Subspecies",
+    "taxonName": "Oncorhynchus mykiss gairdnerii",
+    "tsn": "553418"
+  },
+  {
+    "author": "(Jordan, 1894)",
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Oncorhynchus mykiss",
+    "parentTsn": "161989",
+    "rankName": "Subspecies",
+    "taxonName": "Oncorhynchus mykiss gilberti",
+    "tsn": "553420"
+  },
+  {
+    "author": "(Gibbons, 1855)",
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Oncorhynchus mykiss",
+    "parentTsn": "161989",
+    "rankName": "Subspecies",
+    "taxonName": "Oncorhynchus mykiss irideus",
+    "tsn": "553422"
+  },
+  {
+    "author": "(Walbaum, 1792)",
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Oncorhynchus mykiss",
+    "parentTsn": "161989",
+    "rankName": "Subspecies",
+    "taxonName": "Oncorhynchus mykiss mykiss",
+    "tsn": "553423"
+  },
+  {
+    "author": "(Evermann, 1908)",
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Oncorhynchus mykiss",
+    "parentTsn": "161989",
+    "rankName": "Subspecies",
+    "taxonName": "Oncorhynchus mykiss nelsoni",
+    "tsn": "553430"
+  },
+  {
+    "author": "(Jordan, 1894)",
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Oncorhynchus mykiss",
+    "parentTsn": "161989",
+    "rankName": "Subspecies",
+    "taxonName": "Oncorhynchus mykiss stonei",
+    "tsn": "553421"
+  },
+  {
+    "author": "(Evermann, 1906)",
+    "class": "gov.usgs.itis.itis_service.data.SvcHierarchyRecord",
+    "parentName": "Oncorhynchus mykiss",
+    "parentTsn": "161989",
+    "rankName": "Subspecies",
+    "taxonName": "Oncorhynchus mykiss whitei",
+    "tsn": "591704"
+  }
+]

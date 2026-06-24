@@ -149,18 +149,18 @@ class SpeciesAPI(ABC):
         Returns
         -------
         dict
-            Parsed JSON response.
-
-        Raises
-        ------
-        requests.RequestException
-            If the underlying request fails. See ``_fetch``.
+            Parsed JSON response, or ``{}`` on any error (network, HTTP, or a
+            response body that is not valid JSON).
         """
 
         response = self._fetch(url, params=params, timeout=timeout)
-        data = response.json() if response is not None else {}
-        self._warn_blank(url, data, params)
-        return data
+        if response is None:
+            return {}
+        try:
+            return response.json()
+        except ValueError:
+            print(f"{type(self).__name__} error parsing JSON.")
+            return {}
 
     def _fetch_XML(self, url: str, params: dict = {}, timeout: int = 10) -> ET.Element:
         """
@@ -261,7 +261,9 @@ class SpeciesAPI(ABC):
         """
         if self.VERBOSE and self._is_empty(data):
             suffix = f" (params={params})" if params else ""
-            print(f"[{type(self).__name__}] WARNING: blank/empty response from {url}{suffix}")
+            print(
+                f"[{type(self).__name__}] WARNING: blank/empty response from {url}{suffix}"
+            )
 
     def _warn_if_blank(self, step: str, data) -> None:
         """

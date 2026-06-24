@@ -3,7 +3,7 @@ test_env_configured.py — Verify the .env file exists and all required
 environment variables are filled in with real (non-placeholder) values.
 
 Run from the project root:
-    pytest tests/utils/test_env_configured.py -v
+    pytest tests/integration/test_env_configured.py -v
 """
 
 import os

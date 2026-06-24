@@ -1,0 +1,77 @@
+{
+  "tid": 17263,
+  "kingdomName": "Plantae",
+  "rankID": 220,
+  "rankName": null,
+  "unitInd1": null,
+  "unitName1": "Magnolia",
+  "unitInd2": null,
+  "unitName2": "grandiflora",
+  "unitInd3": null,
+  "unitName3": null,
+  "cultivarEpithet": null,
+  "tradeName": null,
+  "author": "L.",
+  "reviewStatus": null,
+  "displayStatus": null,
+  "isLegitimate": null,
+  "source": "Martin_092306",
+  "sourceIdentifier": null,
+  "notes": null,
+  "securityStatus": 0,
+  "modifiedTimestamp": null,
+  "initialTimestamp": "2006-12-25 06:25:43",
+  "parentTid": 17119,
+  "status": "accepted",
+  "classification": [
+    {
+      "tid": 5570,
+      "scientificName": "Magnoliophyta",
+      "author": "",
+      "rankid": 30
+    },
+    {
+      "tid": 5571,
+      "scientificName": "Plantae",
+      "author": "",
+      "rankid": 10
+    },
+    {
+      "tid": 16366,
+      "scientificName": "Magnoliaceae",
+      "author": "",
+      "rankid": 140
+    },
+    {
+      "tid": 16469,
+      "scientificName": "Magnoliales",
+      "author": "",
+      "rankid": 100
+    },
+    {
+      "tid": 17119,
+      "scientificName": "Magnolia",
+      "author": "L.",
+      "rankid": 180
+    },
+    {
+      "tid": 170361,
+      "scientificName": "Tracheophyta",
+      "author": "",
+      "rankid": 20
+    },
+    {
+      "tid": 170633,
+      "scientificName": "Spermatophyta",
+      "author": "",
+      "rankid": 20
+    },
+    {
+      "tid": 170683,
+      "scientificName": "Magnoliids",
+      "author": "",
+      "rankid": 75
+    }
+  ],
+  "scientificName": "Magnolia grandiflora"
+}

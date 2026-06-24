@@ -10,7 +10,7 @@ NOTE: These tests require internet access and will fail if the machine is offlin
 Notice: These tests are intended only to check for basic connectivity to all APIs and do not guarantee that all API calls in the pipeline will succeed. Other code may call APIs incorrectly, or call endpoints that are not working or not supported.
 
 Run from the project root:
-    pytest tests/utils/test_API_online.py -v
+    pytest tests/integration/test_API_online.py -v
 """
 
 import os
@@ -19,9 +19,12 @@ import socket
 import pytest
 import requests
 
+from scripts.config import SYMBIOTA_PORTALS as _CONFIG_SYMBIOTA_PORTALS
+
 _TIMEOUT = 15
 _TEST_FUNGUS = "Amanita muscaria"
 _TEST_PLANT = "Quercus robur"
+_TEST_FISH = "Gadus morhua"
 
 _NETWORK_ERRORS = (
     requests.exceptions.ConnectionError,
@@ -42,6 +45,8 @@ _STATUS_DESCRIPTIONS = {
     503: "service unavailable — server overloaded or temporarily down",
     504: "gateway timeout — upstream server timed out",
 }
+
+_SYMBIOTA_PORTALS = [(p.display_name, p.base_url) for p in _CONFIG_SYMBIOTA_PORTALS]
 
 
 def _describe(code: int) -> str:
@@ -128,6 +133,7 @@ def _get(url, params=None, headers=None):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.integration
 def test_gbif_online():
     """
     Verify that the GBIF species match endpoint is reachable and returns 2xx.
@@ -144,6 +150,7 @@ def test_gbif_online():
     )
 
 
+@pytest.mark.integration
 def test_col_online():
     """
     Verify that the Catalogue of Life name search endpoint is reachable and returns 2xx.
@@ -160,6 +167,7 @@ def test_col_online():
     )
 
 
+@pytest.mark.integration
 def test_genbank_online():
     """
     Verify that the GenBank Entrez esearch endpoint is reachable and returns a valid response.
@@ -185,6 +193,7 @@ def test_genbank_online():
     )
 
 
+@pytest.mark.integration
 def test_index_fungorum_online():
     """
     Verify that the Index Fungorum API health check endpoint is reachable and returns 2xx.
@@ -200,6 +209,7 @@ def test_index_fungorum_online():
     )
 
 
+@pytest.mark.integration
 def test_mushroom_observer_online():
     """
     Verify that the Mushroom Observer names endpoint is reachable and returns 2xx.
@@ -217,17 +227,17 @@ def test_mushroom_observer_online():
     )
 
 
-def test_tropicos_online():
+@pytest.mark.integration
+def test_tropicos_online(require_tropicos_api_key):
     """
     Verify that the Tropicos name search endpoint is reachable and returns 2xx.
 
     Requires the ``TROPICOS_API_KEY`` environment variable to be set; the test
-    is skipped if it is absent. Sends a minimal exact-match name search for
-    ``_TEST_PLANT`` and asserts a successful HTTP status code.
+    is skipped locally or fails on CI if it is absent or still the placeholder.
+    Sends a minimal exact-match name search for ``_TEST_PLANT`` and asserts a
+    successful HTTP status code.
     """
     api_key = os.getenv("TROPICOS_API_KEY")
-    if not api_key:
-        pytest.skip("TROPICOS_API_KEY not set — skipping Tropicos connectivity check")
     resp = _get(
         "http://services.tropicos.org/Name/Search",
         params={
@@ -242,25 +252,73 @@ def test_tropicos_online():
     )
 
 
+@pytest.mark.integration
+def test_tropicos_api_key_authenticates(require_tropicos_api_key):
+    """
+    Verify that the configured ``TROPICOS_API_KEY`` is accepted by the Tropicos API.
+
+    Distinct from ``test_tropicos_online``, which only checks for a 2xx response.
+    This test specifically asserts the response is not 401 or 403, confirming the
+    key is valid and not expired — even if the server is otherwise reachable.
+    """
+    api_key = os.getenv("TROPICOS_API_KEY")
+    resp = _get(
+        "http://services.tropicos.org/Name/Search",
+        params={
+            "name": _TEST_PLANT,
+            "type": "exact",
+            "apikey": api_key,
+            "format": "json",
+        },
+    )
+    assert resp.status_code not in (401, 403), (
+        f"Tropicos rejected the API key (HTTP {resp.status_code}) — "
+        "the key may be expired or incorrect. "
+        "Register at https://services.tropicos.org/help?requestkey to get a new key."
+    )
+
+
+@pytest.mark.integration
+def test_fishbase_online():
+    """
+    Verify that the FishBase species summary page is reachable and returns 2xx.
+
+    FishBase has no JSON API — the pipeline scrapes HTML. Hitting the summary
+    page for a well-known species confirms the site is up and serving content.
+    """
+    genus, species = _TEST_FISH.split()
+    resp = _get(
+        f"https://www.fishbase.se/summary/{genus}-{species}",
+        headers={"User-Agent": "Mozilla/5.0"},
+    )
+    assert 200 <= resp.status_code < 300, (
+        f"FishBase returned HTTP {resp.status_code} ({_describe(resp.status_code)})"
+    )
+
+
+@pytest.mark.integration
+def test_itis_online():
+    """
+    Verify that the ITIS scientific name search endpoint is reachable and returns 2xx.
+
+    Sends a minimal search for ``_TEST_FUNGUS`` to the ITIS JSON web service
+    and asserts a successful HTTP status code.
+    """
+    resp = _get(
+        "https://www.itis.gov/ITISWebService/jsonservice/getITISTermsFromScientificName",
+        params={"srchKey": _TEST_FUNGUS},
+    )
+    assert 200 <= resp.status_code < 300, (
+        f"ITIS returned HTTP {resp.status_code} ({_describe(resp.status_code)})"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Symbiota portals
 # ---------------------------------------------------------------------------
 
-_SYMBIOTA_PORTALS = [
-    ("mycoportal", "https://mycoportal.org/portal"),
-    ("lichen", "https://lichenportal.org/portal"),
-    ("bryophyte", "https://bryophyteportal.org/portal"),
-    ("cch2", "https://cch2.org/portal"),
-    ("sernec", "https://sernecportal.org/portal"),
-    ("nansh", "https://nansh.org/portal"),
-    ("macroalgae", "https://macroalgae.org/portal"),
-    ("pterido", "https://pteridoportal.org/portal"),
-    ("neherbaria", "https://neherbaria.org/portal"),
-    ("midatlantic", "https://midatlanticherbaria.org/portal"),
-    ("swbiodiversity", "https://swbiodiversity.org/seinet"),
-]
 
-
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "portal_id,base_url",
     _SYMBIOTA_PORTALS,
@@ -270,14 +328,15 @@ def test_symbiota_portal_online(portal_id, base_url):
     """
     Verify that a Symbiota portal taxonomy search endpoint is reachable and returns 2xx.
 
-    Parametrized over all portals in ``_SYMBIOTA_PORTALS``. Sends a minimal
-    exact-match taxonomy search for ``_TEST_FUNGUS`` to each portal's API v2
-    endpoint and asserts a successful HTTP status code.
+    Parametrized over all portals in ``_SYMBIOTA_PORTALS``, derived from
+    ``scripts.config.SYMBIOTA_PORTALS``. Sends a minimal exact-match taxonomy
+    search for ``_TEST_FUNGUS`` to each portal's API v2 endpoint and asserts a
+    successful HTTP status code.
 
     Parameters
     ----------
     portal_id : str
-        Short identifier for the portal (e.g. ``"mycoportal"``).
+        Display name of the portal (e.g. ``"MyCoPortal"``).
     base_url : str
         Base URL of the portal (e.g. ``"https://mycoportal.org/portal"``).
     """
