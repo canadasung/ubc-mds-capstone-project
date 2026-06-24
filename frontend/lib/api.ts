@@ -91,6 +91,7 @@ export function openSearchStream(
   onProgress: (source: string, done: number, total: number) => void,
   onResult: (data: SearchResponse) => void,
   onSuggestions: (names: string[]) => void,
+  onSourceError: (source: string, message: string) => void,
   onError: (e: Error) => void,
 ): () => void {
   const backendNames = sourceKeys
@@ -117,6 +118,8 @@ export function openSearchStream(
       };
       if (msg.type === "progress") {
         onProgress(msg.source ?? "", msg.done ?? 0, msg.total ?? 0);
+      } else if (msg.type === "source_error") {
+        onSourceError(msg.source ?? "", msg.message ?? "Unknown error");
       } else if (msg.type === "result" && msg.data) {
         onResult(msg.data);
         es.close();

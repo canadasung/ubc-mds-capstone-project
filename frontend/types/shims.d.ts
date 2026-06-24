@@ -18,19 +18,7 @@ declare module "@tabler/icons-react" {
   export const IconInfoCircle: Icon;
   export const IconAlertTriangle: Icon;
   export const IconCircleCheck: Icon;
+  export const IconX: Icon;
   const _default: Record<string, Icon>;
   export default _default;
-}
-
-declare module "plotly.js-dist-min" {
-  const Plotly: any;
-  export default Plotly;
-}
-
-declare module "react-plotly.js/factory" {
-  import type { ComponentType } from "react";
-  import type { PlotParams } from "react-plotly.js";
-  export default function createPlotlyComponent(
-    plotly: unknown,
-  ): ComponentType<PlotParams>;
 }

@@ -468,16 +468,22 @@ class SymbiotaAPI(SpeciesAPI):
         if self._is_empty(raw_data):
             self._warn_if_blank("_fetch_query_data", raw_data)
             return empty_synonym_table()
+        print("_fetch_query_data")
+        print(raw_data)
 
         accepted_id = self._extract_internal_accepted_id(raw_data)
         if not accepted_id:
             return empty_synonym_table()
 
         synonym_data = self._fetch_synonym_data(accepted_id)
+        print("_fetch_synonym_data")
+        print(synonym_data)
         if accepted_id == self._extract_internal_id(raw_data):
             accepted_data = raw_data
         else:
             accepted_data = self._fetch_accepted_data(accepted_id)
+        print("_fetch_accepted_data")
+        print(accepted_data)
 
         accepted_rows = self._compile_accepted(accepted_data, accepted_id)
         synonym_rows = self._compile_synonyms(synonym_data, accepted_id)
