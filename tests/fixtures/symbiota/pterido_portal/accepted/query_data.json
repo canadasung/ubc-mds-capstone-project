@@ -1,0 +1,95 @@
+{
+  "tid": 386,
+  "kingdomName": "Plantae",
+  "rankID": 220,
+  "rankName": null,
+  "unitInd1": null,
+  "unitName1": "Dryopteris",
+  "unitInd2": null,
+  "unitName2": "filix-mas",
+  "unitInd3": null,
+  "unitName3": null,
+  "cultivarEpithet": null,
+  "tradeName": null,
+  "author": "",
+  "reviewStatus": null,
+  "displayStatus": null,
+  "isLegitimate": null,
+  "source": "World Ferns: Checklist of Ferns and Lycophytes of the World (added via CoL API)",
+  "sourceIdentifier": null,
+  "notes": null,
+  "securityStatus": 0,
+  "modifiedTimestamp": null,
+  "initialTimestamp": "2018-09-21 06:27:10",
+  "parentTid": 325,
+  "status": "accepted",
+  "classification": [
+    {
+      "tid": 1,
+      "scientificName": "Organism",
+      "author": "",
+      "rankid": 1
+    },
+    {
+      "tid": 4,
+      "scientificName": "Plantae",
+      "author": "",
+      "rankid": 10
+    },
+    {
+      "tid": 7,
+      "scientificName": "Tracheophyta",
+      "author": "",
+      "rankid": 30
+    },
+    {
+      "tid": 8,
+      "scientificName": "Polypodiopsida",
+      "author": "",
+      "rankid": 60
+    },
+    {
+      "tid": 14,
+      "scientificName": "Polypodiales",
+      "author": "",
+      "rankid": 100
+    },
+    {
+      "tid": 25,
+      "scientificName": "Dryopteridaceae",
+      "author": "",
+      "rankid": 140
+    },
+    {
+      "tid": 325,
+      "scientificName": "Dryopteris",
+      "author": "",
+      "rankid": 180
+    },
+    {
+      "tid": 12090,
+      "scientificName": "Polypodiidae",
+      "author": "Cronquist, Takht. & W. Zimm.",
+      "rankid": 70
+    },
+    {
+      "tid": 19546,
+      "scientificName": "Polypodiineae",
+      "author": "Bessey",
+      "rankid": 110
+    },
+    {
+      "tid": 60888,
+      "scientificName": "Dryopteridoideae",
+      "author": "Link",
+      "rankid": 150
+    },
+    {
+      "tid": 60917,
+      "scientificName": "Polypodiophytina",
+      "author": "",
+      "rankid": 40
+    }
+  ],
+  "scientificName": "Dryopteris filix-mas"
+}

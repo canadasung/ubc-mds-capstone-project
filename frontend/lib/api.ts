@@ -16,6 +16,22 @@ import { backendNameForKey } from "./sources";
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
+/**
+ * Fetch a JSON endpoint and return the parsed body.
+ *
+ * Throws ``ApiError`` on network failure or any non-2xx status, extracting
+ * the ``detail`` field from FastAPI error bodies when present.
+ *
+ * Parameters
+ * ----------
+ * path : string
+ *     Absolute path appended to BASE_URL (e.g. ``"/api/sources"``).
+ *
+ * Returns
+ * -------
+ * Promise<T>
+ *     Parsed response body cast to T.
+ */
 async function getJson<T>(path: string): Promise<T> {
   let res: Response;
   try {
@@ -49,10 +65,21 @@ async function getJson<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** Fetch the list of available source keys from ``/api/sources``. */
 export function getSources(): Promise<SourcesResponse> {
   return getJson<SourcesResponse>("/api/sources");
 }
 
+/**
+ * Fetch all-source search results for a query from ``/api/search``.
+ *
+ * Parameters
+ * ----------
+ * query : string
+ *     Species name to search.
+ * mock : boolean
+ *     When true the backend returns sample CSV data instead of live API calls.
+ */
 export function getSearch(
   query: string,
   mock = true,
@@ -65,6 +92,16 @@ export function getSearch(
   return getJson<SearchResponse>(`/api/search?${params.toString()}`);
 }
 
+/**
+ * Fetch the per-source taxonomy comparison for a query from ``/api/taxonomy``.
+ *
+ * Parameters
+ * ----------
+ * query : string
+ *     Species name to compare.
+ * mock : boolean
+ *     When true the backend returns sample data instead of live API calls.
+ */
 export function getTaxonomy(
   query: string,
   mock = true,
@@ -91,6 +128,7 @@ export function openSearchStream(
   onProgress: (source: string, done: number, total: number) => void,
   onResult: (data: SearchResponse) => void,
   onSuggestions: (names: string[]) => void,
+  onSourceError: (source: string, message: string) => void,
   onError: (e: Error) => void,
 ): () => void {
   const backendNames = sourceKeys
@@ -117,6 +155,8 @@ export function openSearchStream(
       };
       if (msg.type === "progress") {
         onProgress(msg.source ?? "", msg.done ?? 0, msg.total ?? 0);
+      } else if (msg.type === "source_error") {
+        onSourceError(msg.source ?? "", msg.message ?? "Unknown error");
       } else if (msg.type === "result" && msg.data) {
         onResult(msg.data);
         es.close();

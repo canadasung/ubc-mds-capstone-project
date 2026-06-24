@@ -1,0 +1,108 @@
+<TaxaSet><Taxon>
+    <TaxId>41956</TaxId>
+    <ScientificName>Amanita muscaria</ScientificName>
+    <OtherNames>
+        <GenbankCommonName>fly agaric</GenbankCommonName>
+        <Synonym>Agaricus muscarius</Synonym>
+        <Name>
+            <ClassCDE>authority</ClassCDE>
+            <DispName>Agaricus muscarius L., 1753</DispName>
+        </Name>
+        <Name>
+            <ClassCDE>authority</ClassCDE>
+            <DispName>Amanita muscaria (L.) Lam., 1783</DispName>
+        </Name>
+        <Name>
+            <ClassCDE>misspelling</ClassCDE>
+            <DispName>Amanita muscaria on Nothofagus fusca</DispName>
+        </Name>
+        <Name>
+            <ClassCDE>misspelling</ClassCDE>
+            <DispName>Amanita muscaria/Nothofagus fusca</DispName>
+        </Name>
+    </OtherNames>
+    <ParentTaxId>41955</ParentTaxId>
+    <Rank>species</Rank>
+    <Division>Plants and Fungi</Division>
+    <GeneticCode>
+        <GCId>1</GCId>
+        <GCName>Standard</GCName>
+    </GeneticCode>
+    <MitoGeneticCode>
+        <MGCId>4</MGCId>
+        <MGCName>Mold Mitochondrial; Protozoan Mitochondrial; Coelenterate Mitochondrial; Mycoplasma; Spiroplasma</MGCName>
+    </MitoGeneticCode>
+    <Lineage>cellular organisms; Eukaryota; Opisthokonta; Fungi; Dikarya; Basidiomycota; Agaricomycotina; Agaricomycetes; Agaricomycetidae; Agaricales; Pluteineae; Amanitaceae; Amanita</Lineage>
+    <LineageEx>
+        <Taxon>
+            <TaxId>131567</TaxId>
+            <ScientificName>cellular organisms</ScientificName>
+            <Rank>cellular root</Rank>
+        </Taxon>
+        <Taxon>
+            <TaxId>2759</TaxId>
+            <ScientificName>Eukaryota</ScientificName>
+            <Rank>domain</Rank>
+        </Taxon>
+        <Taxon>
+            <TaxId>33154</TaxId>
+            <ScientificName>Opisthokonta</ScientificName>
+            <Rank>clade</Rank>
+        </Taxon>
+        <Taxon>
+            <TaxId>4751</TaxId>
+            <ScientificName>Fungi</ScientificName>
+            <Rank>kingdom</Rank>
+        </Taxon>
+        <Taxon>
+            <TaxId>451864</TaxId>
+            <ScientificName>Dikarya</ScientificName>
+            <Rank>subkingdom</Rank>
+        </Taxon>
+        <Taxon>
+            <TaxId>5204</TaxId>
+            <ScientificName>Basidiomycota</ScientificName>
+            <Rank>phylum</Rank>
+        </Taxon>
+        <Taxon>
+            <TaxId>5302</TaxId>
+            <ScientificName>Agaricomycotina</ScientificName>
+            <Rank>subphylum</Rank>
+        </Taxon>
+        <Taxon>
+            <TaxId>155619</TaxId>
+            <ScientificName>Agaricomycetes</ScientificName>
+            <Rank>class</Rank>
+        </Taxon>
+        <Taxon>
+            <TaxId>452333</TaxId>
+            <ScientificName>Agaricomycetidae</ScientificName>
+            <Rank>subclass</Rank>
+        </Taxon>
+        <Taxon>
+            <TaxId>5338</TaxId>
+            <ScientificName>Agaricales</ScientificName>
+            <Rank>order</Rank>
+        </Taxon>
+        <Taxon>
+            <TaxId>2982306</TaxId>
+            <ScientificName>Pluteineae</ScientificName>
+            <Rank>suborder</Rank>
+        </Taxon>
+        <Taxon>
+            <TaxId>41954</TaxId>
+            <ScientificName>Amanitaceae</ScientificName>
+            <Rank>family</Rank>
+        </Taxon>
+        <Taxon>
+            <TaxId>41955</TaxId>
+            <ScientificName>Amanita</ScientificName>
+            <Rank>genus</Rank>
+        </Taxon>
+    </LineageEx>
+    <CreateDate>1995/08/04 11:19:00</CreateDate>
+    <UpdateDate>2025/08/08 10:02:44</UpdateDate>
+    <PubDate>1996/10/10 01:00:00</PubDate>
+</Taxon>
+
+</TaxaSet>

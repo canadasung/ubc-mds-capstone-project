@@ -2,8 +2,9 @@
 
 /** Chooses the active view and handles the shared empty/loading/error states. */
 
-import { Alert, Button, Center, Group, Loader, SimpleGrid, Stack, Text, ThemeIcon } from "@mantine/core";
-import { IconCheck, IconInfoCircle } from "@tabler/icons-react";
+import { useEffect, useState } from "react";
+import { Alert, Button, Center, Group, Loader, SimpleGrid, Stack, Text, ThemeIcon, Tooltip } from "@mantine/core";
+import { IconAlertCircle, IconCheck, IconInfoCircle, IconX } from "@tabler/icons-react";
 
 import { useSearch, useFilteredRecords } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
@@ -26,10 +27,16 @@ export function ResultsArea() {
   const isFiltering = useSearchStore((s) => s.isFiltering);
   const hasHydrated = useSearchStore((s) => s._hasHydrated);
   const cancelSearch = useSearchStore((s) => s.cancelSearch);
+  const sourceErrors = useSearchStore((s) => s.sourceErrors);
   const setQuery = useSearchStore((s) => s.setQuery);
   const submit = useSearchStore((s) => s.submit);
   const search = useSearch();
   const { records } = useFilteredRecords();
+
+  // Lets the user dismiss the failed-sources banner. Reset whenever the set of
+  // source errors changes (e.g. a new search) so fresh failures are shown again.
+  const [errorsDismissed, setErrorsDismissed] = useState(false);
+  useEffect(() => setErrorsDismissed(false), [sourceErrors]);
 
   if (!hasHydrated) {
     return (
@@ -86,10 +93,17 @@ export function ResultsArea() {
               const fetchIndex = fetchingKeys.indexOf(key);
               const isCompleted = alreadyCached || (fetchIndex >= 0 && fetchIndex < done);
               const isActive = !isCompleted && backendName === activeBackendName;
+              const error = sourceErrors[key];
 
               return (
                 <Group key={key} gap="xs" wrap="nowrap">
-                  {isCompleted ? (
+                  {error ? (
+                    <Tooltip label={error} withArrow>
+                      <ThemeIcon size="xs" radius="xl" color="red" variant="filled">
+                        <IconX size={10} />
+                      </ThemeIcon>
+                    </Tooltip>
+                  ) : isCompleted ? (
                     <ThemeIcon size="xs" radius="xl" color="teal" variant="filled">
                       <IconCheck size={10} />
                     </ThemeIcon>
@@ -102,7 +116,7 @@ export function ResultsArea() {
                   )}
                   <Text
                     size="sm"
-                    c={isCompleted ? "teal" : isActive ? undefined : "dimmed"}
+                    c={error ? "red" : isCompleted ? "teal" : isActive ? undefined : "dimmed"}
                     fw={isActive ? 600 : undefined}
                   >
                     {labelForKey(key)}
@@ -111,6 +125,28 @@ export function ResultsArea() {
               );
             })}
           </SimpleGrid>
+          <Group gap="sm" justify="center" wrap="wrap">
+            <Group gap={4} wrap="nowrap">
+              <ThemeIcon size="xs" radius="xl" color="teal" variant="filled">
+                <IconCheck size={10} />
+              </ThemeIcon>
+              <Text size="xs" c="dimmed">Found</Text>
+            </Group>
+            <Group gap={4} wrap="nowrap">
+              <Loader size="xs" />
+              <Text size="xs" c="dimmed">Searching</Text>
+            </Group>
+            <Group gap={4} wrap="nowrap">
+              <Text size="xs" c="dimmed" lh={1}>○</Text>
+              <Text size="xs" c="dimmed">Pending</Text>
+            </Group>
+            <Group gap={4} wrap="nowrap">
+              <ThemeIcon size="xs" radius="xl" color="red" variant="filled">
+                <IconX size={10} />
+              </ThemeIcon>
+              <Text size="xs" c="dimmed">Error</Text>
+            </Group>
+          </Group>
           <Button size="xs" variant="subtle" color="red" onClick={cancelSearch}>
             Cancel
           </Button>
@@ -175,18 +211,45 @@ export function ResultsArea() {
     );
   }
 
-  switch (activeView) {
-    case "Overview":
-      return <TableView />;
-    case "Detail":
-      return <DetailView />;
-    case "Relations":
-      return <RelationsView />;
-    case "Timeline":
-      return <TimelineView />;
-    case "Taxonomy":
-      return <TaxonomyView />;
-    default:
-      return null;
-  }
+  const erroredSources = Object.entries(sourceErrors);
+
+  return (
+    <Stack gap="md">
+      {erroredSources.length > 0 && !errorsDismissed && (
+        <Alert
+          variant="light"
+          color="red"
+          icon={<IconAlertCircle />}
+          title={`${erroredSources.length} source${erroredSources.length > 1 ? "s" : ""} failed`}
+          withCloseButton
+          closeButtonLabel="Dismiss"
+          onClose={() => setErrorsDismissed(true)}
+        >
+          <Stack gap={4}>
+            {erroredSources.map(([key, message]) => (
+              <Text key={key} size="sm">
+                <strong>{labelForKey(key)}</strong> — {message}
+              </Text>
+            ))}
+          </Stack>
+        </Alert>
+      )}
+      {(() => {
+        switch (activeView) {
+          case "Overview":
+            return <TableView />;
+          case "Detail":
+            return <DetailView />;
+          case "Relations":
+            return <RelationsView />;
+          case "Timeline":
+            return <TimelineView />;
+          case "Taxonomy":
+            return <TaxonomyView />;
+          default:
+            return null;
+        }
+      })()}
+    </Stack>
+  );
 }

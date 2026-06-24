@@ -1,0 +1,341 @@
+{
+  "offset": 0,
+  "limit": 10,
+  "total": 2,
+  "result": [
+    {
+      "id": "4R4BH",
+      "classification": [
+        {
+          "id": "CS5HF",
+          "name": "Eukaryota",
+          "authorship": "(Chatton, 1925) Whittaker & Margulis, 1978",
+          "rank": "domain",
+          "status": "accepted",
+          "labelHtml": "Eukaryota (Chatton, 1925) Whittaker & Margulis, 1978"
+        },
+        {
+          "id": "P",
+          "name": "Plantae",
+          "rank": "kingdom",
+          "status": "accepted",
+          "labelHtml": "Plantae"
+        },
+        {
+          "id": "CMQ8S",
+          "name": "Pteridobiotina",
+          "authorship": "Britton & Brown",
+          "rank": "subkingdom",
+          "status": "accepted",
+          "labelHtml": "Pteridobiotina Britton & Brown"
+        },
+        {
+          "id": "TP",
+          "name": "Tracheophyta",
+          "rank": "phylum",
+          "status": "accepted",
+          "labelHtml": "Tracheophyta"
+        },
+        {
+          "id": "MG",
+          "name": "Magnoliopsida",
+          "rank": "class",
+          "status": "accepted",
+          "labelHtml": "Magnoliopsida"
+        },
+        {
+          "id": "384",
+          "name": "Fagales",
+          "authorship": "Engl.",
+          "rank": "order",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "Fagales Engl."
+        },
+        {
+          "id": "NPBN9",
+          "name": "Fagaceae",
+          "authorship": "Dumort.",
+          "rank": "family",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "Fagaceae Dumort."
+        },
+        {
+          "id": "V58RW",
+          "name": "Quercoideae",
+          "authorship": "Irvine",
+          "rank": "subfamily",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "Quercoideae Irvine"
+        },
+        {
+          "id": "8W2YL",
+          "name": "Quercus",
+          "authorship": "L.",
+          "rank": "genus",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "<i>Quercus</i> L."
+        },
+        {
+          "id": "4R5YN",
+          "name": "Quercus robur",
+          "authorship": "L.",
+          "rank": "species",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "<i>Quercus robur</i> L."
+        },
+        {
+          "id": "5KTTT",
+          "name": "Quercus robur subsp. robur",
+          "rank": "subspecies",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "<i>Quercus robur</i> subsp. <i>robur</i>"
+        },
+        {
+          "id": "4R4BH",
+          "name": "Quercus atrosanguinea",
+          "authorship": "K.Koch",
+          "rank": "species",
+          "code": "botanical",
+          "status": "synonym",
+          "labelHtml": "<i>Quercus atrosanguinea</i> K.Koch"
+        }
+      ],
+      "usage": {
+        "created": "2026-04-14T22:06:29.941626",
+        "createdBy": 102,
+        "modified": "2026-04-14T22:06:29.941626",
+        "modifiedBy": 102,
+        "datasetKey": 315192,
+        "id": "4R4BH",
+        "sectorKey": 66228,
+        "verbatimSourceKey": 320790243,
+        "name": {
+          "created": "2026-04-14T22:06:29.941626",
+          "createdBy": 102,
+          "modified": "2026-04-14T22:06:29.941626",
+          "modifiedBy": 102,
+          "datasetKey": 315192,
+          "id": "DFu0vX-3GOeW8x4AOFlik",
+          "sectorKey": 66228,
+          "verbatimSourceKey": 320790243,
+          "namesIndexId": 18842798,
+          "namesIndexType": "exact",
+          "scientificName": "Quercus atrosanguinea",
+          "authorship": "K.Koch",
+          "rank": "species",
+          "genus": "Quercus",
+          "specificEpithet": "atrosanguinea",
+          "combinationAuthorship": {
+            "authors": [
+              "K.Koch"
+            ]
+          },
+          "code": "botanical",
+          "publishedInId": "e1d1e709-4a75-4671-a010-0bf42206da10",
+          "publishedInPage": "28",
+          "origin": "source",
+          "type": "scientific",
+          "parsed": true
+        },
+        "status": "synonym",
+        "origin": "source",
+        "parentId": "5KTTT",
+        "identifier": [
+          "wikidata:Q111328401"
+        ],
+        "referenceIds": [
+          "e1d1e709-4a75-4671-a010-0bf42206da10"
+        ],
+        "accepted": {
+          "id": "5KTTT",
+          "name": {
+            "scientificName": "Quercus robur subsp. robur",
+            "rank": "subspecies",
+            "code": "botanical",
+            "type": "scientific",
+            "parsed": false
+          },
+          "status": "accepted",
+          "label": "Quercus robur subsp. robur",
+          "labelHtml": "<i>Quercus robur</i> subsp. <i>robur</i>"
+        },
+        "label": "Quercus atrosanguinea K.Koch",
+        "labelHtml": "<i>Quercus atrosanguinea</i> K.Koch",
+        "merged": false
+      },
+      "sectorDatasetKey": 1141,
+      "group": "angiosperms"
+    },
+    {
+      "id": "SF5RP",
+      "classification": [
+        {
+          "id": "CS5HF",
+          "name": "Eukaryota",
+          "authorship": "(Chatton, 1925) Whittaker & Margulis, 1978",
+          "rank": "domain",
+          "status": "accepted",
+          "labelHtml": "Eukaryota (Chatton, 1925) Whittaker & Margulis, 1978"
+        },
+        {
+          "id": "P",
+          "name": "Plantae",
+          "rank": "kingdom",
+          "status": "accepted",
+          "labelHtml": "Plantae"
+        },
+        {
+          "id": "CMQ8S",
+          "name": "Pteridobiotina",
+          "authorship": "Britton & Brown",
+          "rank": "subkingdom",
+          "status": "accepted",
+          "labelHtml": "Pteridobiotina Britton & Brown"
+        },
+        {
+          "id": "TP",
+          "name": "Tracheophyta",
+          "rank": "phylum",
+          "status": "accepted",
+          "labelHtml": "Tracheophyta"
+        },
+        {
+          "id": "MG",
+          "name": "Magnoliopsida",
+          "rank": "class",
+          "status": "accepted",
+          "labelHtml": "Magnoliopsida"
+        },
+        {
+          "id": "384",
+          "name": "Fagales",
+          "authorship": "Engl.",
+          "rank": "order",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "Fagales Engl."
+        },
+        {
+          "id": "NPBN9",
+          "name": "Fagaceae",
+          "authorship": "Dumort.",
+          "rank": "family",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "Fagaceae Dumort."
+        },
+        {
+          "id": "V58RW",
+          "name": "Quercoideae",
+          "authorship": "Irvine",
+          "rank": "subfamily",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "Quercoideae Irvine"
+        },
+        {
+          "id": "8W2YL",
+          "name": "Quercus",
+          "authorship": "L.",
+          "rank": "genus",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "<i>Quercus</i> L."
+        },
+        {
+          "id": "4R5YN",
+          "name": "Quercus robur",
+          "authorship": "L.",
+          "rank": "species",
+          "code": "botanical",
+          "status": "accepted",
+          "labelHtml": "<i>Quercus robur</i> L."
+        },
+        {
+          "id": "SF5RP",
+          "name": "Quercus atrosanguinea",
+          "authorship": "hort.",
+          "rank": "species",
+          "code": "botanical",
+          "status": "synonym",
+          "labelHtml": "<i>Quercus atrosanguinea</i> hort."
+        }
+      ],
+      "usage": {
+        "created": "2026-05-15T21:24:31.550271",
+        "createdBy": 466,
+        "modified": "2026-05-15T21:24:31.550271",
+        "modifiedBy": 466,
+        "datasetKey": 315192,
+        "id": "SF5RP",
+        "sectorKey": 49811,
+        "verbatimSourceKey": 324439365,
+        "name": {
+          "created": "2026-05-15T21:24:31.550271",
+          "createdBy": 466,
+          "modified": "2026-05-15T21:24:31.550271",
+          "modifiedBy": 466,
+          "datasetKey": 315192,
+          "id": "~CXs",
+          "sectorKey": 49811,
+          "verbatimSourceKey": 324439365,
+          "namesIndexId": 18842816,
+          "namesIndexType": "exact",
+          "identifier": [
+            "tpl:kew-171681",
+            "lsid:urn:lsid:ipni.org:names:295814-1"
+          ],
+          "scientificName": "Quercus atrosanguinea",
+          "authorship": "hort.",
+          "rank": "species",
+          "genus": "Quercus",
+          "specificEpithet": "atrosanguinea",
+          "combinationAuthorship": {
+            "authors": [
+              "hort."
+            ]
+          },
+          "code": "botanical",
+          "publishedInId": "9bef744c-9ed4-45f4-831e-a74ec8703189",
+          "origin": "source",
+          "type": "scientific",
+          "link": "https://list.worldfloraonline.org/wfo-0000289653",
+          "parsed": true
+        },
+        "status": "synonym",
+        "origin": "source",
+        "parentId": "4R5YN",
+        "identifier": [
+          "wfo:wfo-0000289653-2025-12"
+        ],
+        "accepted": {
+          "id": "4R5YN",
+          "name": {
+            "scientificName": "Quercus robur",
+            "authorship": "L.",
+            "rank": "species",
+            "code": "botanical",
+            "type": "scientific",
+            "parsed": false
+          },
+          "status": "accepted",
+          "label": "Quercus robur L.",
+          "labelHtml": "<i>Quercus robur</i> L."
+        },
+        "label": "Quercus atrosanguinea hort.",
+        "labelHtml": "<i>Quercus atrosanguinea</i> hort.",
+        "merged": true
+      },
+      "sectorDatasetKey": 2004,
+      "group": "angiosperms"
+    }
+  ],
+  "empty": false,
+  "last": true
+}

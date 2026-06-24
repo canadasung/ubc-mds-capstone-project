@@ -23,10 +23,12 @@ import {
 import { fullForLabel, keyForApiName, labelForKey } from "./sources";
 import type { SpeciesRecord } from "./types";
 
+/** Trim, collapse internal whitespace, and lowercase a string for case/space-insensitive comparison. */
 function normalize(s: string): string {
   return s.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+/** Resolve a record's source to its short display label (e.g. ``"GBIF"``). */
 function sourceLabel(rec: SpeciesRecord): string {
   return labelForKey(keyForApiName(sourceOf(rec)));
 }
@@ -46,6 +48,31 @@ export interface PresenceTable {
   rows: PresenceRow[];
 }
 
+/**
+ * Build the cross-source presence matrix for the Table view.
+ *
+ * Rows are names and columns are sources. A cell is present when a source has a
+ * record for the name, and holds the record's link when one exists.
+ *
+ * Ordering
+ * --------
+ * Rows : the queried name first, then by the number of sources that recognise
+ *     the name, most to least.
+ * Columns : by the number of distinct names each source has a record for, most
+ *     to least. Ties keep first-seen order.
+ *
+ * Parameters
+ * ----------
+ * records : SpeciesRecord[]
+ *     Filtered records for the active source selection.
+ * query : string
+ *     The submitted search name, used to flag and pin the queried row.
+ *
+ * Returns
+ * -------
+ * PresenceTable
+ *     Ordered source labels (columns) and presence rows.
+ */
 export function buildPresenceTable(
   records: SpeciesRecord[],
   query: string,
@@ -70,6 +97,18 @@ export function buildPresenceTable(
       cells.set(src, url);
     }
   }
+
+  // Order source columns by how many distinct names each source has a record
+  // for, most to least. Ties keep first-seen order (Array.prototype.sort is
+  // stable), so the leftmost column is the source matching the most names.
+  const nameCountBySource = new Map<string, number>();
+  for (const src of sources) nameCountBySource.set(src, 0);
+  for (const cells of presence.values()) {
+    for (const src of cells.keys()) {
+      nameCountBySource.set(src, nameCountBySource.get(src)! + 1);
+    }
+  }
+  sources.sort((a, b) => nameCountBySource.get(b)! - nameCountBySource.get(a)!);
 
   const rows: PresenceRow[] = [];
   for (const [name, cells] of presence) {
@@ -232,6 +271,22 @@ function sourceAccent(index: number, total: number): string {
   return `hsl(${h.toFixed(0)}, 60%, 45%)`;
 }
 
+/**
+ * Partition records into dated and undated timeline entries and assign a
+ * colour per source.
+ *
+ * Parameters
+ * ----------
+ * records : SpeciesRecord[]
+ *     Filtered records for the active source selection.
+ *
+ * Returns
+ * -------
+ * TimelineData
+ *     ``dated`` — entries with a parseable publication year.
+ *     ``undated`` — entries without one.
+ *     ``sourceColors`` — HSL colour string keyed by source display label.
+ */
 export function buildTimeline(records: SpeciesRecord[]): TimelineData {
   const dated: TimelineEntry[] = [];
   const undated: TimelineEntry[] = [];

@@ -9,6 +9,9 @@
  * Database-selection checkboxes. Every column is shown with its raw CSV header;
  * the Download button exports exactly those rows and columns, named from the
  * query (e.g. "amanita_muscaria.csv").
+ *
+ * The table scrolls within a bounded height and uses a sticky header, so the
+ * column names stay visible while scrolling through long result lists.
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -71,13 +74,28 @@ export function DetailView() {
   const sortedRecords = useMemo(() => {
     if (!sort) return records;
     const { key, dir } = sort;
+    // Sort rank for a cell value in ascending order: real values (0) sort before
+    // the unavailable marker (1), which sorts before blank cells (2). So in
+    // ascending order the marker comes after every real value and blanks come
+    // last; the direction flip reverses this for descending order. Real values
+    // are compared alphabetically.
+    const rankOf = (v: string) => (v === "" ? 2 : v === unavailMarker ? 1 : 0);
     return [...records].sort((a, b) => {
       const valA = a[key] == null ? "" : String(a[key]);
       const valB = b[key] == null ? "" : String(b[key]);
-      const cmp = valA.localeCompare(valB, undefined, { sensitivity: "base" });
+      const rankA = rankOf(valA);
+      const rankB = rankOf(valB);
+      let cmp: number;
+      if (rankA !== rankB) {
+        cmp = rankA - rankB;
+      } else if (rankA === 0) {
+        cmp = valA.localeCompare(valB, undefined, { sensitivity: "base" });
+      } else {
+        cmp = 0;
+      }
       return dir === "asc" ? cmp : -cmp;
     });
-  }, [records, sort]);
+  }, [records, sort, unavailMarker]);
 
   const handleDownload = () => {
     const csv = toCsv(records, columns);
@@ -93,23 +111,23 @@ export function DetailView() {
   return (
     <>
       <Group justify="space-between" align="center" mb="xs" wrap="nowrap">
-        <Text c="dimmed" size="sm">
+        <Text c="dimmed" size="md">
           {records.length} row{records.length === 1 ? "" : "s"} × {columns.length} columns
         </Text>
-        <Button size="compact-sm" onClick={handleDownload}>
+        <Button size="md" onClick={handleDownload}>
           Download CSV
         </Button>
       </Group>
 
-      <Text c="dimmed" size="xs" mb="sm">
+      <Text c="dimmed" size="md" mb="sm">
         A blank cell means the source was queried but returned no value for that field.{" "}
         <span style={{ color: "var(--mantine-color-gray-5)" }}>{unavailMarker}</span>{" "}
         means the source does not provide that field at all. (For sources with status available,
         taxonomy fields are attached to Accepted names only.)
       </Text>
 
-      <Table.ScrollContainer minWidth={800}>
-        <Table withTableBorder withColumnBorders striped fz="xs">
+      <Table.ScrollContainer minWidth={800} maxHeight="70vh">
+        <Table withTableBorder withColumnBorders striped fz="xs" stickyHeader>
           <Table.Thead>
             <Table.Tr>
               {columns.map((c) => (

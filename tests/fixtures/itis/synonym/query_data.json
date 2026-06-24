@@ -1,0 +1,10 @@
+{
+  "author": "Walbaum, 1792",
+  "class": "gov.usgs.itis.itis_service.data.SvcItisTerm",
+  "commonNames": [
+    null
+  ],
+  "nameUsage": "invalid",
+  "scientificName": "Salmo mykiss",
+  "tsn": "161990"
+}

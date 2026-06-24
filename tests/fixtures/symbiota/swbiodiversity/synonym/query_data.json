@@ -1,0 +1,103 @@
+{
+  "tid": 10527,
+  "kingdomName": "Plantae",
+  "rankID": 220,
+  "rankName": null,
+  "unitInd1": null,
+  "unitName1": "Larrea",
+  "unitInd2": null,
+  "unitName2": "mexicana",
+  "unitInd3": null,
+  "unitName3": null,
+  "cultivarEpithet": null,
+  "tradeName": null,
+  "author": "Moric.",
+  "reviewStatus": null,
+  "displayStatus": null,
+  "isLegitimate": null,
+  "source": null,
+  "sourceIdentifier": null,
+  "notes": null,
+  "securityStatus": 0,
+  "modifiedTimestamp": null,
+  "initialTimestamp": "1996-11-04 23:57:08",
+  "parentTid": 4965,
+  "status": "synonym",
+  "accepted": {
+    "tid": 2671,
+    "scientificName": "Larrea tridentata",
+    "scientificNameAuthorship": "(Sessé & Moc. ex DC.) Coville",
+    "taxonomicSource": null,
+    "unacceptabilityReason": null,
+    "taxonRemarks": null
+  },
+  "classification": [
+    {
+      "tid": 4965,
+      "scientificName": "Larrea",
+      "author": "Cav.",
+      "rankid": 180
+    },
+    {
+      "tid": 5327,
+      "scientificName": "Zygophyllaceae",
+      "author": "",
+      "rankid": 140
+    },
+    {
+      "tid": 5570,
+      "scientificName": "Magnoliophyta",
+      "author": "",
+      "rankid": 30
+    },
+    {
+      "tid": 5571,
+      "scientificName": "Plantae",
+      "author": "",
+      "rankid": 10
+    },
+    {
+      "tid": 170361,
+      "scientificName": "Tracheophyta",
+      "author": "",
+      "rankid": 20
+    },
+    {
+      "tid": 170633,
+      "scientificName": "Spermatophyta",
+      "author": "",
+      "rankid": 20
+    },
+    {
+      "tid": 170692,
+      "scientificName": "Eudicots",
+      "author": "",
+      "rankid": 45
+    },
+    {
+      "tid": 170726,
+      "scientificName": "Core Eudicots",
+      "author": "",
+      "rankid": 65
+    },
+    {
+      "tid": 170757,
+      "scientificName": "Rosids",
+      "author": "",
+      "rankid": 75
+    },
+    {
+      "tid": 170764,
+      "scientificName": "Fabids",
+      "author": "",
+      "rankid": 75
+    },
+    {
+      "tid": 170780,
+      "scientificName": "Zygophyllales",
+      "author": "",
+      "rankid": 100
+    }
+  ],
+  "scientificName": "Larrea mexicana"
+}

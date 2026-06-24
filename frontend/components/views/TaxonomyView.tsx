@@ -8,10 +8,11 @@
  * Advanced-options checkboxes — exactly like the record-based views. Ranks that
  * become entirely empty after filtering are dropped.
  *
- * Disagreement is shown per-cell via a colour gradient (see lib/taxonomyShading):
- * each cell is shaded by its character edit distance from the column's reference
- * — the search query for Genus/Species, GBIF for every other rank. Blue when a
- * column has a single differing value, orange when it has several.
+ * Disagreement is shown per-cell via a blue colour gradient (see lib/taxonomyShading):
+ * each cell in a shaded rank is coloured by its Levenshtein edit distance from the
+ * backbone source's value (GBIF by default, user-selectable). Cells that match
+ * the backbone are very light blue; cells that differ use progressively darker
+ * blue shades. Genus and Species are never shaded.
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -151,13 +152,28 @@ export function TaxonomyView() {
   const sortedSources = useMemo(() => {
     if (!taxSort) return sources;
     const { key, dir } = taxSort;
+    // Sort rank for a cell value in ascending order: real values (0) sort before
+    // the unavailable marker (1), which sorts before blank cells (2). So in
+    // ascending order the marker comes after every real value and blanks come
+    // last; the direction flip reverses this for descending order. Real values
+    // are compared alphabetically.
+    const rankOf = (v: string) => (v === "" ? 2 : v === unavailMarker ? 1 : 0);
     return [...sources].sort((a, b) => {
       const valA = key === "__source__" ? a.source : cellValue(a, key);
       const valB = key === "__source__" ? b.source : cellValue(b, key);
-      const cmp = valA.localeCompare(valB, undefined, { sensitivity: "base" });
+      const rankA = rankOf(valA);
+      const rankB = rankOf(valB);
+      let cmp: number;
+      if (rankA !== rankB) {
+        cmp = rankA - rankB;
+      } else if (rankA === 0) {
+        cmp = valA.localeCompare(valB, undefined, { sensitivity: "base" });
+      } else {
+        cmp = 0;
+      }
       return dir === "asc" ? cmp : -cmp;
     });
-  }, [sources, taxSort]);
+  }, [sources, taxSort, unavailMarker]);
 
   // Options for the backbone picker: every visible source, keyed by source key.
   const backboneOptions = useMemo(
@@ -181,23 +197,27 @@ export function TaxonomyView() {
 
   return (
     <>
-      <Text c="dimmed" size="md" mb="sm">
-        Accepted classification for <b>{query}</b> per source · {sources.length}{" "}
-        source{sources.length === 1 ? "" : "s"} found with taxonomic data
-      </Text>
+      <Group justify="space-between" align="flex-start" wrap="nowrap" mb="sm">
+        <Stack gap={4}>
+          <Text c="dimmed" size="md">
+            Accepted classification for <b>{query}</b> per source · {sources.length}{" "}
+            source{sources.length === 1 ? "" : "s"} found with taxonomic data
+          </Text>
 
-      <DisagreementSummary
-        sourceCount={sources.length}
-        disagreements={disagreements}
-      />
+          <DisagreementSummary
+            sourceCount={sources.length}
+            disagreements={disagreements}
+          />
+        </Stack>
 
-      <Switch
-        checked={highlight}
-        onChange={(e) => setHighlight(e.currentTarget.checked)}
-        label="Highlight differences"
-        size="md"
-        mb="sm"
-      />
+        <Switch
+          checked={highlight}
+          onChange={(e) => setHighlight(e.currentTarget.checked)}
+          label="Highlight differences"
+          size="md"
+          style={{ flexShrink: 0 }}
+        />
+      </Group>
 
       <Table.ScrollContainer minWidth={500}>
         <Table withTableBorder withColumnBorders striped fz="md">
@@ -315,10 +335,10 @@ function DisagreementSummary({
 /** Explains the backbone-relative blue shading under the table. */
 function ShadingLegend() {
   const levels: Array<{ level: 1 | 2 | 3 | 4; label: string }> = [
-    { level: 1, label: "1" },
-    { level: 2, label: "2–5" },
-    { level: 3, label: "6–7" },
-    { level: 4, label: "8+" },
+    { level: 1, label: "Very low" },
+    { level: 2, label: "Low" },
+    { level: 3, label: "Medium" },
+    { level: 4, label: "High" },
   ];
 
   const chip = (style: CellShade, label: string) => (

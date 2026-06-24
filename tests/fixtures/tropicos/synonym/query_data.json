@@ -1,0 +1,28 @@
+[
+  {
+    "NameId": 13100434,
+    "ScientificName": "Quercus pedunculata",
+    "ScientificNameWithAuthors": "Quercus pedunculata Ehrh.",
+    "Family": "Fagaceae",
+    "RankAbbreviation": "sp.",
+    "NomenclatureStatusID": 3,
+    "NomenclatureStatusName": "Invalid",
+    "Symbol": "**",
+    "Author": "Ehrh.",
+    "DisplayReference": "Beitr. Naturk. 5: 161",
+    "DisplayDate": "1790",
+    "TotalRows": 2
+  },
+  {
+    "NameId": 50280903,
+    "ScientificName": "Quercus pedunculata",
+    "ScientificNameWithAuthors": "Quercus pedunculata Hoffm.",
+    "Family": "Fagaceae",
+    "RankAbbreviation": "sp.",
+    "NomenclatureStatusName": "No opinion",
+    "Author": "Hoffm.",
+    "DisplayReference": "Deutschl. Fl. 1: 338",
+    "DisplayDate": "1791",
+    "TotalRows": 2
+  }
+]

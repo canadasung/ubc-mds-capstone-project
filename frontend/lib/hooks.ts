@@ -18,6 +18,13 @@ import { useSearchStore } from "./store";
 import { ApiError } from "./types";
 import type { SearchResponse, SpeciesRecord, TaxonomyRow, TaxonomyResponse } from "./types";
 
+/**
+ * TanStack Query hook for ``GET /api/sources``.
+ *
+ * Returns the standard ``{ data, isLoading, isError }`` query result. The
+ * response is cached for the lifetime of the QueryClient (no refetch needed
+ * within a session — the source list is static).
+ */
 export function useSources() {
   return useQuery({
     queryKey: ["sources"],
@@ -48,6 +55,8 @@ export function useLiveSearchEffect() {
   const setSearchProgress = useSearchStore((s) => s.setSearchProgress);
   const setSearchError = useSearchStore((s) => s.setSearchError);
   const setSearchSuggestions = useSearchStore((s) => s.setSearchSuggestions);
+  const setSourceError = useSearchStore((s) => s.setSourceError);
+  const clearSourceErrors = useSearchStore((s) => s.clearSourceErrors);
   const setStreamCancel = useSearchStore((s) => s.setStreamCancel);
   const submitVersion = useSearchStore((s) => s.submitVersion);
   const wasCancelled = useSearchStore((s) => s._wasCancelled);
@@ -94,6 +103,7 @@ export function useLiveSearchEffect() {
     setSearchProgress(null);
     setSearchError(null);
     setSearchSuggestions(null);
+    clearSourceErrors();
 
     const cleanup = openSearchStream(
       submittedQuery,
@@ -129,6 +139,9 @@ export function useLiveSearchEffect() {
         setIsSearching(false);
         setSearchProgress(null);
       },
+      (source, message) => {
+        setSourceError(keyForApiName(source), message);
+      },
       (err: Error) => {
         setSearchError(err.message);
         setIsSearching(false);
@@ -145,7 +158,16 @@ export function useLiveSearchEffect() {
   }, [submittedQuery, submittedSourcesKey, submitVersion, wasCancelled]);
 }
 
-/** Store-backed replacement for the old TanStack Query useSearch(). */
+/**
+ * Read the current search state from the Zustand store.
+ *
+ * Returns
+ * -------
+ * object
+ *     ``data`` — last completed SearchResponse, or undefined before any search.
+ *     ``isFetching`` — true while an SSE stream is open.
+ *     ``error`` — ApiError with optional ``available`` suggestions, or null.
+ */
 export function useSearch() {
   const data = useSearchStore((s) => s.cachedData) ?? undefined;
   const isFetching = useSearchStore((s) => s.isSearching);

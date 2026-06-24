@@ -15,6 +15,7 @@ import {
   Box,
   Button,
   Checkbox,
+  CloseButton,
   Collapse,
   Divider,
   Group,
@@ -104,10 +105,24 @@ export function SearchPanel() {
       <form onSubmit={handleSubmit}>
         <Stack gap="sm">
           <TextInput
-            placeholder="Enter species name (e.g. Podospora anserina)"
+            placeholder="Enter a species name"
+            description="e.g. Podospora anserina"
+            inputWrapperOrder={["label", "input", "description", "error"]}
+            styles={{ description: { fontSize: "var(--mantine-font-size-sm)" } }}
             value={query}
             onChange={(e) => setQuery(e.currentTarget.value)}
             leftSection={<IconSearch size={16} />}
+            rightSection={
+              query ? (
+                <CloseButton
+                  type="button"
+                  size="sm"
+                  aria-label="Clear search"
+                  onClick={() => setQuery("")}
+                />
+              ) : undefined
+            }
+            rightSectionPointerEvents="all"
             aria-label="Search query"
             autoComplete="off"
           />

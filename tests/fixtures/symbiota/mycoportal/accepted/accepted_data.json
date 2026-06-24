@@ -1,0 +1,94 @@
+{
+  "tid": 214862,
+  "kingdomName": "Fungi",
+  "rankID": 220,
+  "rankName": null,
+  "unitInd1": null,
+  "unitName1": "Agaricus",
+  "unitInd2": null,
+  "unitName2": "campestris",
+  "unitInd3": null,
+  "unitName3": null,
+  "cultivarEpithet": null,
+  "tradeName": null,
+  "author": "L.",
+  "reviewStatus": null,
+  "displayStatus": null,
+  "isLegitimate": null,
+  "source": null,
+  "notes": null,
+  "securityStatus": 0,
+  "modifiedTimestamp": null,
+  "initialTimestamp": "2011-11-18 23:38:57",
+  "parentTid": 11736,
+  "status": "accepted",
+  "classification": [
+    {
+      "tid": 7,
+      "scientificName": "Fungi",
+      "author": "R.T. Moore",
+      "rankid": 10
+    },
+    {
+      "tid": 188,
+      "scientificName": "Basidiomycota",
+      "author": "R.T. Moore",
+      "rankid": 30
+    },
+    {
+      "tid": 1128,
+      "scientificName": "Agaricomycotina",
+      "author": "Doweld",
+      "rankid": 40
+    },
+    {
+      "tid": 1431,
+      "scientificName": "Agaricomycetes",
+      "author": "Doweld",
+      "rankid": 60
+    },
+    {
+      "tid": 5489,
+      "scientificName": "Agaricomycetidae",
+      "author": "Parmasto",
+      "rankid": 70
+    },
+    {
+      "tid": 6519,
+      "scientificName": "Agaricales",
+      "author": "Underw.",
+      "rankid": 100
+    },
+    {
+      "tid": 7158,
+      "scientificName": "Polyporales",
+      "author": "",
+      "rankid": 100
+    },
+    {
+      "tid": 7561,
+      "scientificName": "Agaricaceae",
+      "author": "Chevall.",
+      "rankid": 140
+    },
+    {
+      "tid": 7600,
+      "scientificName": "Amanitaceae",
+      "author": "",
+      "rankid": 140
+    },
+    {
+      "tid": 8610,
+      "scientificName": "Fomitopsidaceae",
+      "author": "",
+      "rankid": 140
+    },
+    {
+      "tid": 11736,
+      "scientificName": "Agaricus (d2)",
+      "author": "L.",
+      "rankid": 180
+    }
+  ],
+  "scientificName": "Agaricus campestris"
+}

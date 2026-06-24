@@ -1,0 +1,95 @@
+{
+  "tid": 46960,
+  "kingdomName": "Plantae",
+  "rankID": 220,
+  "rankName": null,
+  "unitInd1": null,
+  "unitName1": "Quercus",
+  "unitInd2": null,
+  "unitName2": "rubra",
+  "unitInd3": null,
+  "unitName3": null,
+  "cultivarEpithet": null,
+  "tradeName": null,
+  "author": "L.",
+  "reviewStatus": null,
+  "displayStatus": null,
+  "isLegitimate": null,
+  "source": "Tropicos",
+  "sourceIdentifier": null,
+  "notes": null,
+  "securityStatus": 0,
+  "modifiedTimestamp": null,
+  "initialTimestamp": "2008-09-28 20:57:25",
+  "parentTid": 4358,
+  "status": "accepted",
+  "classification": [
+    {
+      "tid": 4358,
+      "scientificName": "Quercus",
+      "author": "L.",
+      "rankid": 180
+    },
+    {
+      "tid": 5438,
+      "scientificName": "Fagaceae",
+      "author": "",
+      "rankid": 140
+    },
+    {
+      "tid": 5531,
+      "scientificName": "Fagales",
+      "author": "",
+      "rankid": 100
+    },
+    {
+      "tid": 5570,
+      "scientificName": "Magnoliophyta",
+      "author": "",
+      "rankid": 30
+    },
+    {
+      "tid": 5571,
+      "scientificName": "Plantae",
+      "author": "",
+      "rankid": 10
+    },
+    {
+      "tid": 170361,
+      "scientificName": "Tracheophyta",
+      "author": "",
+      "rankid": 20
+    },
+    {
+      "tid": 170633,
+      "scientificName": "Spermatophyta",
+      "author": "",
+      "rankid": 20
+    },
+    {
+      "tid": 170692,
+      "scientificName": "Eudicots",
+      "author": "",
+      "rankid": 45
+    },
+    {
+      "tid": 170726,
+      "scientificName": "Core Eudicots",
+      "author": "",
+      "rankid": 65
+    },
+    {
+      "tid": 170757,
+      "scientificName": "Rosids",
+      "author": "",
+      "rankid": 75
+    },
+    {
+      "tid": 170764,
+      "scientificName": "Fabids",
+      "author": "",
+      "rankid": 75
+    }
+  ],
+  "scientificName": "Quercus rubra"
+}

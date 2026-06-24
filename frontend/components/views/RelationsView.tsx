@@ -16,6 +16,7 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import {
   Background,
+  ControlButton,
   Controls,
   Handle,
   Position,
@@ -26,6 +27,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import { Group, Stack, Switch, Text } from "@mantine/core";
+import { useFullscreen } from "@mantine/hooks";
 
 import { useFilteredRecords } from "@/lib/hooks";
 import { buildRelationsGraph, type GraphNode } from "@/lib/transforms";
@@ -43,29 +45,42 @@ const HoverContext = createContext<HoverState>(null);
 
 const KIND_STYLE: Record<"source" | "genus" | "species", React.CSSProperties> = {
   source: {
-    background: "#e8f4fd",
-    border: "2px solid #228be6",
+    background: "#ffffff",
+    border: "1px solid #adb5bd",
     fontWeight: 600,
     minWidth: 160,
     textAlign: "center",
   },
   genus: {
-    background: "#f8f9fa",
-    border: "1.5px solid #74c0fc",
+    background: "#ffffff",
+    border: "1px solid #adb5bd",
     fontWeight: 500,
     fontStyle: "italic",
     minWidth: 140,
     textAlign: "center",
   },
   species: {
-    background: "#ffffff",
-    border: "1px solid #adb5bd",
+    background: "#f8f9fa",
+    border: "1.5px solid #74c0fc",
     fontStyle: "italic",
     minWidth: 180,
     textAlign: "left",
   },
 };
 
+/**
+ * Render a single graph node box (a source, genus, or species name).
+ *
+ * The box style is chosen by the node's kind. A species or genus node is
+ * highlighted when its label matches the currently hovered node, and a node that
+ * carries a URL shows a pointer cursor. Hidden left and right handles let React
+ * Flow attach the connecting edges.
+ *
+ * Parameters
+ * ----------
+ * data : RelNodeData
+ *     The node payload: label, kind, optional full name, url, and width override.
+ */
 function RelNode({ data }: NodeProps) {
   const d = data as RelNodeData;
   const hovered = useContext(HoverContext);
@@ -113,17 +128,63 @@ const GenusElbowContext = createContext<number>(GENUS_ELBOW_X);
 // 220 puts the elbow between that right edge and the base genus column at 280.
 const SOURCE_GENUS_ELBOW_X = 220;
 
-function GenusToSpeciesEdge({ sourceX, sourceY, targetX, targetY }: EdgeProps) {
-  const elbowX = useContext(GenusElbowContext);
+/**
+ * Render a right-angle "elbow" edge between two nodes.
+ *
+ * The path runs horizontally from the source to a shared turn column, then
+ * vertically to the target's row, then horizontally into the target. Routing
+ * every sibling edge through the same turn column (``elbowX``) keeps the
+ * connectors aligned into a tidy bracket. The turn is clamped to just past the
+ * source so it never bends backwards.
+ *
+ * Parameters
+ * ----------
+ * sourceX, sourceY, targetX, targetY : number
+ *     Endpoint coordinates supplied by React Flow.
+ * elbowX : number
+ *     X coordinate of the vertical turn.
+ */
+function ElbowEdge({
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  elbowX,
+}: {
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+  elbowX: number;
+}) {
   const ex = Math.max(sourceX + 8, elbowX);
   const d = `M${sourceX},${sourceY} H${ex} V${targetY} H${targetX}`;
   return <path d={d} stroke="#adb5bd" strokeWidth={1} fill="none" className="react-flow__edge-path" />;
 }
 
+/**
+ * Genus-to-species edge: an elbow whose turn column comes from context, so it
+ * shifts right when the genus column is aligned and widened.
+ */
+function GenusToSpeciesEdge({ sourceX, sourceY, targetX, targetY }: EdgeProps) {
+  const elbowX = useContext(GenusElbowContext);
+  return <ElbowEdge sourceX={sourceX} sourceY={sourceY} targetX={targetX} targetY={targetY} elbowX={elbowX} />;
+}
+
+/**
+ * Source-to-genus edge: an elbow turning at the fixed source/genus column, used
+ * only when the genus column is aligned.
+ */
 function SourceToGenusEdge({ sourceX, sourceY, targetX, targetY }: EdgeProps) {
-  const ex = Math.max(sourceX + 8, SOURCE_GENUS_ELBOW_X);
-  const d = `M${sourceX},${sourceY} H${ex} V${targetY} H${targetX}`;
-  return <path d={d} stroke="#adb5bd" strokeWidth={1} fill="none" className="react-flow__edge-path" />;
+  return (
+    <ElbowEdge
+      sourceX={sourceX}
+      sourceY={sourceY}
+      targetX={targetX}
+      targetY={targetY}
+      elbowX={SOURCE_GENUS_ELBOW_X}
+    />
+  );
 }
 
 const nodeTypes = { rel: RelNode };
@@ -132,11 +193,29 @@ const edgeTypes = { gnedge: GenusToSpeciesEdge, sgnedge: SourceToGenusEdge };
 const NAME_COLUMN_WIDTH = 200;
 const GENUS_COLUMN_WIDTH = 160;
 
+/**
+ * Relations view: a React Flow graph of each source's synonyms, grouped by genus.
+ *
+ * Nodes are laid out by the transform layer; two switches optionally align all
+ * genus nodes (and all species nodes) into shared columns for easier comparison,
+ * which also shifts the species column and edge elbows to keep the brackets
+ * tidy. Hovering a genus or species highlights every matching node; clicking a
+ * node opens its source page. The graph canvas has zoom, fit-view, and a
+ * fullscreen toggle.
+ */
 export function RelationsView() {
   const { records } = useFilteredRecords();
   const [hoveredLabel, setHoveredLabel] = useState<HoverState>(null);
   const [alignByName, setAlignByName] = useState(false);
   const [alignByGenus, setAlignByGenus] = useState(false);
+
+  // Fullscreen toggle for the graph canvas (browser Fullscreen API on the
+  // wrapper). React Flow auto-resizes to fill the container as it grows.
+  const {
+    ref: fullscreenRef,
+    toggle: toggleFullscreen,
+    fullscreen,
+  } = useFullscreen<HTMLDivElement>();
 
   const baseGraph = useMemo(() => buildRelationsGraph(records), [records]);
 
@@ -221,24 +300,35 @@ export function RelationsView() {
     <GenusElbowContext.Provider value={genusElbowX}>
     <HoverContext.Provider value={hoveredLabel}>
     <Stack gap="xs">
-      <Group>
-        <Switch
-          label="Align genus"
-          size="sm"
-          checked={alignByGenus}
-          onChange={(e) => setAlignByGenus(e.currentTarget.checked)}
-        />
-        <Switch
-          label="Align species"
-          size="sm"
-          checked={alignByName}
-          onChange={(e) => setAlignByName(e.currentTarget.checked)}
-        />
+      <Group justify="space-between" wrap="nowrap">
+        <Text style={{ flex: 1 }}>
+          Clicking a species name opens its page on the source website.
+        </Text>
+        <Group style={{ flex: 1 }} justify="flex-end">
+          <Switch
+            label="Align genus"
+            size="md"
+            checked={alignByGenus}
+            onChange={(e) => setAlignByGenus(e.currentTarget.checked)}
+          />
+          <Switch
+            label="Align species"
+            size="md"
+            checked={alignByName}
+            onChange={(e) => setAlignByName(e.currentTarget.checked)}
+          />
+        </Group>
       </Group>
-      <Text size="xs" c="dimmed">
-        Clicking a species name opens its page on the source website.
-      </Text>
-    <div style={{ width: "100%", height: 680, border: "1px solid #e9ecef", borderRadius: 8 }}>
+    <div
+      ref={fullscreenRef}
+      style={{
+        width: "100%",
+        height: fullscreen ? "100vh" : 680,
+        border: "1px solid #e9ecef",
+        borderRadius: fullscreen ? 0 : 8,
+        background: "#fff",
+      }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -254,7 +344,41 @@ export function RelationsView() {
         proOptions={{ hideAttribution: true }}
       >
         <Background color="#fafafa" />
-        <Controls showInteractive={false} />
+        <Controls showInteractive={false}>
+          <ControlButton
+            onClick={toggleFullscreen}
+            title={fullscreen ? "Exit fullscreen" : "Fullscreen"}
+            aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen"}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              {fullscreen ? (
+                <>
+                  <polyline points="4 14 10 14 10 20" />
+                  <polyline points="20 10 14 10 14 4" />
+                  <line x1="14" y1="10" x2="21" y2="3" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </>
+              ) : (
+                <>
+                  <polyline points="15 3 21 3 21 9" />
+                  <polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </>
+              )}
+            </svg>
+          </ControlButton>
+        </Controls>
       </ReactFlow>
     </div>
     </Stack>
