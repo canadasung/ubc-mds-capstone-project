@@ -130,9 +130,13 @@ async def search_stream(
 ):
     """Stream synonym search results as Server-Sent Events.
 
-    Emits one ``progress`` event before and after each source is queried,
-    then either a ``result`` event (with the full SearchResponse payload) or
-    a ``suggestions`` event (with fuzzy-match candidates) when the query
+    Emits one ``progress`` event before and after each source is queried. If
+    a source's request fails (timeout, rate limit, unreachable, HTTP error),
+    a ``source_error`` event is emitted for it between those two ``progress``
+    events, carrying an error ``message``; the loop still continues on to
+    the remaining sources. Once all sources have been queried, emits either
+    a ``result`` event (with the full SearchResponse payload) or a
+    ``suggestions`` event (with fuzzy-match candidates) when the query
     returns no results.
 
     Parameters
@@ -163,8 +167,8 @@ async def search_stream(
                     df = await asyncio.to_thread(lambda f=factory, qq=q: f().get_synonyms(qq))
                     if not df.empty:
                         dfs.append(df)
-                except Exception:
-                    pass  # skip failed source, continue with remaining
+                except Exception as e:
+                    yield f"data: {json.dumps({'type': 'source_error', 'source': name, 'message': str(e)})}\n\n"
 
             yield f"data: {json.dumps({'type': 'progress', 'source': name, 'done': i + 1, 'total': total})}\n\n"
 

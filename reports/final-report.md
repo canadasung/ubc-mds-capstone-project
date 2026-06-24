@@ -46,11 +46,11 @@ To achieve this, our app queries a list of well-known databases relevant to the 
 
 ## Data Sources
 
-All data is sourced on-demand via APIs and web scraping from 30+ individual websites hosting species synonyms and taxonomic information. Because taxonomy is updated frequently, data is collected dynamically to ensure our web app always displays the most current information. A full list of sources — including those currently implemented, suggested for future use, and those we were unable to implement — is provided in [Appendix B](#sec-appendix-b).
+All data is sourced on-demand via APIs and web scraping from multiple websites hosting species synonyms and taxonomic information. Because taxonomy is updated frequently, data is collected dynamically to ensure our web app always displays the most current information. A full list of sources — including those currently implemented, suggested for future use, and those we were unable to implement — is provided in [Appendix B](#sec-appendix-b).
 
 ## Data Size and Structure
 
-Most search queries will yield fewer than 100 synonym names (and associated data, such as author and publication year) per source, across under 30 sources, yielding fewer than 3000 results per query, each containing 16 short-string fields. Because data is fetched dynamically, no long-term storage is needed. Given this small data volume, we chose to organize the raw data into a structured data table because it is the most intuitive for both the developers and end users.
+Most search queries will yield fewer than 100 synonym names (and associated data, such as author and publication year) per source, across multiple sources, yielding fewer than 3000 results per query, each containing 16 short-string fields. Because data is fetched dynamically, no long-term storage is needed. Given this small data volume, we chose to organize the raw data into a structured data table because it is the most intuitive for both the developers and end users.
 
 The original raw data enters our pipeline from API calls to each source, which return data in JSON, HTML, or XML format. For each source, we parse the raw data to collect as many of the following fields as possible. Four fields are required: the API name, genus and species names, and the source's internal record ID. All remaining fields are optional, as not all APIs will include all fields. For most sources, the taxonomic information is only added to the row(s) for accepted name(s).
 
@@ -68,11 +68,17 @@ The original raw data enters our pipeline from API calls to each source, which r
 - `publication_name`: name of the publication where the species synonym name was published (optional)
 - `publication_year`: year when the species synonym name was published (optional)
 - `status`: whether the species name is considered "accepted" or a "synonym" for that API source (optional)
-- `source_name`: if the API source includes a citation of their information source, such as a journal article or book, it is included here (optional)
+- `original_source`: if the API source includes a citation of their information source, such as a journal article or book, it is included here (optional)
 - `api_link`: link to the search result on the API source's website (optional)
 - `api_internal_id`: the unique identifier in the API source's database (required)
 
-![Schema of the raw data table (only some columns shown).](images/table-schema.png)
+| api_`\newline{}`{=latex}name | kingdom | phylum | ... | author | publication_`\newline{}`{=latex}year | api_`\newline{}`{=latex}internal_`\newline{}`{=latex}id |
+| -------- | ------- | ------ | --- | ---------------- | -------- | ---------------- |
+| GBIF | Fungi | Basidiomycota | ... | (L.) Lam. | 1753 | 8168319 |
+| COL | Fungi | Basidiomycota | ... | L. | 1873 | 95084 |
+| SERNEC | Fungi | Basidiomycota | ... | Bull. | 1931 | 371397 |
+
+: Example schema of the raw data table (only some columns shown). {tbl-colwidths="[11,9,20,4,20,17,19]"}
 
 ## Data Quality and Validation
 
@@ -88,7 +94,7 @@ Many of the API sources are sparsely maintained and subject to network outages. 
 
 ## Biases
 
-While we aim to avoid designating any single source as ground truth, as the lack of such a consensus is the central problem our project addresses, where a baseline or default source is required, we use GBIF because it contains general information for every species. The "suggest" feature uses GBIF to determine the kingdom of a search term; we are comfortable with this given expert input that disputed kingdoms are extremely rare. The taxonomy comparison view, by default, calculates edit distance between GBIF's taxonomy and the other sources, and we have also included the option for the user to choose any of the sources as the comparison source. We consider this design decision sufficient to mitigate possible bias from choosing GBIF as the default comparison source.
+We deliberately avoid designating any single source as ground truth. The lack of such a consensus is, in fact, the central problem our project addresses. So when a baseline or default source is required, we use GBIF, because it provides general information for every species. The "suggest" feature uses GBIF to determine the kingdom of a search term; we are comfortable with this given expert input that disputed kingdoms are extremely rare. The taxonomy comparison view, by default, calculates edit distance between GBIF's taxonomy and the other sources, and we have also included the option for the user to choose any of the sources as the comparison source. We consider this design decision sufficient to mitigate possible bias from choosing GBIF as the default comparison source.
 
 ## Processing and Filtering Raw Data
 
@@ -123,6 +129,20 @@ Some ethical considerations were made when designing the site; the most signific
 
 # Data Product and Results {#sec-results}
 
+```{=latex}
+\begingroup
+\setlength{\fboxsep}{0pt}
+\setlength{\fboxrule}{0.75pt}
+\let\oldincludegraphics\includegraphics
+\renewcommand{\includegraphics}[2][]{\fbox{\oldincludegraphics[#1]{#2}}}
+```
+
+![Overview view of the web application, showing synonym search results for *Podospora anserina* aggregated across API sources.](images/product-view.png){#fig-product-view}
+
+```{=latex}
+\endgroup
+```
+
 The final product is the web application (Next.js/React + Mantine frontend, FastAPI backend wrapping the Python pipeline, deployed via a Hugging Face Space + Vercel). One query fans out to up to 17 biodiversity databases (GBIF, COL, GenBank, Index Fungorum, Mushroom Observer, Tropicos, and eleven Symbiota portals) through a FastAPI service.
 
 A web app was used over a script/notebook because the end users are museum curators, not programmers. A searchable browser UI removes any setup barrier and fits an exploratory task. Multiple views were used over a single large view to answer different kinds of curatorial questions: "What are the synonyms?" (table); "Where do sources disagree on classification?" (taxonomy grid); "How are names related?" (graph). Trying to force all those views into a single layout would hide clear signals and make the user experience worse.
@@ -133,7 +153,7 @@ The structure of the site does include some limitations; a real-time fan-out mak
 
 # Conclusions and Recommendations {#sec-conclusions}
 
-The Beaty Biodiversity Museum must keep an accurate physical and digital record of millions of specimens as taxonomy continually changes. Curators previously resolved synonym conflicts, basionyms, and classification changes by consulting many separate online databases by hand. We built a web application that aggregates synonymy and taxonomic data from up to 30 biodiversity sources and presents it through five linked views (Overview, Detail, Relations, Timeline, and Taxonomy), each with direct links back to the source. This meets the partner's core need by consolidating the evidence a curator must gather and cutting the time spent on it. The tool is decision support only; it organizes evidence but never selects or overwrites a name, leaving the final judgment to curatorial expertise.
+The Beaty Biodiversity Museum must keep an accurate physical and digital record of millions of specimens as taxonomy continually changes. Curators previously resolved synonym conflicts, basionyms, and classification changes by consulting many separate online databases by hand. We built a web application that aggregates synonymy and taxonomic data from multiple biodiversity sources and presents it through five linked views (Overview, Detail, Relations, Timeline, and Taxonomy), each with direct links back to the source. This meets the partner's core need by consolidating the evidence a curator must gather and cutting the time spent on it. The tool is decision support only; it organizes evidence but never selects or overwrites a name, leaving the final judgment to curatorial expertise.
 
 The project taught us how much biodiversity APIs differ in structure, coverage, and reliability. Managing this required careful data validation, including a clear distinction between data that is temporarily missing and fields a source never provides. The main technical outcome is a modular, object-oriented pipeline whose template class lets future developers add new sources without changing the rest of the application.
 
@@ -187,4 +207,4 @@ The following table lists the individual data sources integrated into our pipeli
 | [VertNet](https://vertnet.org/) | Vertebrate biodiversity data | No |
 | [Wikipedia](https://www.wikipedia.org/) | General reference across all taxonomic groups | No |
 
-: {tbl-colwidths="[35,50,15]"}
+: Data sources integrated into our pipeline, along with their primary taxonomic scope. {tbl-colwidths="[35,50,15]"}
