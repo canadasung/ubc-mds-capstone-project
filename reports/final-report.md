@@ -102,12 +102,12 @@ The main purpose of our project is to process and filter the raw data from the A
 
 1. User searches "amanita muscaria"
 2. The query string is normalized to "Amanita muscaria"
-3. `_fetch_query_data()` turns "Amanita muscaria" into "99487"
-4. `_fetch_synonym_data()` gets synonyms for "99487", including metadata such as author, publication name, etc. for each synonym
-5. `_fetch_accepted_data()` gets metadata for "99487" itself, as well as taxonomy if available
-6. `_compile_synonym()` turns the synonym data into a formatted output
-7. `_compile_accepted()` turns the raw synonym search term data into a formatted output
-8. The two outputs are combined and returned
+3. `_fetch_query_data()` searches the source for the name and returns its raw record, which holds the source's internal ID (e.g., "Amanita muscaria" → GBIF's record for ID "99487")
+4. `_fetch_synonym_data()` uses that record to fetch the raw list of synonyms (e.g., for "99487", records for synonyms like "Agaricus muscarius", each with its author, publication name, and year)
+5. `_fetch_accepted_data()` fetches the accepted name's own raw record, including taxonomy if available (e.g., "Amanita muscaria": Kingdom Fungi, Phylum Basidiomycota, Class Agaricomycetes, Order Agaricales, Family Amanitaceae, Genus Amanita)
+6. `_compile_synonym()` converts the raw synonym data into our standard rows, one per synonym (e.g., genus "Agaricus", species "muscarius", author "L.", year 1753, status "synonym")
+7. `_compile_accepted()` converts the accepted name's raw record into a single standard row (status "accepted", with the taxonomy filled in)
+8. The two outputs are combined and returned as one table
 
 While the actual implementation of each function is unique to each API, the overall purpose, inputs and outputs, and call order of the functions are standardized.
 
