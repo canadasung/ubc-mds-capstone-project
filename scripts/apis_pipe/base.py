@@ -68,6 +68,9 @@ class SpeciesAPI(ABC):
 
     HEADERS: dict = {"User-Agent": "Mozilla/5.0"}
     BASE_URL: str
+    # Default request timeout (seconds) for all fetch helpers. Subclasses that
+    # need longer can override this single attribute, e.g. ``_TIMEOUT = 60``.
+    _TIMEOUT: int = 30
     # Verbose/debug logging toggle shared by all subclasses. Defaults from the
     # APIS_PIPE_VERBOSE env var; can also be flipped at runtime, e.g.
     # ``SpeciesAPI.VERBOSE = True`` (all clients) or ``GBIFAPI.VERBOSE = True``
@@ -96,7 +99,7 @@ class SpeciesAPI(ABC):
     # ------------------------------------------------------------------
 
     def _fetch(
-        self, url: str, params: dict = {}, timeout: int = 10
+        self, url: str, params: dict = {}, timeout: int | None = None
     ) -> requests.Response:
         """
         Make a GET request to the specified URL with error handling.
@@ -108,7 +111,8 @@ class SpeciesAPI(ABC):
         params : dict, optional
             Query parameters to include in the request. Default is an empty dict.
         timeout : int, optional
-            Request timeout in seconds. Default is 10.
+            Request timeout in seconds. Defaults to the client's ``_TIMEOUT``
+            (30s in the base class) when not provided.
 
         Returns
         -------
@@ -121,6 +125,8 @@ class SpeciesAPI(ABC):
             If the request times out, the source is unreachable, or the
             response has a non-2xx HTTP status.
         """
+        if timeout is None:
+            timeout = self._TIMEOUT
         try:
             response = requests.get(
                 url, params=params, headers=self.HEADERS, timeout=timeout
@@ -131,7 +137,9 @@ class SpeciesAPI(ABC):
             print(f"{type(self).__name__} fetch error [{url}]: {e}")
             raise
 
-    def _fetch_JSON(self, url: str, params: dict = {}, timeout: int = 10) -> dict:
+    def _fetch_JSON(
+        self, url: str, params: dict = {}, timeout: int | None = None
+    ) -> dict:
         """
         Make a GET request to a REST JSON endpoint and return the parsed response.
 
@@ -144,7 +152,8 @@ class SpeciesAPI(ABC):
         params : dict, optional
             URL query parameters.
         timeout : int, optional
-            Request timeout in seconds. Default is 10.
+            Request timeout in seconds. Defaults to the client's ``_TIMEOUT``
+            (30s in the base class) when not provided.
 
         Returns
         -------
@@ -162,7 +171,9 @@ class SpeciesAPI(ABC):
             print(f"{type(self).__name__} error parsing JSON.")
             return {}
 
-    def _fetch_XML(self, url: str, params: dict = {}, timeout: int = 10) -> ET.Element:
+    def _fetch_XML(
+        self, url: str, params: dict = {}, timeout: int | None = None
+    ) -> ET.Element:
         """
         Make a GET request and return the parsed XML root element.
 
@@ -177,7 +188,8 @@ class SpeciesAPI(ABC):
         params : dict, optional
             URL query parameters.
         timeout : int, optional
-            Request timeout in seconds. Default is 10.
+            Request timeout in seconds. Defaults to the client's ``_TIMEOUT``
+            (30s in the base class) when not provided.
 
         Returns
         -------
@@ -204,7 +216,9 @@ class SpeciesAPI(ABC):
         self._warn_blank(url, root, params)
         return root
 
-    def _fetch_HTML(self, url: str, params: dict = {}, timeout: int = 10) -> str:
+    def _fetch_HTML(
+        self, url: str, params: dict = {}, timeout: int | None = None
+    ) -> str:
         """
         Make a GET request and return the raw HTML response text.
 
@@ -217,7 +231,8 @@ class SpeciesAPI(ABC):
         params : dict, optional
             URL query parameters.
         timeout : int, optional
-            Request timeout in seconds. Default is 10.
+            Request timeout in seconds. Defaults to the client's ``_TIMEOUT``
+            (30s in the base class) when not provided.
 
         Returns
         -------

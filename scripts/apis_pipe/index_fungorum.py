@@ -39,6 +39,8 @@ class IndexFungorumAPI(SpeciesAPI):
 
     BASE_URL = INDEX_FUNGORUM_PORTAL.base_url
 
+    _TIMEOUT: int = 60
+
     # Index Fungorum encodes spaces as _x0020_ in its XML element names.
     _TAGS = {
         "name": "NAME_x0020_OF_x0020_FUNGUS",
@@ -75,7 +77,7 @@ class IndexFungorumAPI(SpeciesAPI):
                 "AnywhereInText": "false",
                 "MaxNumber": "50",
             },
-            timeout=60,
+            timeout=self._TIMEOUT,
         )
         if root is None:
             return ET.Element("empty")
@@ -159,7 +161,7 @@ class IndexFungorumAPI(SpeciesAPI):
         return self._fetch_XML(
             f"{self.BASE_URL}/NamesByCurrentKey",
             params={"CurrentKey": current_key},
-            timeout=60,
+            timeout=self._TIMEOUT,
         )
 
     def _fetch_accepted_data(

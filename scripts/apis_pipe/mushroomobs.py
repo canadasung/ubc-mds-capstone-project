@@ -168,7 +168,6 @@ class MushroomObserverAPI(SpeciesAPI):
                 "detail": "high",
                 "format": "json",
             },
-            timeout=15,
         )
 
     def _fetch_synonym_data(self, raw_data: dict) -> list:

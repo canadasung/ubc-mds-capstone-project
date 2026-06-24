@@ -48,6 +48,8 @@ class ITISAPI(SpeciesAPI):
 
     BASE_URL = ITIS_PORTAL.base_url
 
+    _TIMEOUT: int = 60
+
     _AUTHOR_YEAR_RE: re.Pattern = re.compile(r"(?<!\()\b(\d{4})\b(?!\))")
 
     def _fetch_query_data(self, name: str) -> dict:
@@ -71,7 +73,7 @@ class ITISAPI(SpeciesAPI):
         data = self._fetch_JSON(
             f"{self.BASE_URL}/getITISTermsFromScientificName",
             params={"srchKey": name},
-            timeout=60,
+            timeout=self._TIMEOUT,
         )
         terms = data.get("itisTerms")
         if terms is None:  # TODO: add error
@@ -139,7 +141,7 @@ class ITISAPI(SpeciesAPI):
         data = self._fetch_JSON(
             f"{self.BASE_URL}/getAcceptedNamesFromTSN",
             params={"tsn": tsn},
-            timeout=60,
+            timeout=self._TIMEOUT,
         )
         return [n for n in (data.get("acceptedNames") or []) if n]
 
@@ -201,7 +203,7 @@ class ITISAPI(SpeciesAPI):
         data = self._fetch_JSON(
             f"{self.BASE_URL}/getSynonymNamesFromTSN",
             params={"tsn": accepted_id},
-            timeout=60,
+            timeout=self._TIMEOUT,
         )
         synonyms = [s for s in (data.get("synonyms") or []) if s]
         full_records = []
@@ -211,7 +213,7 @@ class ITISAPI(SpeciesAPI):
                 record = self._fetch_JSON(
                     f"{self.BASE_URL}/getFullRecordFromTSN",
                     params={"tsn": tsn},
-                    timeout=60,
+                    timeout=self._TIMEOUT,
                 )
                 if record:
                     full_records.append(record)
@@ -236,7 +238,7 @@ class ITISAPI(SpeciesAPI):
         return self._fetch_JSON(
             f"{self.BASE_URL}/getFullRecordFromTSN",
             params={"tsn": accepted_id},
-            timeout=60,
+            timeout=self._TIMEOUT,
         )
 
     def _fetch_hierarchy_data(self, accepted_id: str) -> list:
@@ -256,7 +258,7 @@ class ITISAPI(SpeciesAPI):
         data = self._fetch_JSON(
             f"{self.BASE_URL}/getFullHierarchyFromTSN",
             params={"tsn": accepted_id},
-            timeout=60,
+            timeout=self._TIMEOUT,
         )
         return [r for r in (data.get("hierarchyList") or []) if r]
 
