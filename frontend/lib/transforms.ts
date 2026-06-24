@@ -23,10 +23,12 @@ import {
 import { fullForLabel, keyForApiName, labelForKey } from "./sources";
 import type { SpeciesRecord } from "./types";
 
+/** Trim, collapse internal whitespace, and lowercase a string for case/space-insensitive comparison. */
 function normalize(s: string): string {
   return s.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+/** Resolve a record's source to its short display label (e.g. ``"GBIF"``). */
 function sourceLabel(rec: SpeciesRecord): string {
   return labelForKey(keyForApiName(sourceOf(rec)));
 }
@@ -269,6 +271,22 @@ function sourceAccent(index: number, total: number): string {
   return `hsl(${h.toFixed(0)}, 60%, 45%)`;
 }
 
+/**
+ * Partition records into dated and undated timeline entries and assign a
+ * colour per source.
+ *
+ * Parameters
+ * ----------
+ * records : SpeciesRecord[]
+ *     Filtered records for the active source selection.
+ *
+ * Returns
+ * -------
+ * TimelineData
+ *     ``dated`` — entries with a parseable publication year.
+ *     ``undated`` — entries without one.
+ *     ``sourceColors`` — HSL colour string keyed by source display label.
+ */
 export function buildTimeline(records: SpeciesRecord[]): TimelineData {
   const dated: TimelineEntry[] = [];
   const undated: TimelineEntry[] = [];
