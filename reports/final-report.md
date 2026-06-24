@@ -102,12 +102,12 @@ The main purpose of our project is to process and filter the raw data from the A
 
 1. User searches "amanita muscaria"
 2. The query string is normalized to "Amanita muscaria"
-3. `_fetch_query_data()` turns "Amanita muscaria" into "99487"
-4. `_fetch_synonym_data()` gets synonyms for "99487", including metadata such as author, publication name, etc. for each synonym
-5. `_fetch_accepted_data()` gets metadata for "99487" itself, as well as taxonomy if available
-6. `_compile_synonym_data()` turns the synonym data into a formatted output
-7. `_compile_accepted_data()` turns the raw synonym search term data into a formatted output
-8. The two outputs are combined and returned
+3. `_fetch_query_data()` searches the source for the name and returns its raw record, which holds the source's internal ID (e.g., "Amanita muscaria" → GBIF's record for ID "99487")
+4. `_fetch_synonym_data()` uses that record to fetch the raw list of synonyms (e.g., for "99487", records for synonyms like "Agaricus muscarius", each with its author, publication name, and year)
+5. `_fetch_accepted_data()` fetches the accepted name's own raw record, including taxonomy if available (e.g., "Amanita muscaria": Kingdom Fungi, Phylum Basidiomycota, Class Agaricomycetes, Order Agaricales, Family Amanitaceae, Genus Amanita)
+6. `_compile_synonym()` converts the raw synonym data into our standard rows, one per synonym (e.g., genus "Agaricus", species "muscarius", author "L.", year 1753, status "synonym")
+7. `_compile_accepted()` converts the accepted name's raw record into a single standard row (status "accepted", with the taxonomy filled in)
+8. The two outputs are combined and returned as one table
 
 While the actual implementation of each function is unique to each API, the overall purpose, inputs and outputs, and call order of the functions are standardized.
 
@@ -173,7 +173,7 @@ We recommend that the museum assign technical staff to add secure credential man
 
 # Appendix B: Data Sources {#sec-appendix-b .unnumbered}
 
-The following table lists the individual data sources integrated into our pipeline, along with their primary taxonomic scope.
+The following table lists the data sources we evaluated for our pipeline, along with each source's primary taxonomic scope and whether it is currently implemented.
 
 | Source | Taxonomic Scope | Implementation Status |
 | ------ | --------------- | :---: |
@@ -189,15 +189,19 @@ The following table lists the individual data sources integrated into our pipeli
 | [iDigBio Portal](https://portal.idigbio.org/portal/search) | Aggregated US biodiversity data | No |
 | [iNaturalist](https://www.inaturalist.org/) | Plants, animals, fungi (citizen science) | No |
 | [Index Fungorum](https://www.indexfungorum.org/) | Scientific names of fungi | Yes |
-| [ITIS](https://www.itis.gov/) | Plants, animals, fungi, microbes (US federal taxonomic database) | Yes |
+| [International Plant Names Index](https://www.ipni.org/) | Scientific names of plants | No |
+| [Integrated Taxonomic Information System](https://www.itis.gov/) | Plants, animals, fungi, microbes (US federal taxonomic database) | Yes |
 | [Lichen Portal](https://lichenportal.org/portal/) | Lichenized fungi | Yes |
 | [Macroalgae.org](https://macroalgae.org/portal/) | Algae herbarium data | Yes |
 | [Mid-Atlantic Herbaria](https://midatlanticherbaria.org/portal/) | Mid-Atlantic plant collections | Yes |
 | [Mushroom Observer](https://mushroomobserver.org/) | Mushrooms / fungi | Yes |
+| [MycoBank](https://www.mycobank.org/) | Fungal databases, Nomenclature & Species Banks | No |
 | [MycoMap](https://www.mycomap.com/) | Fungal observations & analytics | No |
 | [MyCoPortal](https://mycoportal.org/portal/) | Fungi / fungal collections | Yes |
 | [NANSH](https://nansh.org/portal/index.php) | Small Herbaria (plants) | Yes |
 | [NE Herbaria Portal](https://portal.neherbaria.org/portal/) | Northeastern US herbarium collections | Yes |
+| [Plants of the World Online](https://powo.science.kew.org/) | Plant species information | No |
+| [Paleobiology Database](https://paleobiodb.org/) | Paleobiology data | No |
 | [PteridoPortal](https://pteridoportal.org/portal/) | Pteridophytes (ferns & allies) | Yes |
 | [SERNEC](https://sernecportal.org/portal/index.php) | 233 herbaria in southeastern USA | Yes |
 | [Species Fungorum](http://www.speciesfungorum.org/) | Scientific names of fungi | No |

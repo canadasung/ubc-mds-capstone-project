@@ -517,14 +517,22 @@ class ITISAPI(SpeciesAPI):
         raw_data = self._fetch_query_data(name)
         if self._is_empty(raw_data):
             return empty_synonym_table()
+        print("_fetch_query_data")
+        print(raw_data)
 
         accepted_id = self._extract_internal_accepted_id(raw_data)
         if not accepted_id:
             return empty_synonym_table()
 
         synonym_data = self._fetch_synonym_data(accepted_id)
+        print("_fetch_synonym_data")
+        print(synonym_data)
         accepted_data = self._fetch_accepted_data(accepted_id)
+        print("_fetch_accepted_data")
+        print(accepted_data)
         hierarchy_data = self._fetch_hierarchy_data(accepted_id)
+        print("_fetch_hierarchy_data")
+        print(hierarchy_data)
 
         accepted_rows = self._compile_accepted(accepted_data, hierarchy_data)
         synonym_rows = self._compile_synonyms(synonym_data)

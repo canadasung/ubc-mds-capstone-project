@@ -309,7 +309,10 @@ class COLAPI(SpeciesAPI):
         """
         Convert raw ChecklistBank synonym records into pipeline-standard dicts.
 
-        Deduplicates by canonical scientific name across homotypic and
+        Skips infraspecific names (e.g. ``var.``/``subsp.``/``f.`` ranks and bare
+        trinomials), which would otherwise collapse to their binomial via
+        ``_extract_genus_species`` and produce rows that differ only by internal
+        ID. Deduplicates by canonical scientific name across the homotypic and
         heterotypic synonym lists.
 
         Parameters
@@ -328,7 +331,7 @@ class COLAPI(SpeciesAPI):
         for s in synonym_data:
             name_obj = s.get("name", {})
             syn_name = normalize_query_string(name_obj.get("scientificName", ""))
-            if not syn_name or syn_name in seen:
+            if not syn_name or syn_name in seen or self._is_infraspecific(syn_name):
                 continue
             seen.add(syn_name)
             taxon_id = self._extract_internal_id(s)

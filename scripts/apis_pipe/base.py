@@ -75,7 +75,7 @@ class SpeciesAPI(ABC):
 
     def _fetch(
         self, url: str, params: dict = {}, timeout: int = 10
-    ) -> requests.Response | None:
+    ) -> requests.Response:
         """
         Make a GET request to the specified URL with error handling.
 
@@ -90,8 +90,14 @@ class SpeciesAPI(ABC):
 
         Returns
         -------
-        requests.Response or None
-            The response object if the request is successful; None if an error occurs.
+        requests.Response
+            The response object if the request is successful.
+
+        Raises
+        ------
+        requests.RequestException
+            If the request times out, the source is unreachable, or the
+            response has a non-2xx HTTP status.
         """
         try:
             response = requests.get(
@@ -101,14 +107,13 @@ class SpeciesAPI(ABC):
             return response
         except requests.RequestException as e:
             print(f"{type(self).__name__} fetch error [{url}]: {e}")
-            return None
+            raise
 
     def _fetch_JSON(self, url: str, params: dict = {}, timeout: int = 10) -> dict:
         """
         Make a GET request to a REST JSON endpoint and return the parsed response.
 
-        Used by children that query standard REST APIs returning JSON. On network
-        or HTTP error, prints a message and returns an empty dict.
+        Used by children that query standard REST APIs returning JSON.
 
         Parameters
         ----------
@@ -122,18 +127,24 @@ class SpeciesAPI(ABC):
         Returns
         -------
         dict
-            Parsed JSON response, or ``{}`` on any error.
+            Parsed JSON response.
+
+        Raises
+        ------
+        requests.RequestException
+            If the underlying request fails. See ``_fetch``.
         """
 
         response = self._fetch(url, params=params, timeout=timeout)
-        return response.json() if response is not None else {}
+        return response.json()
 
     def _fetch_XML(self, url: str, params: dict = {}, timeout: int = 10) -> ET.Element:
         """
         Make a GET request and return the parsed XML root element.
 
-        Used by children that consume XML responses. On network, HTTP, or
-        parse error, prints a message and returns an empty ``ET.Element``.
+        Used by children that consume XML responses. On a parse error of an
+        otherwise successful response, prints a message and returns an empty
+        ``ET.Element``.
 
         Parameters
         ----------
@@ -148,14 +159,18 @@ class SpeciesAPI(ABC):
         -------
         xml.etree.ElementTree.Element
             Parsed root element of the XML response, or an empty element
-            on any error.
+            if the response body could not be parsed as XML.
+
+        Raises
+        ------
+        requests.RequestException
+            If the underlying request fails. See ``_fetch``.
         """
         response = self._fetch(url, params=params, timeout=timeout)
-        if response is not None:
-            try:
-                return ET.fromstring(response.text)
-            except ET.ParseError:
-                print(f"{type(self).__name__} error parsing XML.")
+        try:
+            return ET.fromstring(response.text)
+        except ET.ParseError:
+            print(f"{type(self).__name__} error parsing XML.")
         return ET.Element(
             "empty"
         )  # tag name chosen to avoid confusion with valid root tags in responses, will be treated as empty by _is_empty()
@@ -164,8 +179,7 @@ class SpeciesAPI(ABC):
         """
         Make a GET request and return the raw HTML response text.
 
-        Used by children that scrape HTML pages. On network or HTTP error,
-        prints a message and returns an empty string.
+        Used by children that scrape HTML pages.
 
         Parameters
         ----------
@@ -179,10 +193,15 @@ class SpeciesAPI(ABC):
         Returns
         -------
         str
-            Raw HTML text of the response, or ``""`` on any error.
+            Raw HTML text of the response.
+
+        Raises
+        ------
+        requests.RequestException
+            If the underlying request fails. See ``_fetch``.
         """
         response = self._fetch(url, params=params, timeout=timeout)
-        return response.text if response is not None else ""
+        return response.text
 
     # ------------------------------------------------------------------
     # Boolean checker methods (to be used by children in their implementations of the required methods,can be optionally overridden but should work for most children as-is)

@@ -87,8 +87,8 @@ The five views, selected with the segmented control:
   downloadable as a CSV named from the query.
 - **Relations** (`RelationsView`): a React Flow graph of synonyms grouped by
   genus, with links to each source.
-- **Timeline** (`TimelineView`): a Plotly timeline placing each synonym at its
-  publication year.
+- **Timeline** (`TimelineView`): a CSS/React timeline (horizontal or vertical)
+  placing each synonym at its publication year.
 - **Taxonomy** (`TaxonomyView`): each source's classification shown side by side.
   The higher ranks (Kingdom, Phylum, Class, Family) are shaded by character edit
   distance from a backbone source (GBIF by default, user-selectable).
@@ -118,9 +118,8 @@ frontend/
 │       ├── TableView.tsx      # Overview: cross-source presence matrix
 │       ├── DetailView.tsx     # Detail: raw record table + CSV download
 │       ├── RelationsView.tsx  # Relations: React Flow graph grouped by genus
-│       ├── TimelineView.tsx   # Timeline: Plotly synonyms by publication year
-│       ├── TaxonomyView.tsx   # Taxonomy: per-source ranks, shaded by edit distance
-│       └── PlotlyChart.tsx    # client-only Plotly wrapper
+│       ├── TimelineView.tsx   # Timeline: CSS/React synonyms by publication year
+│       └── TaxonomyView.tsx   # Taxonomy: per-source ranks, shaded by edit distance
 ├── lib/
 │   ├── api.ts            # fetch client
 │   ├── types.ts          # TS mirrors of the FastAPI JSON
