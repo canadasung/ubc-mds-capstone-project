@@ -94,7 +94,7 @@ Many of the API sources are sparsely maintained and subject to network outages. 
 
 ## Biases
 
-We deliberately avoid designating any single source as ground truth. The lack of such a consensus is, in fact, the central problem our project addresses. So when a baseline or default source is required, we use GBIF, because it provides general information for every species. The "suggest" feature uses GBIF to determine the kingdom of a search term; we are comfortable with this given expert input that disputed kingdoms are extremely rare. The taxonomy comparison view, by default, calculates edit distance between GBIF's taxonomy and the other sources, and we have also included the option for the user to choose any of the sources as the comparison source. We consider this design decision sufficient to mitigate possible bias from choosing GBIF as the default comparison source.
+We deliberately avoid designating any single source as ground truth. The lack of such a consensus is, in fact, the central problem our project addresses. So when a baseline or default source is required, we use GBIF, because it provides general information for every species. The "suggest" feature uses GBIF to determine the kingdom of a search term; we are comfortable with this given expert input that disputed kingdoms are extremely rare. The fuzzy matching feature also uses GBIF, because GBIF exposes a fuzzy matching API that we have implemented. Once again, since this is only to make suggestions that the user can edit themselves, we are comfortable with this bias. The taxonomy comparison view, by default, calculates edit distance between GBIF's taxonomy and the other sources, and we have also included the option for the user to choose any of the sources as the comparison source. We consider this design decision sufficient to mitigate possible bias from choosing GBIF as the default comparison source.
 
 ## Processing and Filtering Raw Data
 
@@ -102,12 +102,12 @@ The main purpose of our project is to process and filter the raw data from the A
 
 1. User searches "amanita muscaria"
 2. The query string is normalized to "Amanita muscaria"
-3. `_fetch_query_data()` searches the source for the name and returns its raw record, which holds the source's internal ID (e.g., "Amanita muscaria" → GBIF's record for ID "99487")
-4. `_fetch_synonym_data()` uses that record to fetch the raw list of synonyms (e.g., for "99487", records for synonyms like "Agaricus muscarius", each with its author, publication name, and year)
-5. `_fetch_accepted_data()` fetches the accepted name's own raw record, including taxonomy if available (e.g., "Amanita muscaria": Kingdom Fungi, Phylum Basidiomycota, Class Agaricomycetes, Order Agaricales, Family Amanitaceae, Genus Amanita)
-6. `_compile_synonym()` converts the raw synonym data into our standard rows, one per synonym (e.g., genus "Agaricus", species "muscarius", author "L.", year 1753, status "synonym")
-7. `_compile_accepted()` converts the accepted name's raw record into a single standard row (status "accepted", with the taxonomy filled in)
-8. The two outputs are combined and returned as one table
+3. `_fetch_query_data()` searches the source for the name and returns its raw record, which holds the source's internal ID (e.g., "Amanita muscaria" has the internal ID "8168319" in GBIF).
+4. `_fetch_synonym_data()` uses the `_fetch_query_data()` results to fetch the IDs and associated data for synonyms of "8168319". The data fetched will include the ID (e.g. "5455639"), the synonym name (e.g. "Agaricus muscarius"), and if possible, metadata such as the author (e.g. "L."), publication name (e.g. "Sp. Pl. 2: 1172."), and publication year (e.g. "1753") of that synonym. All synonyms will have a status of "Synonym" for that source.
+5. `_fetch_accepted_data()` fetches the accepted name's raw record, including taxonomy if available (e.g., for "Amanita muscaria", it may fetch Kingdom: Fungi, Phylum: Basidiomycota, Class: Agaricomycetes, Order: Agaricales, and Family: Amanitaceae). The accepted name will be the name with a status of "Accepted" for that source.
+6. `_compile_synonym()` converts the raw synonym data into our standard rows, one per synonym (e.g., genus: "Agaricus", species: "muscarius", author: "L.", year: 1753, status: "Synonym")
+7. `_compile_accepted()` converts the raw accepted data into a standard row (e.g. genus: "Amanita", species: "muscaria", author: "(L.) Lam.", year: 1783, status: "Accepted"). If there are multiple accepted names from a single source, or if a single source publishes multiple taxonomies, there will be multiple standard rows, one for each name and/or taxonomy.
+8. The two outputs are combined and returned as one table, consistent with the schema defined above.
 
 While the actual implementation of each function is unique to each API, the overall purpose, inputs and outputs, and call order of the functions are standardized.
 
