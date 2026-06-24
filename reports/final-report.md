@@ -25,7 +25,7 @@ bibliography: references.bib
   \vspace{0.5em}
   {\large \textbf{Project Mentor:} Payman Nickchi (UBC MDS Faculty)} \\[0.4em]
   {\large \textbf{Capstone Partner:} Paul Bucci (Informatics Curator, UBC Beaty Biodiversity Museum)} \\[0.8em]
-  {\large June 17, 2026}
+  {\large June 24, 2026}
 \end{center}
 \vspace{1em}
 ```
