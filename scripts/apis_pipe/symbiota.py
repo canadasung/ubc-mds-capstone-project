@@ -39,7 +39,7 @@ All implemented Symbiota portals have documentation available through Swagger.
 
 Fields implemented
 ------------------
-- Taxonomy (kingdom → subfamily): accepted name row only
+- Taxonomy (kingdom → family): accepted name row only
 - author: both rows
 - original_source: accepted name row only
 - status: both rows

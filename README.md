@@ -53,7 +53,7 @@ quarto render reports/final-report.md
 The system has three layers:
 
 ```
-Browser (Next.js / React, port 3000)
+Browser (frontend/, port 3000)
         |
         |  HTTP / JSON (CORS)
         v
@@ -61,7 +61,7 @@ FastAPI backend (backend_api/, port 8000)
         |
         |  Python calls
         v
-Data pipeline (scripts/)  ->  external biodiversity APIs
+Data pipeline (scripts/, call external APIs)
 ```
 
 - **Frontend** ([frontend/](frontend/)): a Next.js application using React,
@@ -74,8 +74,7 @@ Data pipeline (scripts/)  ->  external biodiversity APIs
   query normalization, and schema validation.
 
 Live search streams results source by source as Server-Sent Events through
-`/api/search/stream`, reporting progress as each source is queried. The Taxonomy
-view currently reads pre-computed sample data (`data/sample/*.csv`).
+`/api/search/stream`, reporting progress as each source is queried.
 
 ---
 
@@ -85,8 +84,6 @@ A single query produces five linked views of the same data:
 
 - **Overview**: every synonym returned by the search, alongside which databases
   recognize each name. The searched name is shown first.
-- **Detail**: the full set of records from every database, with an option to
-  download the results as a CSV file.
 - **Relations**: an interactive graph of synonyms grouped by genus and/or species, with links to
   each source record.
 - **Timeline**: each name placed at its year of first publication, with author and
@@ -95,9 +92,11 @@ A single query produces five linked views of the same data:
   Order, Family, Subfamily). Cells are shaded by edit distance against a
   comparison source (GBIF by default, user-selectable) so alternative spellings are
   distinguished from genuine disagreements.
+- **Detail**: the full set of records from every database, with an option to
+  download the results as a CSV file.
 
-If a search returns no results, the app offers fuzzy name suggestions
-("Did you mean?") from the GBIF backbone.
+If a search returns no results, the app attempts to offer fuzzy name suggestions
+("Did you mean?") from the GBIF API.
 
 ---
 
@@ -113,12 +112,43 @@ source filter:
 - **Independent APIs**: Catalogue of Life (COL), Tropicos, Index Fungorum,
   GenBank, FishBase, ITIS, and Mushroom Observer.
 
-All source display names and base URLs are defined in one place,
-[scripts/config.py](scripts/config.py), which is the single source of truth for
-the rest of the pipeline.
+All source display names and base URLs are defined in [scripts/config.py](scripts/config.py).
 
-GenBank and Tropicos require credentials (see [Credentials](#3-set-up-credentials)).
-The other sources need no credentials.
+GenBank and Tropicos require credentials (see [Credentials](#3-set-up-credentials)). The other sources need no credentials.
+
+### Field availability by source
+
+Sources differ in which schema fields they provide, and in whether a field is
+provided for accepted names, synonym names, or both. The table below cross-references
+each source against the schema (see [Data Schema](#data-schema)), one column per
+field. Note that sources differ in how deep their taxonomy goes: only Catalogue of
+Life, GenBank, and ITIS provide `subfamily`; the others that carry taxonomy stop at
+`family`.
+
+Legend: **B** = provided for both accepted and synonym rows; **A** = provided for
+the accepted name row only; **—** = never provided by this source. (There are no fields that are
+synonym-only.) The four required fields — `api_name`, `genus`, `species`, and
+`api_internal_id` — are always present, so they are always **B**.
+
+| Source | api_name | kingdom | phylum | class | order | family | subfamily | genus | species | author | publication_name | publication_year | status | original_source | api_link | api_internal_id |
+|--------|----------|---------|--------|-------|-------|--------|-----------|-------|---------|--------|------------------|------------------|--------|-----------------|----------|-----------------|
+| GBIF | B | A | A | A | A | A | — | B | B | B | B | B | B | — | B | B |
+| Catalogue of Life | B | A | A | A | A | A | A | B | B | B | — | — | B | B | B | B |
+| Tropicos | B | — | — | — | — | — | — | B | B | B | A | A | B | — | B | B |
+| Symbiota portals (all 11) | B | A | A | A | A | A | — | B | B | B | — | — | B | A | B | B |
+| Index Fungorum | B | — | — | — | — | — | — | B | B | B | — | B | B | B | B | B |
+| GenBank | B | A | A | A | A | A | A | B | B | B | — | B | B | — | B | B |
+| ITIS | B | A | A | A | A | A | A | B | B | B | — | B | B | B | B | B |
+| FishBase | B | — | — | — | — | — | — | B | B | B | — | B | B | — | B | B |
+| Mushroom Observer | B | A | A | A | A | A | — | B | B | B | A | A | B | — | B | B |
+
+All eleven Symbiota portals (MyCoPortal, Lichen, Bryophyte, SERNEC, CCH2, NANSH,
+Southwest Biodiversity, Algae Herbarium, Pterido, CNH, and Mid-Atlantic) share the
+same `SymbiotaAPI` implementation, so their availability is identical. FishBase
+returns all rows through the synonym flow with no separate accepted-name fetch,
+which is why it provides no accepted-only fields. Each source documents its own
+availability in the `Fields implemented` section of its client docstring in
+[scripts/apis_pipe/](scripts/apis_pipe/).
 
 ---
 
@@ -159,7 +189,7 @@ ubc-mds-project/
 │   ├── components/               # search panel, view switcher, and the five views
 │   ├── lib/                      # API client, query hooks, store, source registry
 │   ├── ARCHITECTURE.md           # frontend design and Streamlit-to-React mapping
-│   └── README.md
+│   └── frontend_readme.md
 ├── scripts/                      # Python data pipeline (installed as an editable package)
 │   ├── config.py                 # source display names and base URLs (single source of truth)
 │   ├── apis_pipe/                # one SpeciesAPI client per source
@@ -176,18 +206,22 @@ ubc-mds-project/
 ├── notebooks/                    # usage demonstrations for the pipeline and utilities
 │   ├── apis_pipe/
 │   └── utils/
-├── tests/                        # pytest suite
-│   ├── utils/
+├── tests/                        # pytest suite (unit + integration)
+│   ├── scripts/
+│   │   ├── apis_pipe/            # one test module per source + test_symbiota/ (11 portals)
+│   │   └── utils/               # schema, router, fuzzy_search, normalize, call_apis_pipe
+│   ├── integration/             # live-HTTP tests (@pytest.mark.integration)
+│   ├── fixtures/                # recorded API responses + regenerate_fixtures.py
 │   └── conftest.py
 ├── deprecated/                   # legacy Streamlit prototypes and earlier API scripts
-├── reports/                      # project proposal and report material
+├── reports/                      # project proposal and report material for the MDS program
 ├── Dockerfile                    # backend image for the Hugging Face Space
 ├── environment.yml               # conda environment (mds-project)
 ├── requirements.txt              # backend-only pip dependencies (for the Space)
 ├── pyproject.toml                # installs scripts/ as an importable package
 ├── paths.py                      # repository path helpers
 ├── .env.example                  # template for credentials
-├── README.hf.md                  # Hugging Face Space README
+├── huggingface_readme.md         # Hugging Face Space README
 ├── LICENSE
 └── README.md
 ```
@@ -230,12 +264,9 @@ cp .env.example .env
 `.env` is listed in `.gitignore` and should never be committed. Sources other
 than GenBank and Tropicos work without credentials.
 
-#### CI (GitHub Actions)
-
-The GenBank tests require `ENTREZ_EMAIL`. To enable them in CI, add it as a
-repository secret: go to **Settings** > **Secrets and variables** > **Actions** >
-**New repository secret**, set the name to `ENTREZ_EMAIL` and the value to your
-email address. If the secret is not set, the GenBank tests fail in CI.
+These credentials are only needed to query those sources live (running the app
+or the integration tests). CI runs the offline unit suite only and needs no
+credentials (see [Tests](#tests)).
 
 ---
 
@@ -245,19 +276,18 @@ The frontend depends on the backend. Start the backend first, then the frontend.
 
 ### Backend
 
-With the environment active (added in the following code blocks as a reminder), 
-from the repository root:
+From the repository root:
 
 ```bash
 conda activate mds-project
 uvicorn backend_api.main:app --reload --port 8000
 ```
 
-The API is then available at <http://localhost:8000>.
+The backend API, which connects the backend python code with the REACT frontend of our web app, will be hosted at <http://localhost:8000> locally, but you do not need to visit this link yourself. Leave this terminal running and navigate to a second terminal to launch the frontend.
 
 ### Frontend
 
-In a second terminal, with the environment active from the repository root:
+In a second terminal, from the repository root:
 
 ```bash
 conda activate mds-project
@@ -267,16 +297,22 @@ npm ci                             # reproduce exactly from package-lock.json
 npm run dev                        # http://localhost:3000
 ```
 
-Open <http://localhost:3000> in your browser. The backend already allows requests
+Open <http://localhost:3000> in your browser. It will take a moment for the frontend to compile after you have opened the link in your browser.
+
+The backend already allows requests
 from `http://localhost:3000`. If you host the API elsewhere, set
 `NEXT_PUBLIC_API_BASE_URL` in `.env.local` and add the frontend origin to the
 backend's allowed origins (`ALLOWED_ORIGINS`).
 
-Additional frontend scripts:
+For future runs, you do not need to re-copy the environment or install npm, so you can just run:
 
-- `npm run build` and `npm run start`: production build and serve.
-- `npm run typecheck`: `tsc --noEmit`.
-- `npm run lint`: Next.js ESLint.
+```bash
+conda activate mds-project
+cd frontend
+npm run dev                        # http://localhost:3000
+```
+
+And open <http://localhost:3000> in your browser.
 
 ---
 
@@ -302,9 +338,9 @@ consistently while keeping the source-specific parsing isolated:
 1. `_fetch_query_data`: resolve the searched name to the source's internal record.
 2. `_fetch_synonym_data`: retrieve the synonyms for that record.
 3. `_fetch_accepted_data`: retrieve metadata (and taxonomy, if
-   available) for the searched record itself.
+   available) for the accepted name(s).
 4. `_compile_synonyms`: format the synonym data into standard rows.
-5. `_compile_accepted`: format the searched record into a standard row.
+5. `_compile_accepted`: format the accepted name(s) into a standard row(s), and include taxonomy data in this row(s) if available.
 
 The two outputs are combined and returned as a DataFrame in the schema format.
 The base class also provides optional helpers (for example, extracting a
@@ -319,30 +355,56 @@ places that must be kept in sync:
   appears in the source filter in the app.
 
 The source list is currently maintained separately in the backend and the
-frontend, so both must be updated until they are consolidated into a single
-source of truth.
+frontend, so both must be updated.
 
 ---
 
 ## Tests
 
-> **Note:** the test suite is significantly out of date and is not recommended for
-> use at this time.
+The pytest suite lives under [tests/](tests/) and is split into fast, offline unit
+tests and live-HTTP integration tests:
 
-Run the suite from the repository root:
+- `tests/scripts/apis_pipe/`: one test module per source, plus `test_symbiota/` for
+  the eleven Symbiota portals.
+- `tests/scripts/utils/`: tests for the pipeline utilities (schema, router,
+  fuzzy_search, normalize_query_string, call_apis_pipe).
+- `tests/integration/`: tests that make real HTTP calls, marked
+  `@pytest.mark.integration`.
+- `tests/fixtures/`: recorded API responses that back the unit tests, plus
+  `regenerate_fixtures.py` to refresh them.
+- `tests/conftest.py`: shared fixtures and credential setup.
+
+Unit tests run offline against recorded responses under
+`tests/fixtures/<source>/{accepted,synonym,not_found}/`, so they are fast and
+deterministic and need no network. To re-record them against the live APIs:
 
 ```bash
-pytest tests/
+python tests/fixtures/regenerate_fixtures.py
 ```
 
-Notes:
+You can check if the fixtures may be out of date by running:
 
-- `tests/utils/test_API_online.py` makes real HTTP requests and requires internet
-  access.
-- `tests/utils/test_env_configured.py` checks that `.env` exists and its values
-  are filled in.
+```bash
+python tests/fixtures/check_fixtures.py
+```
 
-A GitHub Actions workflow runs the suite on every pull request.
+Note that this will get new data from each API to compare the current fixtures against, so it will take as long as regenerating. This test will allow you to check if an API may have changed their response formatting, which could cause issues in the codebase.
+
+The `integration` marker is registered in [pyproject.toml](pyproject.toml) under
+`[tool.pytest.ini_options]`. Run the suite from the repository root:
+
+```bash
+pytest -m "not integration" tests/            # unit tests (offline, as run in CI)
+pytest -m integration tests/                  # live-HTTP integration tests
+pytest tests/scripts/utils/test_schema.py     # a single module
+```
+
+A GitHub Actions workflow ([.github/workflows/tests.yml](.github/workflows/tests.yml))
+runs on every pull request to `main` and `dev`: it sets up the conda environment,
+installs the pipeline with `pip install -e .`, and runs
+`pytest -v -m "not integration" tests/`. The GenBank tests require the
+`ENTREZ_EMAIL` repository secret (see [CI](#ci-github-actions)). Integration tests
+are excluded from CI and are designed to be run manually by developers as needed.
 
 ---
 
