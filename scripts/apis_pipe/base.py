@@ -12,18 +12,28 @@ naming convention:
 
 The single public entry point is ``get_synonyms(name)``, which orchestrates
 all three phases and returns a schema-validated ``pd.DataFrame``.
+
+Set the ``APIS_PIPE_VERBOSE`` env var (or ``SpeciesAPI.VERBOSE = True`` at
+runtime) to print a trace of data flowing through each pipeline stage and a
+warning whenever a fetch call returns blank/empty data — most queries miss on
+most portals (each source only covers part of the tree of life), so this is
+off by default and intended for development/debugging.
 """
 
 import inspect
+import os
 import re
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 
 import pandas as pd
 import requests
+from dotenv import load_dotenv
 
 from scripts.utils.normalize_query_string import normalize_query_string
 from scripts.utils.schema import empty_synonym_table, make_synonym_row
+
+load_dotenv()
 
 
 class _Unset:
@@ -58,6 +68,18 @@ class SpeciesAPI(ABC):
 
     HEADERS: dict = {"User-Agent": "Mozilla/5.0"}
     BASE_URL: str
+    # Verbose/debug logging toggle shared by all subclasses. Defaults from the
+    # APIS_PIPE_VERBOSE env var; can also be flipped at runtime, e.g.
+    # ``SpeciesAPI.VERBOSE = True`` (all clients) or ``GBIFAPI.VERBOSE = True``
+    # (one client). When enabled, fetch wrappers print a warning whenever a
+    # call returns blank/empty data, and get_synonyms() traces the raw data
+    # flowing between pipeline stages.
+    VERBOSE: bool = os.getenv("APIS_PIPE_VERBOSE", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
     _INFRASPECIFIC_RE: re.Pattern = re.compile(
         r"\b(var\.|subsp\.|ssp\.|f\.|fo\.|subf\.|cv\.|sect\.|subsect\.|ser\.|subgen\.|subg\.)",
         # TODO: put this in a config, rather than having it inside this file so a user could add if needed
@@ -136,7 +158,9 @@ class SpeciesAPI(ABC):
         """
 
         response = self._fetch(url, params=params, timeout=timeout)
-        return response.json()
+        data = response.json() if response is not None else {}
+        self._warn_blank(url, data, params)
+        return data
 
     def _fetch_XML(self, url: str, params: dict = {}, timeout: int = 10) -> ET.Element:
         """
@@ -167,13 +191,18 @@ class SpeciesAPI(ABC):
             If the underlying request fails. See ``_fetch``.
         """
         response = self._fetch(url, params=params, timeout=timeout)
-        try:
-            return ET.fromstring(response.text)
-        except ET.ParseError:
-            print(f"{type(self).__name__} error parsing XML.")
-        return ET.Element(
-            "empty"
-        )  # tag name chosen to avoid confusion with valid root tags in responses, will be treated as empty by _is_empty()
+        root = None
+        if response is not None:
+            try:
+                root = ET.fromstring(response.text)
+            except ET.ParseError:
+                print(f"{type(self).__name__} error parsing XML.")
+        if root is None:
+            root = ET.Element(
+                "empty"
+            )  # tag name chosen to avoid confusion with valid root tags in responses, will be treated as empty by _is_empty()
+        self._warn_blank(url, root, params)
+        return root
 
     def _fetch_HTML(self, url: str, params: dict = {}, timeout: int = 10) -> str:
         """
@@ -201,7 +230,58 @@ class SpeciesAPI(ABC):
             If the underlying request fails. See ``_fetch``.
         """
         response = self._fetch(url, params=params, timeout=timeout)
-        return response.text
+        text = response.text if response is not None else ""
+        self._warn_blank(url, text, params)
+        return text
+
+    # ------------------------------------------------------------------
+    # Verbose/debug logging helpers (gated by VERBOSE; can be optionally overridden)
+    # ------------------------------------------------------------------
+
+    def _warn_blank(self, url: str, data, params: dict | None = None) -> None:
+        """
+        Print a warning when a fetch call returned blank/empty data.
+
+        Only prints when ``VERBOSE`` is enabled. Called by the ``_fetch_JSON``,
+        ``_fetch_XML``, and ``_fetch_HTML`` wrappers on whatever they are
+        about to return, whether the request failed outright (``_fetch``
+        also reports the network/HTTP error separately and unconditionally)
+        or merely succeeded with no usable data (e.g. no match found for the
+        query).
+
+        Parameters
+        ----------
+        url : str
+            The URL that was requested.
+        data : list, str, dict, or xml.etree.ElementTree.Element
+            The parsed response to check for emptiness.
+        params : dict, optional
+            Query parameters sent with the request, included in the warning
+            for context.
+        """
+        if self.VERBOSE and self._is_empty(data):
+            suffix = f" (params={params})" if params else ""
+            print(f"[{type(self).__name__}] WARNING: blank/empty response from {url}{suffix}")
+
+    def _warn_if_blank(self, step: str, data) -> None:
+        """
+        Print a warning when a pipeline step's result is blank/empty.
+
+        Only prints when ``VERBOSE`` is enabled. Unlike ``_warn_blank``
+        (network-level, keyed by URL), this is used by ``get_synonyms`` for
+        steps whose underlying fetch response was not itself blank, but
+        which produced no usable data after extraction (e.g. an empty
+        synonym list).
+
+        Parameters
+        ----------
+        step : str
+            Label identifying which pipeline stage produced *data*.
+        data : list, str, dict, or xml.etree.ElementTree.Element
+            The data to check for emptiness.
+        """
+        if self.VERBOSE and self._is_empty(data):
+            print(f"[{type(self).__name__}] WARNING: {step} returned blank/empty data.")
 
     # ------------------------------------------------------------------
     # Boolean checker methods (to be used by children in their implementations of the required methods,can be optionally overridden but should work for most children as-is)
@@ -702,23 +782,14 @@ class SpeciesAPI(ABC):
 
         raw_data = self._fetch_query_data(name)
         if self._is_empty(raw_data):
+            self._warn_if_blank("_fetch_query_data", raw_data)
             return empty_synonym_table()
-        print("_fetch_query_data")
-        print(raw_data)
 
         synonym_data = self._fetch_synonym_data(raw_data)
-        print("_fetch_synonym_data")
-        if isinstance(synonym_data, ET.Element):
-            print(ET.tostring(synonym_data, encoding="unicode"))
-        else:
-            print(synonym_data)
+        self._warn_if_blank("_fetch_synonym_data", synonym_data)
 
         accepted_data = self._fetch_accepted_data(raw_data, synonym_data)
-        print("_fetch_accepted_data")
-        if isinstance(accepted_data, ET.Element):
-            print(ET.tostring(accepted_data, encoding="unicode"))
-        else:
-            print(accepted_data)
+        self._warn_if_blank("_fetch_accepted_data", accepted_data)
 
         accepted = []
         synonyms = []
