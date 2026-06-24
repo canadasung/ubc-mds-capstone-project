@@ -21,6 +21,11 @@ _ENV_FILE = _PROJECT_ROOT / ".env"
 
 load_dotenv(_ENV_FILE)
 
+# This is a local/live-environment diagnostic: it requires a real .env file on
+# disk, which CI does not have (CI passes credentials as env vars). Mark the
+# whole module integration so `-m "not integration"` (the PR job) skips it.
+pytestmark = pytest.mark.integration
+
 # Placeholder values copied from .env.example — these must be replaced
 _PLACEHOLDER_EMAIL = "your_email@example.com"
 _PLACEHOLDER_TROPICOS = TROPICOS_API_KEY_PLACEHOLDER
