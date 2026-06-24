@@ -2,8 +2,9 @@
 
 /** Chooses the active view and handles the shared empty/loading/error states. */
 
+import { useEffect, useState } from "react";
 import { Alert, Button, Center, Group, Loader, SimpleGrid, Stack, Text, ThemeIcon, Tooltip } from "@mantine/core";
-import { IconCheck, IconInfoCircle, IconX } from "@tabler/icons-react";
+import { IconAlertCircle, IconCheck, IconInfoCircle, IconX } from "@tabler/icons-react";
 
 import { useSearch, useFilteredRecords } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
@@ -31,6 +32,11 @@ export function ResultsArea() {
   const submit = useSearchStore((s) => s.submit);
   const search = useSearch();
   const { records } = useFilteredRecords();
+
+  // Lets the user dismiss the failed-sources banner. Reset whenever the set of
+  // source errors changes (e.g. a new search) so fresh failures are shown again.
+  const [errorsDismissed, setErrorsDismissed] = useState(false);
+  useEffect(() => setErrorsDismissed(false), [sourceErrors]);
 
   if (!hasHydrated) {
     return (
@@ -209,12 +215,15 @@ export function ResultsArea() {
 
   return (
     <Stack gap="md">
-      {erroredSources.length > 0 && (
+      {erroredSources.length > 0 && !errorsDismissed && (
         <Alert
           variant="light"
           color="red"
-          icon={<IconX />}
+          icon={<IconAlertCircle />}
           title={`${erroredSources.length} source${erroredSources.length > 1 ? "s" : ""} failed`}
+          withCloseButton
+          closeButtonLabel="Dismiss"
+          onClose={() => setErrorsDismissed(true)}
         >
           <Stack gap={4}>
             {erroredSources.map(([key, message]) => (
