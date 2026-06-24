@@ -25,9 +25,10 @@ import {
   SegmentedControl,
   Table,
   Text,
+  Tooltip,
   UnstyledButton,
 } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { useDisclosure, useFullscreen, useIsomorphicEffect } from "@mantine/hooks";
 import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 
 import { useFilteredRecords } from "@/lib/hooks";
@@ -1087,7 +1088,70 @@ function SortCaret({ dir }: { dir: "asc" | "desc" | null }) {
 }
 
 /**
- * Small "fit / reset" glyph (four corner brackets) for the zoom control.
+ * Enter-fullscreen glyph (four arrows pointing out to the corners).
+ *
+ * Drawn as an inline SVG so it needs no icon dependency.
+ *
+ * Returns
+ * -------
+ * JSX.Element
+ *     An SVG maximize icon.
+ */
+function FullscreenIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <polyline points="15 3 21 3 21 9" />
+      <polyline points="9 21 3 21 3 15" />
+      <line x1="21" y1="3" x2="14" y2="10" />
+      <line x1="3" y1="21" x2="10" y2="14" />
+    </svg>
+  );
+}
+
+/**
+ * Exit-fullscreen glyph (four arrows pointing in toward the center).
+ *
+ * Drawn as an inline SVG so it needs no icon dependency.
+ *
+ * Returns
+ * -------
+ * JSX.Element
+ *     An SVG minimize icon.
+ */
+function ExitFullscreenIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <polyline points="4 14 10 14 10 20" />
+      <polyline points="20 10 14 10 14 4" />
+      <line x1="14" y1="10" x2="21" y2="3" />
+      <line x1="3" y1="21" x2="10" y2="14" />
+    </svg>
+  );
+}
+
+/**
+ * Reset-zoom glyph (four corner brackets) for the zoom control, matching the
+ * fit-view control in the Relations view.
  *
  * Drawn as an inline SVG so it needs no icon dependency.
  *
@@ -1122,15 +1186,22 @@ interface ZoomControlsProps {
   onZoomIn: () => void;
   /** Decrease the zoom level. */
   onZoomOut: () => void;
-  /** Reset the zoom level to 1. */
+  /** Reset the zoom level to 1 (100%). */
   onReset: () => void;
+  /** Enter or exit fullscreen. */
+  onToggleFullscreen: () => void;
+  /** Whether the canvas is currently fullscreen (drives the button icon). */
+  isFullscreen: boolean;
 }
 
 /**
- * Floating zoom control for the timeline canvas: zoom in, zoom out, reset.
+ * Floating control for the timeline canvas: zoom in, zoom out, reset to 100%,
+ * and a fullscreen toggle.
  *
  * Rendered as a stacked group of bordered buttons, mirroring the control in the
- * Relations view.
+ * Relations view: a corner-bracket reset (fit) button and an arrows fullscreen
+ * toggle, matching the icons used there. Each button has a tooltip so the reset
+ * and fullscreen actions are not confused.
  *
  * Parameters
  * ----------
@@ -1140,8 +1211,18 @@ interface ZoomControlsProps {
  *     Handler for the zoom-out button.
  * onReset : () => void
  *     Handler for the reset button.
+ * onToggleFullscreen : () => void
+ *     Handler for the fullscreen toggle button.
+ * isFullscreen : boolean
+ *     Whether the canvas is fullscreen, used to pick the toggle's icon and label.
  */
-function ZoomControls({ onZoomIn, onZoomOut, onReset }: ZoomControlsProps) {
+function ZoomControls({
+  onZoomIn,
+  onZoomOut,
+  onReset,
+  onToggleFullscreen,
+  isFullscreen,
+}: ZoomControlsProps) {
   const cell: CSSProperties = {
     width: 34,
     height: 34,
@@ -1167,17 +1248,37 @@ function ZoomControls({ onZoomIn, onZoomOut, onReset }: ZoomControlsProps) {
         boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
       }}
     >
-      <UnstyledButton style={cell} onClick={onZoomIn} aria-label="Zoom in">
-        +
-      </UnstyledButton>
+      <Tooltip label="Zoom in" position="right">
+        <UnstyledButton style={cell} onClick={onZoomIn} aria-label="Zoom in">
+          +
+        </UnstyledButton>
+      </Tooltip>
       {divider}
-      <UnstyledButton style={cell} onClick={onZoomOut} aria-label="Zoom out">
-        −
-      </UnstyledButton>
+      <Tooltip label="Zoom out" position="right">
+        <UnstyledButton style={cell} onClick={onZoomOut} aria-label="Zoom out">
+          −
+        </UnstyledButton>
+      </Tooltip>
       {divider}
-      <UnstyledButton style={{ ...cell, fontSize: 14 }} onClick={onReset} aria-label="Reset zoom">
-        <FitIcon />
-      </UnstyledButton>
+      <Tooltip label="Reset zoom" position="right">
+        <UnstyledButton
+          style={{ ...cell, fontSize: 14 }}
+          onClick={onReset}
+          aria-label="Reset zoom"
+        >
+          <FitIcon />
+        </UnstyledButton>
+      </Tooltip>
+      {divider}
+      <Tooltip label={isFullscreen ? "Exit fullscreen" : "Fullscreen"} position="right">
+        <UnstyledButton
+          style={{ ...cell, fontSize: 14 }}
+          onClick={onToggleFullscreen}
+          aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+        >
+          {isFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+        </UnstyledButton>
+      </Tooltip>
     </div>
   );
 }
@@ -1218,10 +1319,18 @@ export function TimelineView() {
   );
   const resetZoom = useCallback(() => setZoom(1), []);
 
+  // Fullscreen toggle for the canvas. The hook drives the browser Fullscreen
+  // API on the wrapper element (fullscreenRef); `fullscreen` flips when the user
+  // enters or exits (including via the Escape key), and the canvas grows to fill
+  // the screen while it is set.
+  const {
+    ref: fullscreenRef,
+    toggle: toggleFullscreen,
+    fullscreen,
+  } = useFullscreen<HTMLDivElement>();
+
   // The scaled content is measured at its natural (unscaled) size so the canvas
-  // can reserve the correct scrolled area at any zoom. A transform (not CSS
-  // zoom) is used to scale: it scales the rendered SVG faithfully, whereas CSS
-  // zoom re-lays-out and clips Plotly's multi-line annotation text.
+  // can reserve the correct scrolled area at any zoom.
   const zoomContentRef = useRef<HTMLDivElement>(null);
   const [naturalHeight, setNaturalHeight] = useState(CANVAS_HEIGHT);
   useEffect(() => {
@@ -1250,8 +1359,8 @@ export function TimelineView() {
   }, []);
 
   // Drag-to-pan: press and drag anywhere on the canvas to scroll the timeline,
-  // for both the Plotly horizontal view and the CSS vertical view (it only moves
-  // the scroll container, never the views themselves). A small movement
+  // for both the horizontal and vertical views (it only moves the scroll
+  // container, never the views themselves). A small movement
   // threshold separates a pan from a click, and a real drag swallows the
   // following click (captured before it reaches a card) so panning never
   // toggles a card open or closed.
@@ -1317,6 +1426,55 @@ export function TimelineView() {
       window.removeEventListener("mouseup", onUp);
     };
   }, []);
+
+  // Wheel-to-zoom: scrolling the wheel over the canvas zooms toward the cursor
+  // (matching the Relations view) rather than scrolling; panning is done by
+  // dragging. The content point under the cursor is recorded so the scroll can
+  // be restored once the content resizes (see the layout effect below), keeping
+  // that point fixed under the pointer.
+  const zoomAnchorRef = useRef<
+    { contentX: number; contentY: number; pointerX: number; pointerY: number } | null
+  >(null);
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const pointerX = e.clientX - rect.left;
+      const pointerY = e.clientY - rect.top;
+      const scrollLeft = el.scrollLeft;
+      const scrollTop = el.scrollTop;
+      // Normalize line/page wheel modes to pixels so the step feels consistent.
+      const delta =
+        e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      setZoom((prev) => {
+        const raw = prev * Math.exp(-delta * 0.0015);
+        const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(raw * 1000) / 1000));
+        if (next === prev) return prev;
+        zoomAnchorRef.current = {
+          contentX: (scrollLeft + pointerX) / prev,
+          contentY: (scrollTop + pointerY) / prev,
+          pointerX,
+          pointerY,
+        };
+        return next;
+      });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  // After a wheel zoom resizes the content, restore the scroll so the point that
+  // was under the cursor stays under it. A layout effect avoids a visible jump.
+  useIsomorphicEffect(() => {
+    const el = canvasRef.current;
+    const anchor = zoomAnchorRef.current;
+    if (!el || !anchor) return;
+    el.scrollLeft = anchor.contentX * zoom - anchor.pointerX;
+    el.scrollTop = anchor.contentY * zoom - anchor.pointerY;
+    zoomAnchorRef.current = null;
+  }, [zoom]);
 
   // Dated records grouped into one entry per year (oldest to newest), plus
   // colors, the undated set, and the total dated record count for the header.
@@ -1432,7 +1590,7 @@ export function TimelineView() {
       el.scrollTop = Math.max(0, (el.scrollHeight - el.clientHeight) / 2);
       el.scrollLeft = 0;
     }
-  }, [orientation, contentWidth, naturalHeight]);
+  }, [orientation, contentWidth, naturalHeight, fullscreen]);
 
   if (records.length === 0) {
     return <Text c="dimmed">No results to display.</Text>;
@@ -1478,14 +1636,17 @@ export function TimelineView() {
             </Group>
           </Group>
 
-          <div style={{ position: "relative" }}>
+          <div
+            ref={fullscreenRef}
+            style={{ position: "relative", height: fullscreen ? "100vh" : undefined, background: "#fff" }}
+          >
             <div
               ref={canvasRef}
               style={{
-                height: CANVAS_HEIGHT,
+                height: fullscreen ? "100%" : CANVAS_HEIGHT,
                 overflow: "auto",
                 border: "1px solid #e9ecef",
-                borderRadius: 8,
+                borderRadius: fullscreen ? 0 : 8,
               }}
             >
               <div
@@ -1526,7 +1687,13 @@ export function TimelineView() {
               </div>
             </div>
             <div style={{ position: "absolute", left: 12, bottom: 12, zIndex: 5 }}>
-              <ZoomControls onZoomIn={zoomIn} onZoomOut={zoomOut} onReset={resetZoom} />
+              <ZoomControls
+                onZoomIn={zoomIn}
+                onZoomOut={zoomOut}
+                onReset={resetZoom}
+                onToggleFullscreen={toggleFullscreen}
+                isFullscreen={fullscreen}
+              />
             </div>
           </div>
         </>
