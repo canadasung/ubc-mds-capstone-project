@@ -33,4 +33,4 @@ ALLOWED_ORIGINS=http://localhost:3000,https://your-app.vercel.app
 
 > **Note:** when pushing to the Space, this file becomes the Space's `README.md`
 > (the HF frontmatter above configures the Docker runtime). It is kept as
-> `README.hf.md` in the source repo so it does not clash with the project README.
+> `huggingface_readme.md` in the source repo so it does not clash with the project README.

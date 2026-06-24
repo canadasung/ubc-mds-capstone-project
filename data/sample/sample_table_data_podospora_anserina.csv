@@ -1,28 +1,28 @@
-api_name,kingdom,phylum,class,family,subfamily,genus,species,author,publication_name,publication_year,status,original_source,api_link,api_internal_id
-COL,Fungi,Ascomycota,Sordariomycetes,Podosporaceae,,Triangularia,anserina,(Rabenh.) X. Wei Wang & Houbraken,"(2019). In Wang, Bai, Bensch, Meijer, Sun, Han, Crous, Samson, Yang & Houbraken, Stud. Mycol. 93: 231.",2019,Accepted,Species Fungorum,https://www.catalogueoflife.org/data/taxon/585FN,585FN
-COL,,,,,,Malinvernia,anserina,Rabenh.,(1857). Hedwigia 1: 116.,1857,Synonym,,https://www.catalogueoflife.org/data/taxon/3XMYB,3XMYB
-COL,,,,,,Pleurage,anserina,(Rabenh.) Kuntze,(1898). Revis. Gen. Pl. (Leipzig) 3(3): 504.,1898,Synonym,,https://www.catalogueoflife.org/data/taxon/77Q6W,77Q6W
-COL,,,,,,Podospora,anserina,(Rabenh.) Niessl,(1883). Hedwigia 22: 156.,1883,Synonym,,https://www.catalogueoflife.org/data/taxon/4KRKT,4KRKT
-COL,,,,,,Schizothecium,anserinum,(Rabenh.) E.A. Bessey,(1950). Morph. Taxon. Fungi: 264.,1950,Synonym,,https://www.catalogueoflife.org/data/taxon/9ZJ6J,9ZJ6J
-COL,,,,,,Sordaria,anserina,(Rabenh.) G. Winter,(1873). Abh. Naturforsch. Ges. Halle 13(1): 35.,1873,Synonym,,https://www.catalogueoflife.org/data/taxon/4YBSD,4YBSD
-GBIF,Fungi,Ascomycota,Sordariomycetes,Podosporaceae,,Triangularia,anserina,(Rabenh.) X.Wei Wang & Houbraken,"In Wang, Bai, Bensch, Meijer, Sun, Han, Crous, Samson, Yang & Houbraken, Stud. Mycol. 93: 231.",2019,Accepted,U,https://www.gbif.org/species/10810645,10810645
-GBIF,,,,,,Bombardia,anserina,(Rabenh.) Mig.,,,Synonym,U,https://www.gbif.org/species/9955105,9955105
-GBIF,,,,,,Malinvernia,anserina,Rabenh.,Hedwigia 1: 116.,1857,Synonym,U,https://www.gbif.org/species/2573194,2573194
-GBIF,,,,,,Pleurage,anserina,(Rabenh.) Kuntze,Revis. Gen. Pl. (Leipzig) 3(3): 504.,1898,Synonym,U,https://www.gbif.org/species/2573198,2573198
-GBIF,,,,,,Podospora,anserina,(Rabenh.) Niessl,Hedwigia 22: 156.,1883,Synonym,U,https://www.gbif.org/species/5254074,5254074
-GBIF,,,,,,Schizothecium,anserinum,(Rabenh.) E.A.Bessey,Morph. Taxon. Fungi: 264.,1950,Synonym,U,https://www.gbif.org/species/10182187,10182187
-GBIF,,,,,,Sordaria,anserina,(Rabenh.) G.Winter,Abh. Naturforsch. Ges. Halle 13(1): 35.,1873,Synonym,U,https://www.gbif.org/species/2573195,2573195
-Index Fungorum,U,U,U,U,,Malinvernia,anserina,Rabenh.,Hedwigia 1(18): 116 (1857),1857,Synonym,U,https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID=183160,183160
-Index Fungorum,U,U,U,U,,Pleurage,anserina,(Rabenh.) Kuntze,Revis. gen. pl. (Leipzig) 3(3): 504 (1898),1898,Synonym,U,https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID=527514,527514
-Index Fungorum,U,U,U,U,,Podospora,anserina,(Rabenh.) Niessl,Hedwigia 22: 156 (1883),1883,Synonym,U,https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID=100818,100818
-Index Fungorum,U,U,U,U,,Schizothecium,anserinum,(Rabenh.) E.A. Bessey,Morph. Taxon. Fungi: 264 (1950),1950,Synonym,U,https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID=655533,655533
-Index Fungorum,U,U,U,U,,Sordaria,anserina,(Rabenh.) G. Winter,Abh. naturforsch. Ges. Halle 13(1): 35 (1873),1873,Synonym,U,https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID=226719,226719
-Index Fungorum,U,U,U,U,,Triangularia,anserina,(Rabenh.) X. Wei Wang & Houbraken,Stud. Mycol. 93: 231 (2019),2019,Accepted,U,https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID=829885,829885
-GenBank,Fungi,Ascomycota,Sordariomycetes,Podosporaceae,,Podospora,anserina,"(Rabenh.) Niessl, 1883",U,1883,Accepted,U,https://www.ncbi.nlm.nih.gov/taxonomy/2587412,2587412
-GenBank,,,,,,Malinvernia,anserina,"Rabenh., 1857",U,1857,Synonym,U,https://www.ncbi.nlm.nih.gov/taxonomy/2587412,2587412
-GenBank,,,,,,Triangularia,anserina,"(Rabenh.) X. Wei Wang & Houbraken, 2019",U,2019,Synonym,U,https://www.ncbi.nlm.nih.gov/taxonomy/2587412,2587412
-MyCoPortal,Fungi,Ascomycota,Sordariomycetes,Lasiosphaeriaceae,,Podospora,pauciseta,(Ces.) Traverso,U,U,Accepted,,https://mycoportal.org/portal/taxa/index.php?tid=312438,312438
-MyCoPortal,,,,,,Pleurage,anserina,(Rabenh.) Kuntze,U,U,Synonym,Index Fungorum,https://mycoportal.org/portal/taxa/index.php?taxon=312438,312438
-MyCoPortal,,,,,,Podospora,anserina,(Rabenh.) Niessl,U,U,Synonym,Index Fungorum,https://mycoportal.org/portal/taxa/index.php?taxon=312438,312438
-MyCoPortal,,,,,,Sordaria,anserina,(Rabenh.) G. Winter,U,U,Synonym,Index Fungorum,https://mycoportal.org/portal/taxa/index.php?taxon=312438,312438
-MyCoPortal,,,,,,Sphaeria,pauciseta,Ces.,U,U,Synonym,Index Fungorum,https://mycoportal.org/portal/taxa/index.php?taxon=312438,312438
+api_name,kingdom,phylum,class,family,order,subfamily,genus,species,author,publication_name,publication_year,status,original_source,api_link,api_internal_id
+COL,Fungi,Ascomycota,Sordariomycetes,Podosporaceae,,,Triangularia,anserina,(Rabenh.) X. Wei Wang & Houbraken,"(2019). In Wang, Bai, Bensch, Meijer, Sun, Han, Crous, Samson, Yang & Houbraken, Stud. Mycol. 93: 231.",2019,Accepted,Species Fungorum,https://www.catalogueoflife.org/data/taxon/585FN,585FN
+COL,,,,,,,Malinvernia,anserina,Rabenh.,(1857). Hedwigia 1: 116.,1857,Synonym,,https://www.catalogueoflife.org/data/taxon/3XMYB,3XMYB
+COL,,,,,,,Pleurage,anserina,(Rabenh.) Kuntze,(1898). Revis. Gen. Pl. (Leipzig) 3(3): 504.,1898,Synonym,,https://www.catalogueoflife.org/data/taxon/77Q6W,77Q6W
+COL,,,,,,,Podospora,anserina,(Rabenh.) Niessl,(1883). Hedwigia 22: 156.,1883,Synonym,,https://www.catalogueoflife.org/data/taxon/4KRKT,4KRKT
+COL,,,,,,,Schizothecium,anserinum,(Rabenh.) E.A. Bessey,(1950). Morph. Taxon. Fungi: 264.,1950,Synonym,,https://www.catalogueoflife.org/data/taxon/9ZJ6J,9ZJ6J
+COL,,,,,,,Sordaria,anserina,(Rabenh.) G. Winter,(1873). Abh. Naturforsch. Ges. Halle 13(1): 35.,1873,Synonym,,https://www.catalogueoflife.org/data/taxon/4YBSD,4YBSD
+GBIF,Fungi,Ascomycota,Sordariomycetes,Podosporaceae,,,Triangularia,anserina,(Rabenh.) X.Wei Wang & Houbraken,"In Wang, Bai, Bensch, Meijer, Sun, Han, Crous, Samson, Yang & Houbraken, Stud. Mycol. 93: 231.",2019,Accepted,U,https://www.gbif.org/species/10810645,10810645
+GBIF,,,,,,,Bombardia,anserina,(Rabenh.) Mig.,,,Synonym,U,https://www.gbif.org/species/9955105,9955105
+GBIF,,,,,,,Malinvernia,anserina,Rabenh.,Hedwigia 1: 116.,1857,Synonym,U,https://www.gbif.org/species/2573194,2573194
+GBIF,,,,,,,Pleurage,anserina,(Rabenh.) Kuntze,Revis. Gen. Pl. (Leipzig) 3(3): 504.,1898,Synonym,U,https://www.gbif.org/species/2573198,2573198
+GBIF,,,,,,,Podospora,anserina,(Rabenh.) Niessl,Hedwigia 22: 156.,1883,Synonym,U,https://www.gbif.org/species/5254074,5254074
+GBIF,,,,,,,Schizothecium,anserinum,(Rabenh.) E.A.Bessey,Morph. Taxon. Fungi: 264.,1950,Synonym,U,https://www.gbif.org/species/10182187,10182187
+GBIF,,,,,,,Sordaria,anserina,(Rabenh.) G.Winter,Abh. Naturforsch. Ges. Halle 13(1): 35.,1873,Synonym,U,https://www.gbif.org/species/2573195,2573195
+Index Fungorum,U,U,U,U,,,Malinvernia,anserina,Rabenh.,Hedwigia 1(18): 116 (1857),1857,Synonym,U,https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID=183160,183160
+Index Fungorum,U,U,U,U,,,Pleurage,anserina,(Rabenh.) Kuntze,Revis. gen. pl. (Leipzig) 3(3): 504 (1898),1898,Synonym,U,https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID=527514,527514
+Index Fungorum,U,U,U,U,,,Podospora,anserina,(Rabenh.) Niessl,Hedwigia 22: 156 (1883),1883,Synonym,U,https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID=100818,100818
+Index Fungorum,U,U,U,U,,,Schizothecium,anserinum,(Rabenh.) E.A. Bessey,Morph. Taxon. Fungi: 264 (1950),1950,Synonym,U,https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID=655533,655533
+Index Fungorum,U,U,U,U,,,Sordaria,anserina,(Rabenh.) G. Winter,Abh. naturforsch. Ges. Halle 13(1): 35 (1873),1873,Synonym,U,https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID=226719,226719
+Index Fungorum,U,U,U,U,,,Triangularia,anserina,(Rabenh.) X. Wei Wang & Houbraken,Stud. Mycol. 93: 231 (2019),2019,Accepted,U,https://www.indexfungorum.org/Names/NamesRecord.asp?RecordID=829885,829885
+GenBank,Fungi,Ascomycota,Sordariomycetes,Podosporaceae,,,Podospora,anserina,"(Rabenh.) Niessl, 1883",U,1883,Accepted,U,https://www.ncbi.nlm.nih.gov/taxonomy/2587412,2587412
+GenBank,,,,,,,Malinvernia,anserina,"Rabenh., 1857",U,1857,Synonym,U,https://www.ncbi.nlm.nih.gov/taxonomy/2587412,2587412
+GenBank,,,,,,,Triangularia,anserina,"(Rabenh.) X. Wei Wang & Houbraken, 2019",U,2019,Synonym,U,https://www.ncbi.nlm.nih.gov/taxonomy/2587412,2587412
+MyCoPortal,Fungi,Ascomycota,Sordariomycetes,Lasiosphaeriaceae,,,Podospora,pauciseta,(Ces.) Traverso,U,U,Accepted,,https://mycoportal.org/portal/taxa/index.php?tid=312438,312438
+MyCoPortal,,,,,,,Pleurage,anserina,(Rabenh.) Kuntze,U,U,Synonym,Index Fungorum,https://mycoportal.org/portal/taxa/index.php?taxon=312438,312438
+MyCoPortal,,,,,,,Podospora,anserina,(Rabenh.) Niessl,U,U,Synonym,Index Fungorum,https://mycoportal.org/portal/taxa/index.php?taxon=312438,312438
+MyCoPortal,,,,,,,Sordaria,anserina,(Rabenh.) G. Winter,U,U,Synonym,Index Fungorum,https://mycoportal.org/portal/taxa/index.php?taxon=312438,312438
+MyCoPortal,,,,,,,Sphaeria,pauciseta,Ces.,U,U,Synonym,Index Fungorum,https://mycoportal.org/portal/taxa/index.php?taxon=312438,312438
