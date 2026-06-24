@@ -122,11 +122,18 @@ class SpeciesAPI(ABC):
         Returns
         -------
         dict
-            Parsed JSON response, or ``{}`` on any error.
+            Parsed JSON response, or ``{}`` on any error (network, HTTP, or a
+            response body that is not valid JSON).
         """
 
         response = self._fetch(url, params=params, timeout=timeout)
-        return response.json() if response is not None else {}
+        if response is None:
+            return {}
+        try:
+            return response.json()
+        except ValueError:
+            print(f"{type(self).__name__} error parsing JSON.")
+            return {}
 
     def _fetch_XML(self, url: str, params: dict = {}, timeout: int = 10) -> ET.Element:
         """

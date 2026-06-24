@@ -136,14 +136,12 @@ def test_fetch_json_success_parses_response(client):
         assert client._fetch_JSON("http://x") == {"key": "value"}
 
 
-def test_fetch_json_propagates_malformed_body_error(client):
-    """Current behavior: _fetch_JSON does NOT guard response.json(), so a 2xx
-    response with a malformed body raises rather than returning {}. Unlike
-    _fetch_XML (which catches ParseError). Flagged for a possible source guard."""
+def test_fetch_json_returns_empty_dict_on_malformed_body(client):
+    """A 2xx response with a body that is not valid JSON is caught and returns
+    {} rather than raising, mirroring _fetch_XML's ParseError handling."""
     fake = _FakeResponse(json_exc=ValueError("No JSON object could be decoded"))
     with patch.object(client, "_fetch", return_value=fake):
-        with pytest.raises(ValueError):
-            client._fetch_JSON("http://x")
+        assert client._fetch_JSON("http://x") == {}
 
 
 def test_fetch_xml_returns_empty_element_when_fetch_fails(client):
