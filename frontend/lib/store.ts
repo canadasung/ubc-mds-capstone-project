@@ -64,6 +64,14 @@ interface SearchState {
   _clearWasCancelled: () => void;
 }
 
+/**
+ * Global Zustand store for search UI state.
+ *
+ * Stable slices (query, selected sources, active view, cached results) are
+ * persisted to sessionStorage so they survive HMR reloads. Transient fields
+ * (isSearching, searchProgress, _cancelStream, etc.) are excluded from
+ * persistence and always reset to their defaults on rehydration.
+ */
 export const useSearchStore = create<SearchState>()(
   persist(
     (set, get) => ({
@@ -91,11 +99,17 @@ export const useSearchStore = create<SearchState>()(
 
       setQuery: (q) => set({ query: q }),
 
+      /**
+       * Snapshot the current query and selectedSources into submittedQuery /
+       * submittedSources, which triggers useLiveSearchEffect. No-op when the
+       * trimmed query is empty.
+       */
       submit: () => {
         const q = get().query.trim();
         if (q) set({ submittedQuery: q, submittedSources: [...get().selectedSources] });
       },
 
+      /** Add ``key`` to selectedSources when absent; remove it when present. */
       toggleSource: (key) =>
         set((s) => ({
           selectedSources: s.selectedSources.includes(key)
@@ -103,6 +117,7 @@ export const useSearchStore = create<SearchState>()(
             : [...s.selectedSources, key],
         })),
 
+      /** Select all known sources (``on=true``) or clear the selection (``on=false``). */
       setAllSources: (on) => set({ selectedSources: on ? [...SOURCE_KEYS] : [] }),
 
       setSources: (keys) => set({ selectedSources: keys }),
@@ -126,6 +141,11 @@ export const useSearchStore = create<SearchState>()(
 
       setStreamCancel: (fn) => set({ _cancelStream: fn }),
 
+      /**
+       * Abort the active SSE stream and roll back submittedQuery /
+       * submittedSources to the last completed search so previous results
+       * reappear immediately (or the start page if nothing was ever cached).
+       */
       cancelSearch: () => {
         get()._cancelStream?.();
         const { cachedQuery, cachedSources } = get();
@@ -149,6 +169,13 @@ export const useSearchStore = create<SearchState>()(
       _setHasHydrated: (v) => set({ _hasHydrated: v }),
       _clearWasCancelled: () => set({ _wasCancelled: false }),
 
+      /**
+       * Re-run the search even when query and sources haven't changed.
+       *
+       * Clears cachedQuery so useLiveSearchEffect sees a cache miss and runs a
+       * full fetch. Bumps submitVersion so the effect re-fires even if
+       * submittedQuery is already equal to the current query.
+       */
       forceResubmit: () => {
         const q = get().query.trim();
         if (!q) return;

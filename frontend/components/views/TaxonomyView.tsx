@@ -8,10 +8,11 @@
  * Advanced-options checkboxes — exactly like the record-based views. Ranks that
  * become entirely empty after filtering are dropped.
  *
- * Disagreement is shown per-cell via a colour gradient (see lib/taxonomyShading):
- * each cell is shaded by its character edit distance from the column's reference
- * — the search query for Genus/Species, GBIF for every other rank. Blue when a
- * column has a single differing value, orange when it has several.
+ * Disagreement is shown per-cell via a blue colour gradient (see lib/taxonomyShading):
+ * each cell in a shaded rank is coloured by its Levenshtein edit distance from the
+ * backbone source's value (GBIF by default, user-selectable). Cells that match
+ * the backbone are very light blue; cells that differ use progressively darker
+ * blue shades. Genus and Species are never shaded.
  */
 
 import { useCallback, useMemo, useState } from "react";

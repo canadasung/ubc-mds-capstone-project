@@ -68,6 +68,7 @@ const LABEL_TO_FULL = new Map(
   SOURCES.map((s) => [s.label.toLowerCase(), s.full ?? s.label]),
 );
 
+/** Short display label for a source key (e.g. ``"gbif"`` → ``"GBIF"``). Falls back to the key itself. */
 export function labelForKey(key: string): string {
   return KEY_TO_DEF.get(key)?.label ?? key;
 }
@@ -83,6 +84,7 @@ export function fullForLabel(label: string): string {
   return LABEL_TO_FULL.get(label.toLowerCase()) ?? label;
 }
 
+/** ``SourceGroup`` (``"backbone"`` | ``"symbiota"`` | ``"independent"``) for a key, or ``undefined`` if not found. */
 export function groupOf(key: string): SourceGroup | undefined {
   return KEY_TO_DEF.get(key)?.group;
 }

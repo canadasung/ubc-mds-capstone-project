@@ -18,6 +18,13 @@ import { useSearchStore } from "./store";
 import { ApiError } from "./types";
 import type { SearchResponse, SpeciesRecord, TaxonomyRow, TaxonomyResponse } from "./types";
 
+/**
+ * TanStack Query hook for ``GET /api/sources``.
+ *
+ * Returns the standard ``{ data, isLoading, isError }`` query result. The
+ * response is cached for the lifetime of the QueryClient (no refetch needed
+ * within a session — the source list is static).
+ */
 export function useSources() {
   return useQuery({
     queryKey: ["sources"],
@@ -145,7 +152,16 @@ export function useLiveSearchEffect() {
   }, [submittedQuery, submittedSourcesKey, submitVersion, wasCancelled]);
 }
 
-/** Store-backed replacement for the old TanStack Query useSearch(). */
+/**
+ * Read the current search state from the Zustand store.
+ *
+ * Returns
+ * -------
+ * object
+ *     ``data`` — last completed SearchResponse, or undefined before any search.
+ *     ``isFetching`` — true while an SSE stream is open.
+ *     ``error`` — ApiError with optional ``available`` suggestions, or null.
+ */
 export function useSearch() {
   const data = useSearchStore((s) => s.cachedData) ?? undefined;
   const isFetching = useSearchStore((s) => s.isSearching);
