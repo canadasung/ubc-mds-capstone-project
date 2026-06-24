@@ -1,0 +1,73 @@
+{
+  "tid": 189555,
+  "kingdomName": "Chromista",
+  "rankID": 220,
+  "rankName": null,
+  "unitInd1": null,
+  "unitName1": "Ilea",
+  "unitInd2": null,
+  "unitName2": "intestinalis",
+  "unitInd3": null,
+  "unitName3": null,
+  "cultivarEpithet": null,
+  "tradeName": null,
+  "author": "(Linnaeus) Leiblein",
+  "reviewStatus": null,
+  "displayStatus": null,
+  "isLegitimate": null,
+  "source": null,
+  "sourceIdentifier": null,
+  "notes": null,
+  "securityStatus": 0,
+  "modifiedTimestamp": null,
+  "initialTimestamp": "2014-04-25 19:14:57",
+  "parentTid": 6012,
+  "status": "synonym",
+  "accepted": {
+    "tid": 76122,
+    "scientificName": "Ulva intestinalis",
+    "scientificNameAuthorship": "Linnaeus",
+    "taxonomicSource": null,
+    "unacceptabilityReason": null,
+    "taxonRemarks": null
+  },
+  "classification": [
+    {
+      "tid": 1762,
+      "scientificName": "Chromista",
+      "author": "",
+      "rankid": 10
+    },
+    {
+      "tid": 1783,
+      "scientificName": "Heterokontophyta",
+      "author": "",
+      "rankid": 30
+    },
+    {
+      "tid": 1850,
+      "scientificName": "Phaeophyceae",
+      "author": "",
+      "rankid": 60
+    },
+    {
+      "tid": 2003,
+      "scientificName": "Ectocarpales",
+      "author": "",
+      "rankid": 100
+    },
+    {
+      "tid": 2613,
+      "scientificName": "Scytosiphonaceae",
+      "author": "",
+      "rankid": 140
+    },
+    {
+      "tid": 6012,
+      "scientificName": "Ilea",
+      "author": "E.M.Fries, 1835",
+      "rankid": 180
+    }
+  ],
+  "scientificName": "Ilea intestinalis"
+}

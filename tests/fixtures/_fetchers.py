@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Generator, Iterator
 
 from scripts.utils.normalize_query_string import normalize_query_string
-from tests.fixtures.queries import API_QUERIES
+from tests.fixtures.queries import API_QUERIES, SYMBIOTA_QUERIES
 
 FIXTURES_DIR = Path(__file__).resolve().parent
 
@@ -373,6 +373,63 @@ def itis_fixtures() -> Iterator[Fixture]:
 
 
 # ---------------------------------------------------------------------------
+# Symbiota (11 portals, same client/structure; one SymbiotaAPI per portal)
+# Fetch types: query_data=dict, synonym_data=str (HTML), accepted_data=dict.
+# Custom orchestrator: accepted_id is resolved from query_data (no call), then
+# passed to _fetch_synonym_data / _fetch_accepted_data. accepted_data reuses
+# query_data when the queried name is already accepted.
+# ---------------------------------------------------------------------------
+
+
+# The full taxa page is non-deterministic: it embeds a rotating sample of specimen
+# records (image gallery) and resource tabs that vary between identical requests.
+# Only the synonymDiv is read by SymbiotaAPI._extract_synonym_pairs, and that region
+# is stable. Reduce the saved fixture to exactly that slice (re-wrapped so the
+# parser's regex still matches) to keep fixtures deterministic while preserving
+# identical parser behavior. Mirrors the same matcher used in symbiota.py.
+_SYMBIOTA_SYNONYM_DIV_RE = re.compile(r'id="synonymDiv"[^>]*>(.*?)</div>', re.DOTALL)
+
+
+def _strip_symbiota_volatile(html: str) -> str:
+    """Reduce taxa-page HTML to the stable synonymDiv the synonym parser consumes."""
+    match = _SYMBIOTA_SYNONYM_DIV_RE.search(html)
+    if not match:
+        return html
+    return f'<div id="synonymDiv">{match.group(1)}</div>'
+
+
+def symbiota_fixtures() -> Iterator[Fixture]:
+    """Yield (path, data) pairs for every Symbiota portal's fixture files."""
+    from scripts.apis_pipe.symbiota import SymbiotaAPI
+
+    for slug, entry in SYMBIOTA_QUERIES.items():
+        portal_name = entry["portal_name"]
+        scenarios = [(k, v) for k, v in entry.items() if k != "portal_name"]
+        client = SymbiotaAPI(portal_name)
+        base = FIXTURES_DIR / "symbiota" / slug
+
+        for scenario, name in scenarios:
+            query_data = client._fetch_query_data(_norm(name))
+            yield base / scenario / "query_data.json", query_data
+            if client._is_empty(query_data):
+                continue
+
+            accepted_id = client._extract_internal_accepted_id(query_data)
+            synonym_data = _strip_symbiota_volatile(
+                client._fetch_synonym_data(accepted_id)
+            )
+            yield base / scenario / "synonym_data.html", synonym_data
+
+            if accepted_id == client._extract_internal_id(query_data):
+                # Accepted path: get_synonyms reuses query_data, but save it as
+                # accepted_data so the fixture loader always finds a file.
+                yield base / scenario / "accepted_data.json", query_data
+            else:
+                accepted_data = client._fetch_accepted_data(accepted_id)
+                yield base / scenario / "accepted_data.json", accepted_data
+
+
+# ---------------------------------------------------------------------------
 # All API fetchers in run order
 # ---------------------------------------------------------------------------
 
@@ -385,4 +442,5 @@ ALL_FETCHERS: list[tuple[str, Generator[Fixture, None, None]]] = [
     ("Index Fungorum", index_fungorum_fixtures),
     ("Mushroom Observer", mushroom_observer_fixtures),
     ("ITIS", itis_fixtures),
+    ("Symbiota", symbiota_fixtures),
 ]

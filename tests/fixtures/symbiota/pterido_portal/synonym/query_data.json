@@ -1,0 +1,91 @@
+{
+  "tid": 45458,
+  "kingdomName": "Plantae",
+  "rankID": 220,
+  "rankName": null,
+  "unitInd1": null,
+  "unitName1": "Nephrodium",
+  "unitInd2": null,
+  "unitName2": "filix-mas",
+  "unitInd3": null,
+  "unitName3": null,
+  "cultivarEpithet": null,
+  "tradeName": null,
+  "author": "(L.) Rich.",
+  "reviewStatus": null,
+  "displayStatus": null,
+  "isLegitimate": null,
+  "source": "World Ferns: Checklist of Ferns and Lycophytes of the World (added via CoL API)",
+  "sourceIdentifier": null,
+  "notes": null,
+  "securityStatus": 0,
+  "modifiedTimestamp": null,
+  "initialTimestamp": "2018-12-13 15:38:46",
+  "parentTid": 3653,
+  "status": "synonym",
+  "accepted": {
+    "tid": 386,
+    "scientificName": "Dryopteris filix-mas",
+    "scientificNameAuthorship": "",
+    "taxonomicSource": null,
+    "unacceptabilityReason": null,
+    "taxonRemarks": null
+  },
+  "classification": [
+    {
+      "tid": 1,
+      "scientificName": "Organism",
+      "author": "",
+      "rankid": 1
+    },
+    {
+      "tid": 4,
+      "scientificName": "Plantae",
+      "author": "",
+      "rankid": 10
+    },
+    {
+      "tid": 7,
+      "scientificName": "Tracheophyta",
+      "author": "",
+      "rankid": 30
+    },
+    {
+      "tid": 8,
+      "scientificName": "Polypodiopsida",
+      "author": "",
+      "rankid": 60
+    },
+    {
+      "tid": 172,
+      "scientificName": "Cyatheales",
+      "author": "",
+      "rankid": 100
+    },
+    {
+      "tid": 173,
+      "scientificName": "Cyatheaceae",
+      "author": "",
+      "rankid": 140
+    },
+    {
+      "tid": 3653,
+      "scientificName": "Nephrodium",
+      "author": "",
+      "rankid": 180
+    },
+    {
+      "tid": 12090,
+      "scientificName": "Polypodiidae",
+      "author": "Cronquist, Takht. & W. Zimm.",
+      "rankid": 70
+    },
+    {
+      "tid": 60917,
+      "scientificName": "Polypodiophytina",
+      "author": "",
+      "rankid": 40
+    }
+  ],
+  "scientificName": "Nephrodium filix-mas"
+}

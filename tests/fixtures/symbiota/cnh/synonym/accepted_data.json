@@ -1,0 +1,77 @@
+{
+  "tid": 824846,
+  "kingdomName": "Plantae",
+  "rankID": 220,
+  "rankName": null,
+  "unitInd1": null,
+  "unitName1": "Impatiens",
+  "unitInd2": null,
+  "unitName2": "capensis",
+  "unitInd3": null,
+  "unitName3": null,
+  "cultivarEpithet": null,
+  "tradeName": null,
+  "author": "Meerb.",
+  "reviewStatus": null,
+  "displayStatus": null,
+  "isLegitimate": null,
+  "source": null,
+  "sourceIdentifier": null,
+  "notes": null,
+  "securityStatus": 0,
+  "modifiedTimestamp": null,
+  "initialTimestamp": "2011-04-14 02:15:53",
+  "parentTid": 812651,
+  "status": "accepted",
+  "classification": [
+    {
+      "tid": 9417,
+      "scientificName": "Charophyta",
+      "author": "",
+      "rankid": 30
+    },
+    {
+      "tid": 23443,
+      "scientificName": "Ericales",
+      "author": "Bercht. & J.Presl",
+      "rankid": 100
+    },
+    {
+      "tid": 29180,
+      "scientificName": "Balsaminaceae",
+      "author": "A. Rich.",
+      "rankid": 140
+    },
+    {
+      "tid": 811021,
+      "scientificName": "Streptophytina",
+      "author": "",
+      "rankid": 40
+    },
+    {
+      "tid": 811022,
+      "scientificName": "Plantae",
+      "author": "",
+      "rankid": 10
+    },
+    {
+      "tid": 811023,
+      "scientificName": "Equisetopsida",
+      "author": "C.Agardh",
+      "rankid": 60
+    },
+    {
+      "tid": 811031,
+      "scientificName": "Magnoliidae",
+      "author": "Novák ex Takht.",
+      "rankid": 70
+    },
+    {
+      "tid": 812651,
+      "scientificName": "Impatiens",
+      "author": "L.",
+      "rankid": 180
+    }
+  ],
+  "scientificName": "Impatiens capensis"
+}
