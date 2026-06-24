@@ -95,7 +95,7 @@ A single query produces five linked views of the same data:
 - **Detail**: the full set of records from every database, with an option to
   download the results as a CSV file.
 
-If a search returns no results, the app attempts to offers fuzzy name suggestions
+If a search returns no results, the app attempts to offer fuzzy name suggestions
 ("Did you mean?") from the GBIF API.
 
 ---
@@ -283,7 +283,7 @@ conda activate mds-project
 uvicorn backend_api.main:app --reload --port 8000
 ```
 
-The backend API, which connects the backend python code with the and REACT frontend of our web app, will be hosted at <http://localhost:8000> locally, but you do not need to visit this link yourself. Leave this terminal running and navigate to a second terminal to launch the frontend.
+The backend API, which connects the backend python code with the REACT frontend of our web app, will be hosted at <http://localhost:8000> locally, but you do not need to visit this link yourself. Leave this terminal running and navigate to a second terminal to launch the frontend.
 
 ### Frontend
 
@@ -304,7 +304,7 @@ from `http://localhost:3000`. If you host the API elsewhere, set
 `NEXT_PUBLIC_API_BASE_URL` in `.env.local` and add the frontend origin to the
 backend's allowed origins (`ALLOWED_ORIGINS`).
 
-For future runs, you do not need to re-copy the enviornment or install npm, so you can just run:
+For future runs, you do not need to re-copy the environment or install npm, so you can just run:
 
 ```bash
 conda activate mds-project
