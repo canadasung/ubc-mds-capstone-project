@@ -107,6 +107,7 @@ export function SearchPanel() {
             placeholder="Enter a species name"
             description="e.g. Podospora anserina"
             inputWrapperOrder={["label", "input", "description", "error"]}
+            styles={{ description: { fontSize: "var(--mantine-font-size-sm)" } }}
             value={query}
             onChange={(e) => setQuery(e.currentTarget.value)}
             leftSection={<IconSearch size={16} />}
