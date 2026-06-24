@@ -519,6 +519,7 @@ class ITISAPI(SpeciesAPI):
 
         raw_data = self._fetch_query_data(name)
         if self._is_empty(raw_data):
+            self._warn_if_blank("_fetch_query_data", raw_data)
             return empty_synonym_table()
 
         accepted_id = self._extract_internal_accepted_id(raw_data)

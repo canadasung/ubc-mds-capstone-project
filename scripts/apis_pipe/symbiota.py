@@ -274,12 +274,11 @@ class SymbiotaAPI(SpeciesAPI):
                 results = data.get("results") or []
                 result = results[0] if len(results) > 0 else {}
 
-        if result:
-            print(f"[{self.portal_name}] '{endpoint}' returned results for '{name}'.")
-        else:
-            print(
-                f"[{self.portal_name}] Search endpoint returned no results for '{name}'. Attempting autocomplete search."
-            )
+        if not result:
+            if self.VERBOSE:
+                print(
+                    f"[{self.portal_name}] WARNING: '{endpoint}' returned no results for '{name}'; trying autocomplete."
+                )
             # If the search endpoint returned nothing, attempt to resolve via autocomplete.
             items = self._fetch_JSON(
                 f"{self.BASE_URL}/taxa/taxonomy/rpc/gettaxasuggest.php",
@@ -288,16 +287,14 @@ class SymbiotaAPI(SpeciesAPI):
             for item in items if isinstance(items, list) else []:
                 label = item["label"]
                 if re.match(rf"^{re.escape(name)}(\s|$)", label):
-                    print(
-                        f"[{self.portal_name}] Found match for '{name}' via autocomplete."
-                    )
                     result = item
                     break
 
         if not result:
-            print(
-                f"[{self.portal_name}] All searches failed or returned no results for '{name}'."
-            )
+            if self.VERBOSE:
+                print(
+                    f"[{self.portal_name}] WARNING: all searches returned no results for '{name}'."
+                )
             return {}
 
         tid = result.get("tid", "")
@@ -469,6 +466,7 @@ class SymbiotaAPI(SpeciesAPI):
 
         raw_data = self._fetch_query_data(name)
         if self._is_empty(raw_data):
+            self._warn_if_blank("_fetch_query_data", raw_data)
             return empty_synonym_table()
 
         accepted_id = self._extract_internal_accepted_id(raw_data)
