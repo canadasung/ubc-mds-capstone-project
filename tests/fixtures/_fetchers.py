@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Generator, Iterator
 
 from scripts.utils.normalize_query_string import normalize_query_string
+from tests.fixtures.queries import API_QUERIES
 
 FIXTURES_DIR = Path(__file__).resolve().parent
 
@@ -69,11 +70,7 @@ def _norm(name: str) -> str:
 # Fetch types: query_data=dict, synonym_data=list[dict], accepted_data=dict
 # ---------------------------------------------------------------------------
 
-_GBIF_SCENARIOS = [
-    ("accepted", "Amanita muscaria"),
-    ("synonym", "Agaricus muscarius"),
-    ("not_found", "Not species"),
-]
+_GBIF_SCENARIOS = list(API_QUERIES["gbif"].items())
 
 
 def gbif_fixtures() -> Iterator[Fixture]:
@@ -99,11 +96,7 @@ def gbif_fixtures() -> Iterator[Fixture]:
 # Fetch types: query_data=dict, synonym_data=list, accepted_data=dict
 # ---------------------------------------------------------------------------
 
-_COL_SCENARIOS = [
-    ("accepted", "Quercus robur"),
-    ("synonym", "Quercus atrosanguinea"),
-    ("not_found", "Not species"),
-]
+_COL_SCENARIOS = list(API_QUERIES["col"].items())
 
 
 def col_fixtures() -> Iterator[Fixture]:
@@ -130,11 +123,7 @@ def col_fixtures() -> Iterator[Fixture]:
 # Extra method: _fetch_accepted_list (always called).
 # ---------------------------------------------------------------------------
 
-_TROPICOS_SCENARIOS = [
-    ("accepted", "Quercus robur"),
-    ("synonym", "Quercus pedunculata"),
-    ("not_found", "Not species"),
-]
+_TROPICOS_SCENARIOS = list(API_QUERIES["tropicos"].items())
 
 
 def tropicos_fixtures() -> Iterator[Fixture]:
@@ -180,11 +169,7 @@ def tropicos_fixtures() -> Iterator[Fixture]:
 # Fetch types: query_data=str (HTML), synonym_data=str (HTML), accepted_data=dict {}
 # ---------------------------------------------------------------------------
 
-_FISHBASE_SCENARIOS = [
-    ("accepted", "Gadus morhua"),
-    ("synonym", "Gadus callarias"),
-    ("not_found", "Not species"),
-]
+_FISHBASE_SCENARIOS = list(API_QUERIES["fishbase"].items())
 
 _FISHBASE_PROC_TIME_RE = re.compile(
     r"<span class='slabel7' >Total processing time for the page : [\d.]+ seconds</span>"
@@ -231,11 +216,7 @@ def fishbase_fixtures() -> Iterator[Fixture]:
 # Note: _fetch_accepted_data returns synonym_data unchanged (no extra call).
 # ---------------------------------------------------------------------------
 
-_GENBANK_SCENARIOS = [
-    ("accepted", "Amanita muscaria"),
-    ("synonym", "Agaricus muscarius"),
-    ("not_found", "Not species"),
-]
+_GENBANK_SCENARIOS = list(API_QUERIES["genbank"].items())
 
 
 def genbank_fixtures() -> Iterator[Fixture]:
@@ -266,11 +247,7 @@ def genbank_fixtures() -> Iterator[Fixture]:
 # Fetch types: all ET.Element. _fetch_accepted_data returns synonym_data unchanged.
 # ---------------------------------------------------------------------------
 
-_INDEX_FUNGORUM_SCENARIOS = [
-    ("accepted", "Amanita muscaria"),
-    ("synonym", "Agaricus muscarius"),
-    ("not_found", "Not species"),
-]
+_INDEX_FUNGORUM_SCENARIOS = list(API_QUERIES["index_fungorum"].items())
 
 
 def index_fungorum_fixtures() -> Iterator[Fixture]:
@@ -297,11 +274,7 @@ def index_fungorum_fixtures() -> Iterator[Fixture]:
 # Note: synonym and accepted data are derived from query_data in-memory (no extra calls).
 # ---------------------------------------------------------------------------
 
-_MUSHROOM_OBSERVER_SCENARIOS = [
-    ("accepted", "Amanita muscaria"),
-    ("synonym", "Amanita amerimuscaria"),
-    ("not_found", "Not species"),
-]
+_MUSHROOM_OBSERVER_SCENARIOS = list(API_QUERIES["mushroom_observer"].items())
 
 _MO_VOLATILE_KEYS = {"run_date", "run_time", "last_viewed", "number_of_views"}
 
@@ -350,11 +323,7 @@ def mushroom_observer_fixtures() -> Iterator[Fixture]:
 #   _fetch_internal_accepted_id_data; we capture that return value.
 # ---------------------------------------------------------------------------
 
-_ITIS_SCENARIOS = [
-    ("accepted", "Oncorhynchus mykiss"),
-    ("synonym", "Salmo mykiss"),
-    ("not_found", "Not species"),
-]
+_ITIS_SCENARIOS = list(API_QUERIES["itis"].items())
 
 
 def itis_fixtures() -> Iterator[Fixture]:

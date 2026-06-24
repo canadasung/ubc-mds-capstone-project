@@ -33,6 +33,12 @@ tests/
 
 The `utils/` tests are **unit tests** — they mock all network calls and run offline. The `apis_pipe/` tests are also **unit tests**, but instead of synthetic mock data they replay saved real API responses captured from live calls; this keeps them offline while still exercising the actual response shapes each API returns. The `integration/` tests make real HTTP requests and require internet access and a configured `.env` file.
 
+The `apis_pipe/` unit tests share a common structure defined in `_base_api_test.py`:
+- Each per-API test class inherits `BaseApiTest`, which patches `_fetch_query_data`, `_fetch_synonym_data`, and `_fetch_accepted_data` with saved fixture data, then calls `get_synonyms()` to exercise `_compile_synonyms` and `_compile_accepted` against real response shapes.
+- Template tests cover three scenarios (accepted, synonym, not_found) and include a **symmetry check** that both the accepted and synonym queries resolve to the same accepted taxon name.
+- Mushroom Observer overrides the symmetry test with `@pytest.mark.xfail` due to a known bug where synonym queries may not find an accepted-name row.
+- Tropicos and ITIS override `_run` to additionally patch their extra fetch methods (`_fetch_accepted_list` and `_fetch_hierarchy_data` respectively).
+
 Two helper scripts manage the fixture files:
 
 - **`regenerate_fixtures.py`** — fetches a fresh set of real responses from every API and overwrites the saved fixture files. Run this when an API changes its response format. The newly saved responses must be **manually reviewed** before committing, since the tests will pass against whatever is saved.
