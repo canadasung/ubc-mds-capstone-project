@@ -25,7 +25,7 @@ def fuzzy_search(query):
     match_resp = requests.get(
         f"{GBIF_BASE}/species/match",
         params={"name": query, "strict": "false"},
-        timeout=10,
+        timeout=30,
     )
     match_resp.raise_for_status()
     match = match_resp.json()
@@ -45,7 +45,7 @@ def fuzzy_search(query):
     suggest_resp = requests.get(
         f"{GBIF_BASE}/species/suggest",
         params={"q": suggest_query, "limit": 10, "rank": "SPECIES"},
-        timeout=10,
+        timeout=30,
     )
     suggest_resp.raise_for_status()
 

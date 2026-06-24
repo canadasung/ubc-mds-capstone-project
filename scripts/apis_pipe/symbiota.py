@@ -321,7 +321,6 @@ class SymbiotaAPI(SpeciesAPI):
         return self._fetch_HTML(
             url=f"{self.BASE_URL}/taxa/index.php",
             params={"tid": accepted_id},
-            timeout=30,
         )
 
     def _fetch_accepted_data(self, accepted_id: str) -> dict:
