@@ -263,7 +263,7 @@ In a second terminal, with the environment active from the repository root:
 conda activate mds-project
 cd frontend
 cp .env.local.example .env.local   # points at http://localhost:8000 by default
-npm install
+npm ci                             # reproduce exactly from package-lock.json
 npm run dev                        # http://localhost:3000
 ```
 

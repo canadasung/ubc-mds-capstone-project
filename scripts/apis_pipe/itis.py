@@ -48,6 +48,8 @@ class ITISAPI(SpeciesAPI):
 
     BASE_URL = ITIS_PORTAL.base_url
 
+    _AUTHOR_YEAR_RE: re.Pattern = re.compile(r"(?<!\()\b(\d{4})\b(?!\))")
+
     def _fetch_query_data(self, name: str) -> dict:
         """
         Search the ITIS database for *name* via ``getITISTermsFromScientificName``.
@@ -260,28 +262,23 @@ class ITISAPI(SpeciesAPI):
 
     def _extract_publication_year(self, authorship: str) -> str:
         """
-        Extract a four-digit year from an ITIS authorship string.
+        Extract a four-digit publication year from an ITIS authorship string.
 
-        Returns the trailing year only when the string does not end with ``)``,
-        which avoids false matches in parenthesised author strings.
+        Matches a year that is not enclosed in parentheses, e.g. ``"L., 1753"``
+        returns ``"1753"`` but ``"(L., 1753)"`` returns ``""``.
 
         Parameters
         ----------
         authorship : str
-            An ITIS authorship value, e.g. ``"L., 1753"`` or ``"(L.) Lam., 1783"``.
+            An ITIS authorship value, e.g. ``"L., 1753"`` or ``"(L., 1678) Walbaum, 1792"``.
 
         Returns
         -------
         str
-            Four-digit year string, or ``""`` if not found or the string ends
-            with ``)``.
+            Four-digit year string, or ``""`` if not found.
         """
-        stripped = authorship.strip()
-        if not stripped.endswith(")"):
-            match = re.search(r"(\d{4})\s*$", stripped)
-            if match:
-                return match.group(1)
-        return ""
+        m = self._AUTHOR_YEAR_RE.search(authorship)
+        return m.group(1) if m else ""
 
     @staticmethod
     def _strip_links(text: str) -> str:
@@ -519,6 +516,7 @@ class ITISAPI(SpeciesAPI):
 
         raw_data = self._fetch_query_data(name)
         if self._is_empty(raw_data):
+            self._warn_if_blank("_fetch_query_data", raw_data)
             return empty_synonym_table()
         print("_fetch_query_data")
         print(raw_data)

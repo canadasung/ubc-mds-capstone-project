@@ -122,7 +122,7 @@ directly, so the disagreement logic stays server-side (single source of truth).
 | left search `st.form`, `Advanced options` expander, source checkboxes, `Select all` | `components/SearchPanel.tsx` | Mantine `TextInput` + `Button` + `Collapse` + `Checkbox` |
 | `st.segmented_control("View", …)` | `components/ViewSwitcher.tsx` | Mantine `SegmentedControl` (1:1) |
 | `view_table.py` | `components/views/TableView.tsx` | presence matrix, ✓ link cells, bold query row |
-| `view_timeline.py` (Plotly) | `components/views/TimelineView.tsx` | `react-plotly.js`, dynamic import, ssr:false |
+| `view_timeline.py` (Plotly) | `components/views/TimelineView.tsx` | custom CSS/React timeline (absolutely-positioned cards), horizontal or vertical, no chart library |
 | `view_node.py` (pyvis iframe) | `components/views/NodeView.tsx` | **React Flow** (`@xyflow/react`) — native nodes, no iframe |
 | `view_taxonomy.py` | `components/views/TaxonomyView.tsx` | consumes `/api/taxonomy`; red disagreement cells |
 | `view_debug.py` | `components/views/DebugView.tsx` | raw record table |
@@ -146,7 +146,8 @@ directly, so the disagreement logic stays server-side (single source of truth).
   `st.session_state`).
 - **React Flow (`@xyflow/react`)** — interactive node graph, replacing the pyvis
   HTML iframe with real React nodes (clickable, styleable, no sandbox).
-- **react-plotly.js** — keeps the existing Plotly timeline logic almost verbatim.
+- **Timeline** — a hand-rolled CSS/React layout (absolutely-positioned cards on a
+  proportional time axis); no charting library is needed.
 
 ---
 

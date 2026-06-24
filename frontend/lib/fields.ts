@@ -9,6 +9,7 @@
 
 import type { SpeciesRecord } from "./types";
 
+/** Coerce any value to a trimmed string, returning ``""`` for null/undefined. */
 function str(v: unknown): string {
   return v === null || v === undefined ? "" : String(v).trim();
 }
@@ -23,10 +24,12 @@ export function nameOf(rec: SpeciesRecord): string {
   return `${str(rec.genus)} ${str(rec.species)}`.trim();
 }
 
+/** Genus string from the record (CSV: ``genus``). */
 export function genusOf(rec: SpeciesRecord): string {
   return str(rec.genus);
 }
 
+/** Species epithet string from the record (CSV: ``species``). */
 export function speciesOf(rec: SpeciesRecord): string {
   return str(rec.species);
 }
@@ -42,10 +45,12 @@ export function statusOf(rec: SpeciesRecord): string {
   return str(rec.status);
 }
 
+/** Taxonomic author string from the record (CSV: ``author``). */
 export function authorOf(rec: SpeciesRecord): string {
   return str(rec.author);
 }
 
+/** Publication name string from the record (CSV: ``publication_name``). */
 export function publicationNameOf(rec: SpeciesRecord): string {
   return str(rec.publication_name);
 }
