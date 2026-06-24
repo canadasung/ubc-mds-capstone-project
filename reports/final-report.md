@@ -173,7 +173,7 @@ We recommend that the museum assign technical staff to add secure credential man
 
 # Appendix B: Data Sources {#sec-appendix-b .unnumbered}
 
-The following table lists the individual data sources integrated into our pipeline, along with their primary taxonomic scope.
+The following table lists the data sources we evaluated for our pipeline, along with each source's primary taxonomic scope and whether it is currently implemented.
 
 | Source | Taxonomic Scope | Implementation Status |
 | ------ | --------------- | :---: |
