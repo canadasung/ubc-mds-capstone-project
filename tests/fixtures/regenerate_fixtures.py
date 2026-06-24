@@ -48,15 +48,20 @@ def main() -> None:
             print(f"  ERROR: {exc}")
 
     print("\n" + "=" * 60)
+    print(
+        "NOTE: FishBase fixtures are HTML scrapes. Volatile server-side fields "
+        "(mirrors, processing time) are normalized, but residual changes are expected. "
+        "Verify FishBase output manually rather than relying on fixture diffs."
+    )
     if _changed:
-        print(f"Changed ({len(_changed)} files):")
+        print(f"\nChanged ({len(_changed)} files):")
         for f in _changed:
             print(f"  {f}")
         print()
         print("WARNING: Review all changed fixtures before committing.")
         print("  Verify that get_synonyms() output for each test query is correct.")
     else:
-        print("No changes — all fixtures are already up to date.")
+        print("\nNo changes — all fixtures are already up to date.")
 
 
 if __name__ == "__main__":

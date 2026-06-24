@@ -48,6 +48,8 @@ def _check(path: Path, data: object) -> None:
 def main() -> None:
     for api_name, fetcher_fn in ALL_FETCHERS:
         print(f"\n[{api_name}]")
+        if api_name == "FishBase":
+            print("  (HTML scrape — volatile server-side fields may cause spurious CHANGED results)")
         try:
             for path, data in fetcher_fn():
                 _check(path, data)
@@ -58,6 +60,11 @@ def main() -> None:
     total = _ok + len(_changed) + len(_missing)
     print(
         f"Results: {_ok} OK, {len(_changed)} CHANGED, {len(_missing)} MISSING  (of {total} checked)"
+    )
+    print(
+        "NOTE: FishBase fixtures are HTML scrapes. Volatile server-side fields "
+        "(mirrors, processing time) are normalized, but residual changes are expected. "
+        "Verify FishBase output manually rather than relying on fixture diffs."
     )
 
     if _changed:
