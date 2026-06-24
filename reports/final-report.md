@@ -189,15 +189,19 @@ The following table lists the individual data sources integrated into our pipeli
 | [iDigBio Portal](https://portal.idigbio.org/portal/search) | Aggregated US biodiversity data | No |
 | [iNaturalist](https://www.inaturalist.org/) | Plants, animals, fungi (citizen science) | No |
 | [Index Fungorum](https://www.indexfungorum.org/) | Scientific names of fungi | Yes |
-| [ITIS](https://www.itis.gov/) | Plants, animals, fungi, microbes (US federal taxonomic database) | Yes |
+| [International Plant Names Index](https://www.ipni.org/) | Scientific names of plants | No |
+| [Integrated Taxonomic Information System](https://www.itis.gov/) | Plants, animals, fungi, microbes (US federal taxonomic database) | Yes |
 | [Lichen Portal](https://lichenportal.org/portal/) | Lichenized fungi | Yes |
 | [Macroalgae.org](https://macroalgae.org/portal/) | Algae herbarium data | Yes |
 | [Mid-Atlantic Herbaria](https://midatlanticherbaria.org/portal/) | Mid-Atlantic plant collections | Yes |
 | [Mushroom Observer](https://mushroomobserver.org/) | Mushrooms / fungi | Yes |
+| [MycoBank](https://www.mycobank.org/) | Fungal databases, Nomenclature & Species Banks | No |
 | [MycoMap](https://www.mycomap.com/) | Fungal observations & analytics | No |
 | [MyCoPortal](https://mycoportal.org/portal/) | Fungi / fungal collections | Yes |
 | [NANSH](https://nansh.org/portal/index.php) | Small Herbaria (plants) | Yes |
 | [NE Herbaria Portal](https://portal.neherbaria.org/portal/) | Northeastern US herbarium collections | Yes |
+| [Plants of the World Online](https://powo.science.kew.org/) | Plant species information | No |
+| [Paleobiology Database](https://paleobiodb.org/) | Paleobiology data | No |
 | [PteridoPortal](https://pteridoportal.org/portal/) | Pteridophytes (ferns & allies) | Yes |
 | [SERNEC](https://sernecportal.org/portal/index.php) | 233 herbaria in southeastern USA | Yes |
 | [Species Fungorum](http://www.speciesfungorum.org/) | Scientific names of fungi | No |
