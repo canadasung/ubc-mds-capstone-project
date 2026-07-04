@@ -35,13 +35,37 @@ class PaleobiologyDatabaseAPI(SpeciesAPI):
 
     BASE_URL = PBDB_PORTAL.base_url
     HEADERS = {
-        "User-Agent": (
-            "SpeciesSynonymSearch/1.0 "
-            "(github.com/canadasung/ubc-mds-capstone-project; canadasung@gmail.com)"
-        )
+        "User-Agent": "SpeciesSynonymSearch/1.0 (github.com/canadasung/ubc-mds-capstone-project)"
     }
 
     _ATT_YEAR_RE: re.Pattern = re.compile(r"\b(\d{4})\b")
+
+    def _is_not_found(self, exc: requests.RequestException) -> bool:
+        """
+        Return True if *exc* represents a PBDB "no match" response.
+
+        PBDB's ``/taxa/single.json`` and ``/taxa/list.json`` endpoints return
+        HTTP 404 when a name has no match, unlike GBIF or COL which return a
+        200 response with a semantic no-match flag. Other failure modes
+        (timeouts, connection errors, 5xx) are not considered "not found" and
+        should propagate so callers can distinguish a missing taxon from a
+        flaky or unreachable source.
+
+        Parameters
+        ----------
+        exc : requests.RequestException
+            The exception raised by a failed request.
+
+        Returns
+        -------
+        bool
+            True if *exc* is an ``HTTPError`` with a 404 status code.
+        """
+        return (
+            isinstance(exc, requests.HTTPError)
+            and exc.response is not None
+            and exc.response.status_code == 404
+        )
 
     def _fetch_query_data(self, name: str) -> dict:
         """
@@ -64,14 +88,22 @@ class PaleobiologyDatabaseAPI(SpeciesAPI):
             queried name is a known synonym, the record also includes
             ``tdf``, ``acc``, and ``acn`` fields. Returns ``{}`` if no
             match is found.
+
+        Raises
+        ------
+        requests.RequestException
+            If the request fails for a reason other than a 404 not-found
+            response (timeout, connection error, 5xx, etc.).
         """
         try:
             data = self._fetch_JSON(
                 f"{self.BASE_URL}/taxa/single.json",
                 params={"name": name, "show": "attr,class"},
             )
-        except requests.RequestException:
-            return {}
+        except requests.RequestException as e:
+            if self._is_not_found(e):
+                return {}
+            raise
         records = data.get("records", [])
         return records[0] if records else {}
 
@@ -109,8 +141,14 @@ class PaleobiologyDatabaseAPI(SpeciesAPI):
         Returns
         -------
         list of dict
-            All taxon records from the synonyms endpoint, or ``[]`` on
-            network failure or no results.
+            All taxon records from the synonyms endpoint, or ``[]`` when
+            *raw_data* has no name or PBDB returns a 404 not-found response.
+
+        Raises
+        ------
+        requests.RequestException
+            If the request fails for a reason other than a 404 not-found
+            response (timeout, connection error, 5xx, etc.).
         """
         accepted_name = raw_data.get("acn") or raw_data.get("nam", "")
         if not accepted_name:
@@ -125,8 +163,10 @@ class PaleobiologyDatabaseAPI(SpeciesAPI):
                     "limit": 500,
                 },
             )
-        except requests.RequestException:
-            return []
+        except requests.RequestException as e:
+            if self._is_not_found(e):
+                return []
+            raise
         return data.get("records", [])
 
     def _fetch_accepted_data(self, raw_data: dict, synonym_data: list) -> dict:
@@ -149,7 +189,14 @@ class PaleobiologyDatabaseAPI(SpeciesAPI):
         -------
         dict
             The accepted taxon record with classification fields, or ``{}``
-            on network failure or missing identifier.
+            when the identifier is missing or PBDB returns a 404 not-found
+            response.
+
+        Raises
+        ------
+        requests.RequestException
+            If the request fails for a reason other than a 404 not-found
+            response (timeout, connection error, 5xx, etc.).
         """
         if not raw_data.get("tdf"):
             return raw_data
@@ -161,8 +208,10 @@ class PaleobiologyDatabaseAPI(SpeciesAPI):
                 f"{self.BASE_URL}/taxa/single.json",
                 params={"id": accepted_id, "show": "attr,class"},
             )
-        except requests.RequestException:
-            return {}
+        except requests.RequestException as e:
+            if self._is_not_found(e):
+                return {}
+            raise
         records = data.get("records", [])
         return records[0] if records else {}
 
