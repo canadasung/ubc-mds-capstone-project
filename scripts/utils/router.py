@@ -47,6 +47,7 @@ FUNGI_APIS: list[str] = [
     "MyCoPortal",
     "Lichen Portal",
     "Paleobiology Database",
+    "MycoBank",
 ]
 
 _KINGDOM_MAP: dict[str, list[str]] = {
