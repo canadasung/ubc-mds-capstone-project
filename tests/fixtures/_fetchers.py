@@ -472,7 +472,7 @@ def mycobank_fixtures() -> Iterator[Fixture]:
     email = os.environ.get("MYCOBANK_EMAIL", "")
     password = os.environ.get("MYCOBANK_PASSWORD", "")
     if not email or not password:
-        print("  [MycoBank] SKIPPED — MYCOBANK_EMAIL/MYCOBANK_PASSWORD not configured")
+        print("  [MycoBank] SKIPPED, MYCOBANK_EMAIL/MYCOBANK_PASSWORD not configured")
         return
 
     from scripts.apis_pipe.mycobank import MycoBankAPI

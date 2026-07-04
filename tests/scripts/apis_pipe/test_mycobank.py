@@ -1,11 +1,15 @@
 """Unit tests for the MycoBank API client."""
 
+import json
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from scripts.apis_pipe.mycobank import MycoBankAPI
 from tests.scripts.apis_pipe._base_api_test import BaseApiTest
+
+_FIXTURES_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "mycobank"
 
 
 @pytest.fixture(autouse=True)
@@ -168,6 +172,65 @@ class TestMycoBankFetchSynonymData:
         with patch.object(client, "_authed_get", side_effect=requests.RequestException("boom")):
             result = client._fetch_synonym_data(raw_data)
         assert result == []
+
+    def test_own_id_in_synonym_group_uses_raw_data_without_extra_fetch(self, client):
+        # Regression test: when the queried record is itself a synonym, the
+        # API returns the whole group's synonymy, which includes the queried
+        # record's own id. It must be resolved from raw_data directly (not
+        # skipped), since raw_data already has a clean, resolved name.
+        raw_data = {
+            "id": 125058,
+            "name": "Amanita chrysoblema",
+            "synonymy": {
+                "currentName": {"id": 1133},
+                "taxonSynonyms": [{"id": 125058}, {"id": 207642}],
+                "obligateSynonyms": [],
+                "basionym": None,
+            },
+        }
+        with patch.object(client, "_authed_get", return_value={"id": 207642, "name": "y"}) as mock_get:
+            result = client._fetch_synonym_data(raw_data)
+        called_ids = [call.args[0] for call in mock_get.call_args_list]
+        assert called_ids == ["/taxonnames/207642"]
+        assert raw_data in result
+        assert len(result) == 2
+
+    def test_accepted_name_id_in_synonym_group_is_excluded(self, client):
+        # The accepted name's own id should never appear as a synonym row,
+        # even if it were present in the raw synonym-group data.
+        raw_data = {
+            "id": 125058,
+            "synonymy": {
+                "currentName": {"id": 1133},
+                "taxonSynonyms": [{"id": 1133}, {"id": 207642}],
+                "obligateSynonyms": [],
+                "basionym": None,
+            },
+        }
+        with patch.object(client, "_authed_get", return_value={"id": 207642, "name": "y"}) as mock_get:
+            result = client._fetch_synonym_data(raw_data)
+        called_ids = [call.args[0] for call in mock_get.call_args_list]
+        assert called_ids == ["/taxonnames/207642"]
+        assert len(result) == 1
+
+    def test_real_synonym_fixture_includes_the_searched_name_itself(self, client):
+        # End-to-end regression test against the real recorded API response
+        # for querying "Amanita chrysoblema" (a synonym). Only the network
+        # layer (_authed_get) is mocked; _fetch_synonym_data runs for real.
+        raw_data = json.loads(
+            (_FIXTURES_DIR / "synonym" / "query_data.json").read_text(encoding="utf-8")
+        )
+        assert raw_data["id"] == 125058
+        assert raw_data["name"] == "Amanita chrysoblema"
+
+        with patch.object(client, "_authed_get", return_value={}):
+            result = client._fetch_synonym_data(raw_data)
+
+        assert raw_data in result, (
+            "Expected the queried record itself to be resolved into the "
+            "synonym list, since its own id appears in its own "
+            "synonymy.taxonSynonyms in the real API response"
+        )
 
 
 class TestMycoBankFetchAcceptedData:
