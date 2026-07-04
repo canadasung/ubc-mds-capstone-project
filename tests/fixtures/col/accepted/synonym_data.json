@@ -17,7 +17,7 @@
       "id": "~CXs",
       "sectorKey": 49811,
       "verbatimSourceKey": 324439365,
-      "namesIndexId": 18842816,
+      "namesIndexId": 24764035,
       "namesIndexType": "exact",
       "identifier": [
         "tpl:kew-171681",
@@ -67,7 +67,7 @@
       "id": "~CXt",
       "sectorKey": 49811,
       "verbatimSourceKey": 324439367,
-      "namesIndexId": 18845229,
+      "namesIndexId": 24766872,
       "namesIndexType": "exact",
       "identifier": [
         "tpl:kew-171766",
@@ -117,7 +117,7 @@
       "id": "~CXu",
       "sectorKey": 49811,
       "verbatimSourceKey": 324439369,
-      "namesIndexId": 18864648,
+      "namesIndexId": 24790215,
       "namesIndexType": "exact",
       "identifier": [
         "tpl:kew-172387",
@@ -167,7 +167,7 @@
       "id": "~Uw7",
       "sectorKey": 2172,
       "verbatimSourceKey": 324581529,
-      "namesIndexId": 18875714,
+      "namesIndexId": 24803440,
       "namesIndexType": "exact",
       "scientificName": "Quercus feminea",
       "authorship": "Mill.",
@@ -210,7 +210,7 @@
       "id": "~CXv",
       "sectorKey": 49811,
       "verbatimSourceKey": 324439371,
-      "namesIndexId": 18875983,
+      "namesIndexId": 24803811,
       "namesIndexType": "variant",
       "identifier": [
         "tpl:kew-172772",
@@ -263,7 +263,7 @@
       "id": "~CXw",
       "sectorKey": 49811,
       "verbatimSourceKey": 324439373,
-      "namesIndexId": 18876456,
+      "namesIndexId": 24804417,
       "namesIndexType": "exact",
       "identifier": [
         "tpl:kew-172791"
@@ -312,7 +312,7 @@
       "id": "~CXx",
       "sectorKey": 49811,
       "verbatimSourceKey": 324439375,
-      "namesIndexId": 18884545,
+      "namesIndexId": 24814186,
       "namesIndexType": "exact",
       "identifier": [
         "tpl:kew-173060",
@@ -362,7 +362,7 @@
       "id": "~CXy",
       "sectorKey": 49811,
       "verbatimSourceKey": 324439376,
-      "namesIndexId": 18885318,
+      "namesIndexId": 24815077,
       "namesIndexType": "exact",
       "identifier": [
         "tpl:kew-173093",
@@ -412,7 +412,7 @@
       "id": "~CXz",
       "sectorKey": 49811,
       "verbatimSourceKey": 324439377,
-      "namesIndexId": 18904397,
+      "namesIndexId": 24837181,
       "namesIndexType": "exact",
       "identifier": [
         "tpl:kew-173713"
@@ -461,7 +461,7 @@
       "id": "~CX_",
       "sectorKey": 49811,
       "verbatimSourceKey": 324439379,
-      "namesIndexId": 18908627,
+      "namesIndexId": 24842297,
       "namesIndexType": "exact",
       "identifier": [
         "tpl:kew-173853"
@@ -511,7 +511,7 @@
       "id": "~Uw6",
       "sectorKey": 2172,
       "verbatimSourceKey": 324581528,
-      "namesIndexId": 18922422,
+      "namesIndexId": 24857983,
       "namesIndexType": "exact",
       "scientificName": "Quercus pedunculata",
       "authorship": "Ehrh.",
@@ -557,7 +557,7 @@
       "id": "~CX-",
       "sectorKey": 49811,
       "verbatimSourceKey": 324439381,
-      "namesIndexId": 18932636,
+      "namesIndexId": 24869905,
       "namesIndexType": "exact",
       "identifier": [
         "tpl:kew-174574",
@@ -607,7 +607,7 @@
       "id": "~2GC0",
       "sectorKey": 2171,
       "verbatimSourceKey": 325372781,
-      "namesIndexId": 18939558,
+      "namesIndexId": 24877367,
       "namesIndexType": "exact",
       "scientificName": "Quercus robur f. pendula",
       "authorship": "(Loudon) O. Schwarz",
@@ -663,7 +663,7 @@
       "id": "~CY1",
       "sectorKey": 49811,
       "verbatimSourceKey": 324439385,
-      "namesIndexId": 18942300,
+      "namesIndexId": 24880241,
       "namesIndexType": "exact",
       "identifier": [
         "tpl:kew-174781",
@@ -714,8 +714,8 @@
       "id": "~CY3",
       "sectorKey": 49811,
       "verbatimSourceKey": 324439389,
-      "namesIndexId": 18942943,
-      "namesIndexType": "exact",
+      "namesIndexId": 24881050,
+      "namesIndexType": "variant",
       "identifier": [
         "tpl:kew-174830"
       ],
@@ -769,8 +769,8 @@
       "id": "~CYC",
       "sectorKey": 49811,
       "verbatimSourceKey": 324439408,
-      "namesIndexId": 18966134,
-      "namesIndexType": "exact",
+      "namesIndexId": 24908589,
+      "namesIndexType": "variant",
       "identifier": [
         "tpl:kew-175544",
         "lsid:urn:lsid:ipni.org:names:360199-1"
