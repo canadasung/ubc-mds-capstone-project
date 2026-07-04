@@ -1,3 +1,13 @@
+---
+title: Species Synonym API
+emoji: 🌿
+colorFrom: green
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Species Synonym API
 
 FastAPI backend for the Beaty Biodiversity species synonym tool. It wraps the
