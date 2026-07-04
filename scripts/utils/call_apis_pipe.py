@@ -22,6 +22,7 @@ from scripts.apis_pipe.genbank import GenBankAPI
 from scripts.apis_pipe.index_fungorum import IndexFungorumAPI
 from scripts.apis_pipe.itis import ITISAPI
 from scripts.apis_pipe.mushroomobs import MushroomObserverAPI
+from scripts.apis_pipe.pbdb import PaleobiologyDatabaseAPI
 from scripts.apis_pipe.symbiota import SymbiotaAPI
 from scripts.apis_pipe.tropicos import TropicosAPI
 from scripts.config import (
@@ -32,6 +33,7 @@ from scripts.config import (
     INDEX_FUNGORUM_PORTAL,
     ITIS_PORTAL,
     MUSHROOM_OBSERVER_PORTAL,
+    PBDB_PORTAL,
     SYMBIOTA_PORTALS,
     TROPICOS_PORTAL,
 )
@@ -48,6 +50,7 @@ _PORTAL_REGISTRY: dict[str, Callable[[], SpeciesAPI]] = {
     MUSHROOM_OBSERVER_PORTAL.display_name: MushroomObserverAPI,
     FISHBASE_PORTAL.display_name: FishBaseAPI,
     ITIS_PORTAL.display_name: ITISAPI,
+    PBDB_PORTAL.display_name: PaleobiologyDatabaseAPI,
     **{
         p.display_name: (lambda name=p.display_name: SymbiotaAPI(name))
         for p in SYMBIOTA_PORTALS

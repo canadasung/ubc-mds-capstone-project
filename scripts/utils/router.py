@@ -17,6 +17,7 @@ ANIMALIA_APIS: list[str] = [
     "GenBank",
     "ITIS",
     "FishBase",
+    "Paleobiology Database",
 ]
 
 PLANTAE_APIS: list[str] = [
@@ -34,6 +35,7 @@ PLANTAE_APIS: list[str] = [
     "CNH",
     "Mid-Atlantic Herbaria Consortium",
     "swbiodiversity",
+    "Paleobiology Database",
 ]
 
 FUNGI_APIS: list[str] = [
@@ -44,6 +46,7 @@ FUNGI_APIS: list[str] = [
     "Mushroom Observer",
     "MyCoPortal",
     "Lichen Portal",
+    "Paleobiology Database",
 ]
 
 _KINGDOM_MAP: dict[str, list[str]] = {

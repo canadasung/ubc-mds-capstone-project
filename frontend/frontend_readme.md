@@ -133,9 +133,23 @@ frontend/
 └── ARCHITECTURE.md
 ```
 
+## Deployment
+
+The frontend is deployed to Vercel with **Root Directory** set to `frontend`.
+It reads the backend URL from `NEXT_PUBLIC_API_BASE_URL`, set as a Vercel
+Environment Variable (Project Settings > Environment Variables) rather than
+committed to `.env.local`. Vercel auto-deploys on push to whichever branch is
+configured as its Production environment; pushes to other branches produce
+Preview deployments instead.
+
+The backend is deployed separately (a Docker Space on Hugging Face, see
+[../huggingface_readme.md](../huggingface_readme.md)); pushing to this GitHub
+repo does not redeploy it, since it lives in a separate git repository on
+Hugging Face. `ALLOWED_ORIGINS` on that Space must include the Vercel domain
+for CORS to allow requests from the deployed frontend.
+
 ## Next steps
 
 1. Wire `/api/taxonomy` to live data (currently mock-only).
 2. Regenerate the sample CSVs to include the `order` column so mock mode and the
    Taxonomy view stay in sync with the schema.
-```

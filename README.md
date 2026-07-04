@@ -9,6 +9,9 @@ partnership with the Beaty Biodiversity Museum.
 
 ## Executive Summary
 
+**Live demo:** [ubc-mds-capstone-project.vercel.app](https://ubc-mds-capstone-project.vercel.app)
+(backend: [Hugging Face Space](https://windforce9e4-species-synonym-api.hf.space/docs))
+
 Curators at the Beaty Biodiversity Museum keep millions of physical specimens
 organized and labeled according to the current scientific consensus on their
 taxonomy. Because taxonomy changes over time, a single species can be referred to
@@ -110,7 +113,8 @@ source filter:
   CCH2, NANSH, Southwest Biodiversity, Algae Herbarium Portal, Pterido Portal,
   CNH (Northeast Herbaria), and Mid-Atlantic Herbaria.
 - **Independent APIs**: Catalogue of Life (COL), Tropicos, Index Fungorum,
-  GenBank, FishBase, ITIS, and Mushroom Observer.
+  GenBank, FishBase, ITIS, Mushroom Observer, and the Paleobiology Database
+  (PBDB).
 
 All source display names and base URLs are defined in [scripts/config.py](scripts/config.py).
 
@@ -141,6 +145,7 @@ synonym-only.) The four required fields — `api_name`, `genus`, `species`, and
 | ITIS | B | A | A | A | A | A | A | B | B | B | — | B | B | B | B | B |
 | FishBase | B | — | — | — | — | — | — | B | B | B | — | B | B | — | B | B |
 | Mushroom Observer | B | A | A | A | A | A | — | B | B | B | A | A | B | — | B | B |
+| Paleobiology Database | B | — | A | A | A | A | — | B | B | B | — | B | B | — | B | B |
 
 All eleven Symbiota portals (MyCoPortal, Lichen, Bryophyte, SERNEC, CCH2, NANSH,
 Southwest Biodiversity, Algae Herbarium, Pterido, CNH, and Mid-Atlantic) share the
@@ -195,7 +200,7 @@ ubc-mds-project/
 │   ├── apis_pipe/                # one SpeciesAPI client per source
 │   │   ├── base.py               # SpeciesAPI abstract base class
 │   │   ├── gbif.py, col.py, genbank.py, index_fungorum.py, mushroomobs.py,
-│   │   ├── symbiota.py, tropicos.py, fishbase.py, itis.py
+│   │   ├── symbiota.py, tropicos.py, fishbase.py, itis.py, pbdb.py
 │   └── utils/
 │       ├── call_apis_pipe.py     # fans a query out to the requested sources
 │       ├── router.py             # routes a query to sources by kingdom (via GBIF)
@@ -410,13 +415,19 @@ are excluded from CI and are designed to be run manually by developers as needed
 
 ## Deployment
 
-- **Backend**: a Docker image ([Dockerfile](Dockerfile)) is deployed to a Hugging
-  Face Space, which serves the FastAPI app on port 7860. The Space README is kept
+- **Backend**: a Docker image ([Dockerfile](Dockerfile)) is deployed to a
+  [Hugging Face Space](https://windforce9e4-species-synonym-api.hf.space/docs),
+  which serves the FastAPI app on port 7860. The Space README is kept
   as [huggingface_readme.md](huggingface_readme.md) in this repository so it does not clash with this
   project README. Allowed frontend origins are configured through the
-  `ALLOWED_ORIGINS` Space variable.
-- **Frontend**: the Next.js app is deployed to Vercel and points at the backend
-  through `NEXT_PUBLIC_API_BASE_URL`.
+  `ALLOWED_ORIGINS` Space variable. The Space is a separate git repository on
+  Hugging Face; pushes to this GitHub repo do not redeploy it automatically —
+  the backend subset of files must be copied and pushed to the Space repo directly.
+- **Frontend**: the Next.js app is deployed to
+  [Vercel](https://ubc-mds-capstone-project.vercel.app) (root directory
+  `frontend/`) and points at the backend through `NEXT_PUBLIC_API_BASE_URL`.
+  Vercel auto-deploys on push to the branch configured as its Production
+  environment; pushes to other branches produce Preview deployments only.
 
 ---
 

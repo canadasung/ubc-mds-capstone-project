@@ -46,6 +46,11 @@ API_QUERIES: dict[str, dict[str, str]] = {
         "synonym": "Salmo mykiss",
         "not_found": "Not species",
     },
+    "pbdb": {
+        "accepted": "Tyrannosaurus rex",
+        "synonym": "Dynamosaurus imperiosus",
+        "not_found": "Not species",
+    },
 }
 
 # Symbiota portal queries, keyed by fixture-folder slug. Each entry carries the
