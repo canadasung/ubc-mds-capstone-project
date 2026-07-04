@@ -457,6 +457,41 @@ def pbdb_fixtures() -> Iterator[Fixture]:
 
 
 # ---------------------------------------------------------------------------
+# MycoBank
+# Fetch types: query_data=dict, synonym_data=list, accepted_data=dict
+# Requires MYCOBANK_EMAIL/MYCOBANK_PASSWORD; skipped when not configured.
+# ---------------------------------------------------------------------------
+
+_MYCOBANK_SCENARIOS = list(API_QUERIES["mycobank"].items())
+
+
+def mycobank_fixtures() -> Iterator[Fixture]:
+    """Yield (path, data) pairs for all MycoBank fixture files."""
+    import os
+
+    email = os.environ.get("MYCOBANK_EMAIL", "")
+    password = os.environ.get("MYCOBANK_PASSWORD", "")
+    if not email or not password:
+        print("  [MycoBank] SKIPPED — MYCOBANK_EMAIL/MYCOBANK_PASSWORD not configured")
+        return
+
+    from scripts.apis_pipe.mycobank import MycoBankAPI
+
+    client = MycoBankAPI()
+    base = FIXTURES_DIR / "mycobank"
+
+    for scenario, name in _MYCOBANK_SCENARIOS:
+        query_data = client._fetch_query_data(_norm(name))
+        yield base / scenario / "query_data.json", query_data
+        if client._is_empty(query_data):
+            continue
+        synonym_data = client._fetch_synonym_data(query_data)
+        yield base / scenario / "synonym_data.json", synonym_data
+        accepted_data = client._fetch_accepted_data(query_data, synonym_data)
+        yield base / scenario / "accepted_data.json", accepted_data
+
+
+# ---------------------------------------------------------------------------
 # All API fetchers in run order
 # ---------------------------------------------------------------------------
 
@@ -470,5 +505,6 @@ ALL_FETCHERS: list[tuple[str, Generator[Fixture, None, None]]] = [
     ("Mushroom Observer", mushroom_observer_fixtures),
     ("ITIS", itis_fixtures),
     ("PBDB", pbdb_fixtures),
+    ("MycoBank", mycobank_fixtures),
     ("Symbiota", symbiota_fixtures),
 ]
