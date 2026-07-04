@@ -76,7 +76,9 @@ def call_apis(query: str, sources: List[str]) -> pd.DataFrame:
 
     Returns:
         A DataFrame of synonym records in the standard schema format, or an
-        empty schema-format DataFrame if no portal returned results.
+        empty schema-format DataFrame if no portal returned results. A
+        source that fails (e.g. missing credentials, network error) is
+        skipped rather than aborting the whole batch.
     """
     dfs = []
     for source in sources:
@@ -84,7 +86,11 @@ def call_apis(query: str, sources: List[str]) -> pd.DataFrame:
         factory = _PORTAL_REGISTRY.get(source)
         if factory is None:
             continue
-        df = factory().get_synonyms(query)
+        try:
+            df = factory().get_synonyms(query)
+        except Exception as e:
+            print(f"{source} failed: {e}")
+            continue
         if not df.empty:
             dfs.append(df)
 

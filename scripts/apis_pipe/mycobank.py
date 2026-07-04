@@ -135,7 +135,11 @@ class MycoBankAPI(SpeciesAPI):
             timeout=self._TIMEOUT,
         )
         resp.raise_for_status()
-        data = resp.json()
+        try:
+            data = resp.json()
+        except ValueError:
+            print(f"{type(self).__name__} error parsing token response JSON.")
+            raise
         self._access_token = data["access_token"]
         # Refresh 60 seconds early so a token never expires mid-request.
         self._token_expiry = time.time() + data.get("expires_in", 3600) - 60
@@ -146,6 +150,11 @@ class MycoBankAPI(SpeciesAPI):
     ) -> dict:
         """
         Make an authenticated GET request against the MycoBank API.
+
+        Reuses ``SpeciesAPI._fetch`` for the network call and error
+        reporting (via its ``headers`` override), so a failed request is
+        printed and re-raised the same way every other client's requests
+        are, rather than reimplementing that logic here.
 
         Parameters
         ----------
@@ -171,19 +180,13 @@ class MycoBankAPI(SpeciesAPI):
             If the request fails (network error or non-2xx status).
         """
         token = self._get_token()
+        response = self._fetch(
+            f"{self.BASE_URL}{path}",
+            params=params,
+            headers={"Authorization": f"Bearer {token}", "Accept": accept},
+        )
         try:
-            resp = requests.get(
-                f"{self.BASE_URL}{path}",
-                params=params,
-                headers={"Authorization": f"Bearer {token}", "Accept": accept},
-                timeout=self._TIMEOUT,
-            )
-            resp.raise_for_status()
-        except requests.RequestException as e:
-            print(f"{type(self).__name__} fetch error [{self.BASE_URL}{path}]: {e}")
-            raise
-        try:
-            return resp.json()
+            return response.json()
         except ValueError:
             print(f"{type(self).__name__} error parsing JSON.")
             return {}
@@ -208,10 +211,14 @@ class MycoBankAPI(SpeciesAPI):
             The first matching taxon record, with ``classification``
             resolved. ``{}`` if no match is found.
         """
+        # OData string literals escape an embedded single quote by doubling
+        # it; without this, a name like "O'Brienii" would break the filter
+        # expression's quoting.
+        escaped_name = name.replace("'", "''")
         data = self._authed_get(
             "/taxonnames",
             params={
-                "filter": f"anyText eq '{name}'",
+                "filter": f"anyText eq '{escaped_name}'",
                 "pageSize": 1,
                 "include": self._ACCEPTED_INCLUDE,
             },
@@ -247,6 +254,15 @@ class MycoBankAPI(SpeciesAPI):
         resolve (e.g. a transient error) is skipped rather than aborting the
         whole search.
 
+        When *raw_data* itself is a synonym (not the accepted name), the
+        synonym group returned by the API includes *raw_data*'s own id, since
+        the API returns the whole group's synonymy regardless of which
+        member was queried. That entry is resolved from *raw_data* directly
+        (it already carries a clean ``name``, avoiding a redundant fetch)
+        rather than skipped, so the exact name that was searched for is not
+        silently dropped from the result. Only the accepted name's own id is
+        excluded, since it is compiled separately by ``_fetch_accepted_data``.
+
         Parameters
         ----------
         raw_data : dict
@@ -260,20 +276,32 @@ class MycoBankAPI(SpeciesAPI):
         synonymy = raw_data.get("synonymy", {})
         ids: list[int] = []
         for entry in synonymy.get("taxonSynonyms") or []:
-            ids.append(entry["id"])
+            entry_id = entry.get("id")
+            if entry_id is not None:
+                ids.append(entry_id)
         for entry in synonymy.get("obligateSynonyms") or []:
-            ids.append(entry["id"])
+            entry_id = entry.get("id")
+            if entry_id is not None:
+                ids.append(entry_id)
         basionym = synonymy.get("basionym")
         if basionym:
-            ids.append(basionym["id"])
+            basionym_id = basionym.get("id")
+            if basionym_id is not None:
+                ids.append(basionym_id)
 
+        current_name = synonymy.get("currentName") or {}
+        current_id = current_name.get("id")
         own_id = raw_data.get("id")
+
         seen: set[int] = set()
         resolved = []
         for syn_id in ids:
-            if syn_id == own_id or syn_id in seen:
+            if syn_id == current_id or syn_id in seen:
                 continue
             seen.add(syn_id)
+            if syn_id == own_id:
+                resolved.append(raw_data)
+                continue
             try:
                 record = self._authed_get(
                     f"/taxonnames/{syn_id}",
@@ -313,11 +341,14 @@ class MycoBankAPI(SpeciesAPI):
         current_id = current_name.get("id")
         if current_id is None or current_id == raw_data.get("id"):
             return raw_data
-        return self._authed_get(
-            f"/taxonnames/{current_id}",
-            params={"include": self._ACCEPTED_INCLUDE},
-            accept="application/links+json",
-        )
+        try:
+            return self._authed_get(
+                f"/taxonnames/{current_id}",
+                params={"include": self._ACCEPTED_INCLUDE},
+                accept="application/links+json",
+            )
+        except requests.RequestException:
+            return {}
 
     def _extract_publication_year(self, record: dict) -> str:
         """
@@ -358,6 +389,28 @@ class MycoBankAPI(SpeciesAPI):
         if entries and isinstance(entries[0], dict):
             return entries[0].get("name") or ""
         return ""
+
+    def _build_api_link(self, record: dict) -> str:
+        """
+        Build the public MycoBank URL for a record, if it has a mycobankNr.
+
+        Parameters
+        ----------
+        record : dict
+            A MycoBank taxon record, possibly containing a ``mycobankNr``
+            field.
+
+        Returns
+        -------
+        str
+            ``"https://www.mycobank.org/MB/{mycobankNr}"``, or ``""`` if
+            ``mycobankNr`` is absent. Uses an explicit ``None`` check rather
+            than truthiness, since ``0`` would be a valid (if unlikely) id.
+        """
+        mycobank_nr = record.get("mycobankNr")
+        if mycobank_nr is None:
+            return ""
+        return f"https://www.mycobank.org/MB/{mycobank_nr}"
 
     def _extract_taxonomy(self, data: dict) -> dict[str, str]:
         """
@@ -413,7 +466,6 @@ class MycoBankAPI(SpeciesAPI):
         except ValueError:
             return []
         taxonomy = self._extract_taxonomy(accepted_data)
-        mycobank_nr = accepted_data.get("mycobankNr")
         return [
             self._format_row(
                 api_name=MYCOBANK_PORTAL.display_name,
@@ -425,9 +477,7 @@ class MycoBankAPI(SpeciesAPI):
                 publication_year=self._extract_publication_year(accepted_data),
                 publication_name=self._extract_publication_name(accepted_data),
                 status="Accepted",
-                api_link=(
-                    f"https://www.mycobank.org/MB/{mycobank_nr}" if mycobank_nr else ""
-                ),
+                api_link=self._build_api_link(accepted_data),
             )
         ]
 
@@ -458,7 +508,6 @@ class MycoBankAPI(SpeciesAPI):
             except ValueError:
                 continue
             seen.add(name)
-            mycobank_nr = record.get("mycobankNr")
             candidates.append(
                 self._format_row(
                     api_name=MYCOBANK_PORTAL.display_name,
@@ -469,9 +518,7 @@ class MycoBankAPI(SpeciesAPI):
                     publication_year=self._extract_publication_year(record),
                     publication_name=self._extract_publication_name(record),
                     status="Synonym",
-                    api_link=(
-                        f"https://www.mycobank.org/MB/{mycobank_nr}" if mycobank_nr else ""
-                    ),
+                    api_link=self._build_api_link(record),
                 )
             )
         return candidates
