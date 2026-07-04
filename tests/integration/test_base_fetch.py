@@ -4,13 +4,14 @@ fetch wrappers on ``SpeciesAPI`` (``scripts/apis_pipe/base.py``):
 ``_fetch``, ``_fetch_JSON``, ``_fetch_XML``, and ``_fetch_HTML``.
 
 These wrappers are patched out by the per-API unit tests, so their real
-behavior (network failure -> ``None``, parse failure -> empty fallback, success
+behavior (network failure -> raises, parse failure -> empty fallback, success
 -> parsed payload) is exercised nowhere else. This file fills that gap with a
 hybrid approach:
 
 - Real-HTTP cases (marked ``@pytest.mark.integration``, deselect with
   ``-m 'not integration'``) cover the network-failure and HTTP-status paths
-  against live endpoints.
+  against live endpoints. ``_fetch`` always raises ``requests.RequestException``
+  on failure; it never returns ``None``.
 - Mocked cases (no marker, run offline) cover the parse-error and
   ``None``-propagation branches that real APIs will not reliably produce.
 
@@ -24,6 +25,7 @@ import xml.etree.ElementTree as ET
 from unittest.mock import patch
 
 import pytest
+import requests
 
 from scripts.apis_pipe.base import SpeciesAPI
 
@@ -93,15 +95,17 @@ _NOT_FOUND_URL = "https://api.gbif.org/v1/this-endpoint-does-not-exist"
 
 
 @pytest.mark.integration
-def test_fetch_returns_none_on_connection_error(client, require_internet):
-    """A request to an unroutable host times out and _fetch returns None."""
-    assert client._fetch(_UNROUTABLE_URL, timeout=2) is None
+def test_fetch_raises_on_connection_error(client, require_internet):
+    """A request to an unroutable host times out and _fetch raises."""
+    with pytest.raises(requests.RequestException):
+        client._fetch(_UNROUTABLE_URL, timeout=2)
 
 
 @pytest.mark.integration
-def test_fetch_returns_none_on_http_error(client, require_internet):
-    """A 4xx response makes raise_for_status fire and _fetch returns None."""
-    assert client._fetch(_NOT_FOUND_URL) is None
+def test_fetch_raises_on_http_error(client, require_internet):
+    """A 4xx response makes raise_for_status fire and _fetch raises."""
+    with pytest.raises(requests.RequestException):
+        client._fetch(_NOT_FOUND_URL)
 
 
 @pytest.mark.integration
