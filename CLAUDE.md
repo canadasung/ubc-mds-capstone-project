@@ -93,6 +93,11 @@ not just the client file:
 9. Generate real fixture data with `python tests/fixtures/regenerate_fixtures.py`
    rather than hand-writing fixture JSON — it exercises the real client
    against the live API and catches integration bugs the unit tests can't.
+   **Then `git add` the new `tests/fixtures/<name>/` directory explicitly** —
+   it's easy to run the script, see it work locally, and forget the files
+   are untracked until CI or a fresh clone fails with `FileNotFoundError`.
+   Run `git status --short tests/fixtures/<name>/` to confirm before calling
+   the feature done.
 
 For sources needing credentials beyond a simple key (OAuth2, etc.): validate
 eagerly in `__init__` and raise `ValueError` if missing (see
@@ -100,6 +105,12 @@ eagerly in `__init__` and raise `ValueError` if missing (see
 the user to paste credentials into chat — write a throwaway probe script they
 run locally against their own `.env` values (writing output to a file if
 it's long) so real response shapes can be inspected without exposing secrets.
+If the source needs per-call dynamic headers (bearer tokens, custom Accept
+negotiation) that `SpeciesAPI._fetch`/`_fetch_JSON` can't express, consider
+whether the base class should grow an optional `headers` override instead of
+the client reimplementing the request/error-handling stack from scratch —
+check whether another existing client already hit the same wall before
+assuming it's a one-off.
 
 Don't guess field names, auth flows, or endpoint behavior for an external
 API. Look for an OpenAPI/Swagger spec first — sometimes at a predictable
@@ -107,6 +118,19 @@ path, sometimes embedded in a Scalar/Swagger-UI page's JS config even when
 the rendered page itself shows no visible content (check the raw HTML, not
 just a rendered fetch). If no docs are reachable, get the user to run a probe
 script against the real API before writing the client.
+
+**Test the case where the query resolves to a synonym whose own record
+contains a full, self-referencing synonym network** (not just a pointer up
+to the accepted name) — some APIs (MycoBank) return the entire synonym group,
+including the queried record itself, inside the hit's own `synonymy` block.
+A naive implementation that says "skip resolving this id, it's the same as
+what we already have" for the record's own id will silently drop the exact
+name the user searched for from the output, while still returning the
+accepted name and every *other* synonym — so nothing looks obviously broken
+in a casual test. `BaseApiTest`'s standard scenarios don't assert that the
+searched synonym name itself appears in the result, so this class of bug can
+pass the whole test suite; write an explicit assertion for it when a source's
+data model makes self-reference possible.
 
 ## Workflow
 
