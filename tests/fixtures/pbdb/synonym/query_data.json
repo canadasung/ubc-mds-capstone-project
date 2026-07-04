@@ -1,0 +1,19 @@
+{
+  "oid": "txn:56318",
+  "rnk": 3,
+  "nam": "Dynamosaurus imperiosus",
+  "att": "(Osborn 1905)",
+  "tdf": "subjective synonym of",
+  "acc": "txn:54833",
+  "acr": 3,
+  "acn": "Tyrannosaurus rex",
+  "par": "txn:38613",
+  "rid": "ref:9259",
+  "ext": "0",
+  "noc": 69,
+  "phl": "Chordata",
+  "cll": "Reptilia",
+  "odl": "NO_ORDER_SPECIFIED",
+  "fml": "Tyrannosauridae",
+  "gnl": "Tyrannosaurus"
+}

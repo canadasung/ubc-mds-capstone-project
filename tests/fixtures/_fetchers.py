@@ -430,6 +430,33 @@ def symbiota_fixtures() -> Iterator[Fixture]:
 
 
 # ---------------------------------------------------------------------------
+# PBDB
+# Fetch types: query_data=dict, synonym_data=list, accepted_data=dict
+# Note: _fetch_accepted_data returns query_data unchanged for the accepted path.
+# ---------------------------------------------------------------------------
+
+_PBDB_SCENARIOS = list(API_QUERIES["pbdb"].items())
+
+
+def pbdb_fixtures() -> Iterator[Fixture]:
+    """Yield (path, data) pairs for all PBDB fixture files."""
+    from scripts.apis_pipe.pbdb import PaleobiologyDatabaseAPI
+
+    client = PaleobiologyDatabaseAPI()
+    base = FIXTURES_DIR / "pbdb"
+
+    for scenario, name in _PBDB_SCENARIOS:
+        query_data = client._fetch_query_data(_norm(name))
+        yield base / scenario / "query_data.json", query_data
+        if client._is_empty(query_data):
+            continue
+        synonym_data = client._fetch_synonym_data(query_data)
+        yield base / scenario / "synonym_data.json", synonym_data
+        accepted_data = client._fetch_accepted_data(query_data, synonym_data)
+        yield base / scenario / "accepted_data.json", accepted_data
+
+
+# ---------------------------------------------------------------------------
 # All API fetchers in run order
 # ---------------------------------------------------------------------------
 
@@ -442,5 +469,6 @@ ALL_FETCHERS: list[tuple[str, Generator[Fixture, None, None]]] = [
     ("Index Fungorum", index_fungorum_fixtures),
     ("Mushroom Observer", mushroom_observer_fixtures),
     ("ITIS", itis_fixtures),
+    ("PBDB", pbdb_fixtures),
     ("Symbiota", symbiota_fixtures),
 ]
