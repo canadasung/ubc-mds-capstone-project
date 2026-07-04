@@ -99,3 +99,21 @@ class TestCallApisMultipleSources:
         with patch("scripts.utils.call_apis_pipe._PORTAL_REGISTRY", registry):
             result = call_apis("Amanita muscaria", ["GBIF", "COL"])
         assert list(result.index) == [0, 1]
+
+
+class TestCallApisSourceFailure:
+    def test_failing_source_is_skipped_others_still_return(self):
+        failing_factory = MagicMock(side_effect=ValueError("credentials missing"))
+        working_factory = _make_factory(_make_api_df(_ROW_A))
+        registry = {"MycoBank": failing_factory, "GBIF": working_factory}
+        with patch("scripts.utils.call_apis_pipe._PORTAL_REGISTRY", registry):
+            result = call_apis("Amanita muscaria", ["MycoBank", "GBIF"])
+        assert len(result) == 1
+        assert result.iloc[0]["api_name"] == "GBIF"
+
+    def test_all_sources_failing_returns_empty_table(self):
+        failing_factory = MagicMock(side_effect=ValueError("credentials missing"))
+        with patch("scripts.utils.call_apis_pipe._PORTAL_REGISTRY", {"MycoBank": failing_factory}):
+            result = call_apis("Amanita muscaria", ["MycoBank"])
+        assert result.empty
+        assert list(result.columns) == SYNONYM_COLUMNS

@@ -99,7 +99,11 @@ class SpeciesAPI(ABC):
     # ------------------------------------------------------------------
 
     def _fetch(
-        self, url: str, params: dict = {}, timeout: int | None = None
+        self,
+        url: str,
+        params: dict = {},
+        timeout: int | None = None,
+        headers: dict | None = None,
     ) -> requests.Response:
         """
         Make a GET request to the specified URL with error handling.
@@ -113,6 +117,10 @@ class SpeciesAPI(ABC):
         timeout : int, optional
             Request timeout in seconds. Defaults to the client's ``_TIMEOUT``
             (30s in the base class) when not provided.
+        headers : dict, optional
+            Request headers to use instead of ``self.HEADERS``. For clients
+            that need per-call dynamic headers (e.g. a bearer token that is
+            refreshed between requests). Defaults to ``self.HEADERS``.
 
         Returns
         -------
@@ -127,9 +135,11 @@ class SpeciesAPI(ABC):
         """
         if timeout is None:
             timeout = self._TIMEOUT
+        if headers is None:
+            headers = self.HEADERS
         try:
             response = requests.get(
-                url, params=params, headers=self.HEADERS, timeout=timeout
+                url, params=params, headers=headers, timeout=timeout
             )
             response.raise_for_status()
             return response
@@ -138,7 +148,11 @@ class SpeciesAPI(ABC):
             raise
 
     def _fetch_JSON(
-        self, url: str, params: dict = {}, timeout: int | None = None
+        self,
+        url: str,
+        params: dict = {},
+        timeout: int | None = None,
+        headers: dict | None = None,
     ) -> dict:
         """
         Make a GET request to a REST JSON endpoint and return the parsed response.
@@ -154,6 +168,8 @@ class SpeciesAPI(ABC):
         timeout : int, optional
             Request timeout in seconds. Defaults to the client's ``_TIMEOUT``
             (30s in the base class) when not provided.
+        headers : dict, optional
+            Request headers to use instead of ``self.HEADERS``. See ``_fetch``.
 
         Returns
         -------
@@ -162,7 +178,7 @@ class SpeciesAPI(ABC):
             response body that is not valid JSON).
         """
 
-        response = self._fetch(url, params=params, timeout=timeout)
+        response = self._fetch(url, params=params, timeout=timeout, headers=headers)
         if response is None:
             return {}
         try:

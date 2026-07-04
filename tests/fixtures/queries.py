@@ -51,6 +51,11 @@ API_QUERIES: dict[str, dict[str, str]] = {
         "synonym": "Dynamosaurus imperiosus",
         "not_found": "Not species",
     },
+    "mycobank": {
+        "accepted": "Amanita muscaria",
+        "synonym": "Amanita chrysoblema",
+        "not_found": "Not species",
+    },
 }
 
 # Symbiota portal queries, keyed by fixture-folder slug. Each entry carries the

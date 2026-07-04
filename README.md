@@ -113,12 +113,13 @@ source filter:
   CCH2, NANSH, Southwest Biodiversity, Algae Herbarium Portal, Pterido Portal,
   CNH (Northeast Herbaria), and Mid-Atlantic Herbaria.
 - **Independent APIs**: Catalogue of Life (COL), Tropicos, Index Fungorum,
-  GenBank, FishBase, ITIS, Mushroom Observer, and the Paleobiology Database
-  (PBDB).
+  GenBank, FishBase, ITIS, Mushroom Observer, the Paleobiology Database
+  (PBDB), and MycoBank.
 
 All source display names and base URLs are defined in [scripts/config.py](scripts/config.py).
 
-GenBank and Tropicos require credentials (see [Credentials](#3-set-up-credentials)). The other sources need no credentials.
+GenBank, Tropicos, and MycoBank require credentials (see
+[Credentials](#3-set-up-credentials)). The other sources need no credentials.
 
 ### Field availability by source
 
@@ -126,8 +127,8 @@ Sources differ in which schema fields they provide, and in whether a field is
 provided for accepted names, synonym names, or both. The table below cross-references
 each source against the schema (see [Data Schema](#data-schema)), one column per
 field. Note that sources differ in how deep their taxonomy goes: only Catalogue of
-Life, GenBank, and ITIS provide `subfamily`; the others that carry taxonomy stop at
-`family`.
+Life, GenBank, ITIS, and MycoBank provide `subfamily`; the others that carry
+taxonomy stop at `family`.
 
 Legend: **B** = provided for both accepted and synonym rows; **A** = provided for
 the accepted name row only; **—** = never provided by this source. (There are no fields that are
@@ -146,14 +147,17 @@ synonym-only.) The four required fields — `api_name`, `genus`, `species`, and
 | FishBase | B | — | — | — | — | — | — | B | B | B | — | B | B | — | B | B |
 | Mushroom Observer | B | A | A | A | A | A | — | B | B | B | A | A | B | — | B | B |
 | Paleobiology Database | B | — | A | A | A | A | — | B | B | B | — | B | B | — | B | B |
+| MycoBank | B | A | A | A | A | A | A | B | B | B | B | B | B | — | B | B |
 
 All eleven Symbiota portals (MyCoPortal, Lichen, Bryophyte, SERNEC, CCH2, NANSH,
 Southwest Biodiversity, Algae Herbarium, Pterido, CNH, and Mid-Atlantic) share the
 same `SymbiotaAPI` implementation, so their availability is identical. FishBase
 returns all rows through the synonym flow with no separate accepted-name fetch,
-which is why it provides no accepted-only fields. Each source documents its own
-availability in the `Fields implemented` section of its client docstring in
-[scripts/apis_pipe/](scripts/apis_pipe/).
+which is why it provides no accepted-only fields. MycoBank is fungi-only (unlike
+PBDB, which spans all kingdoms) and resolves each synonym with its own follow-up
+request, since the search response only returns synonym ids with a placeholder
+name. Each source documents its own availability in the `Fields implemented`
+section of its client docstring in [scripts/apis_pipe/](scripts/apis_pipe/).
 
 ---
 
@@ -200,7 +204,7 @@ ubc-mds-project/
 │   ├── apis_pipe/                # one SpeciesAPI client per source
 │   │   ├── base.py               # SpeciesAPI abstract base class
 │   │   ├── gbif.py, col.py, genbank.py, index_fungorum.py, mushroomobs.py,
-│   │   ├── symbiota.py, tropicos.py, fishbase.py, itis.py, pbdb.py
+│   │   ├── symbiota.py, tropicos.py, fishbase.py, itis.py, pbdb.py, mycobank.py
 │   └── utils/
 │       ├── call_apis_pipe.py     # fans a query out to the requested sources
 │       ├── router.py             # routes a query to sources by kingdom (via GBIF)
@@ -265,9 +269,13 @@ cp .env.example .env
   account is needed.
 - `TROPICOS_API_KEY`: a free key for the Tropicos API, available at
   <https://services.tropicos.org/help?requestkey>.
+- `MYCOBANK_EMAIL` / `MYCOBANK_PASSWORD`: credentials for a registered
+  MycoBank account, available at
+  <https://www.mycobank.org/profile/register>. Used to obtain an OAuth2
+  access token for the MycoBank API.
 
 `.env` is listed in `.gitignore` and should never be committed. Sources other
-than GenBank and Tropicos work without credentials.
+than GenBank, Tropicos, and MycoBank work without credentials.
 
 These credentials are only needed to query those sources live (running the app
 or the integration tests). CI runs the offline unit suite only and needs no
@@ -350,17 +358,33 @@ consistently while keeping the source-specific parsing isolated:
 The two outputs are combined and returned as a DataFrame in the schema format.
 The base class also provides optional helpers (for example, extracting a
 publication year from a citation string) that a source can use or override.
-To add a new source, implement the five required methods, then register it in two
-places that must be kept in sync:
+To add a new source, implement the five required methods, then update each of
+the following (they are not auto-discovered, so all must be kept in sync):
 
-- Backend: [scripts/config.py](scripts/config.py) and
-  [scripts/utils/call_apis_pipe.py](scripts/utils/call_apis_pipe.py), so the
+- [scripts/config.py](scripts/config.py): add an `APIPortal` entry and list
+  it in `ALL_PORTALS`.
+- [scripts/utils/router.py](scripts/utils/router.py): add the portal's
+  display name to the relevant kingdom list(s) (`ANIMALIA_APIS`,
+  `PLANTAE_APIS`, `FUNGI_APIS`) so kingdom-based auto-routing includes it.
+- [scripts/utils/call_apis_pipe.py](scripts/utils/call_apis_pipe.py):
+  register `display_name -> ClientClass` in `_PORTAL_REGISTRY`, so the
   pipeline can query the source.
-- Frontend: [frontend/lib/sources.ts](frontend/lib/sources.ts), so the source
-  appears in the source filter in the app.
+- [frontend/lib/sources.ts](frontend/lib/sources.ts): add a `SourceDef`
+  entry so the source appears in the source filter in the app. If the
+  entry's `label` differs from its `backendName`, also add
+  `aliases: [backendName]` — `keyForApiName()` matches a record's
+  `api_name` against `label`/`aliases`, not `backendName`, so without the
+  alias results silently resolve to zero with no visible error.
+- [tests/fixtures/queries.py](tests/fixtures/queries.py),
+  [tests/fixtures/_fetchers.py](tests/fixtures/_fetchers.py), and a new
+  `tests/scripts/apis_pipe/test_<name>.py` subclassing `BaseApiTest`: wire
+  the new source into the test suite, then run
+  `python tests/fixtures/regenerate_fixtures.py` to record real fixture
+  data rather than hand-writing it.
 
-The source list is currently maintained separately in the backend and the
-frontend, so both must be updated.
+Sources needing credentials beyond a simple key (OAuth2, etc.) should
+validate eagerly in `__init__` and raise `ValueError` if missing (see
+`scripts/apis_pipe/tropicos.py` and `scripts/apis_pipe/mycobank.py`).
 
 ---
 
@@ -407,9 +431,14 @@ pytest tests/scripts/utils/test_schema.py     # a single module
 A GitHub Actions workflow ([.github/workflows/tests.yml](.github/workflows/tests.yml))
 runs on every pull request to `main` and `dev`: it sets up the conda environment,
 installs the pipeline with `pip install -e .`, and runs
-`pytest -v -m "not integration" tests/`. The GenBank tests require the
-`ENTREZ_EMAIL` repository secret (see [CI](#ci-github-actions)). Integration tests
-are excluded from CI and are designed to be run manually by developers as needed.
+`pytest -v -m "not integration" tests/`. The `not integration` selector excludes
+every test that makes a real HTTP call, so CI needs no credentials and a
+portal being down can never fail a PR. Integration tests are excluded from CI
+and are designed to be run manually by developers as needed (the credentialed
+sources' integration tests skip themselves locally, or fail with a clear
+message in CI, via the `require_entrez_email` / `require_tropicos_api_key`
+fixtures in [tests/conftest.py](tests/conftest.py) when the corresponding
+secret is missing).
 
 ---
 
@@ -472,6 +501,14 @@ National Center for Biotechnology Information (US); 2010-. Available from
 
 Mushroom Observer: Wilson, N., Hollinger, J., et al. 2006-present. Mushroom
 Observer. <https://mushroomobserver.org>
+
+Paleobiology Database: <https://paleobiodb.org>. (No official citation format
+was available at the time of writing; check the site's "Cite us" page for the
+current recommended format before publishing.)
+
+MycoBank: Westerdijk Fungal Biodiversity Institute. <https://www.mycobank.org>.
+(No official citation format was available at the time of writing; check the
+site's documentation for the current recommended format before publishing.)
 
 ---
 

@@ -68,6 +68,70 @@ npm run typecheck  # tsc --noEmit — run before considering frontend work done
 - The COL client pins `DATASET_KEY` (currently COL26.5 = `315192`) in
   `scripts/apis_pipe/col.py`; update it when a newer COL release ships.
 
+## Adding a new API source
+
+Checklist (last done for PBDB and MycoBank) — all of these must be updated,
+not just the client file:
+
+1. `scripts/apis_pipe/<name>.py` — the `SpeciesAPI` subclass (see
+   `scripts/apis_pipe/base.py` for the five-method contract).
+2. `scripts/config.py` — add an `APIPortal` entry and list it in `ALL_PORTALS`.
+3. `scripts/utils/router.py` — add the portal's display name to the relevant
+   kingdom list(s) (`ANIMALIA_APIS` / `PLANTAE_APIS` / `FUNGI_APIS`).
+4. `scripts/utils/call_apis_pipe.py` — register `display_name -> ClientClass`
+   in `_PORTAL_REGISTRY`.
+5. `frontend/lib/sources.ts` — add a `SourceDef` entry. **If `label` differs
+   from `backendName`, add `aliases: [backendName]`.** `keyForApiName()`
+   matches a record's `api_name` against `label`/`aliases`, not `backendName`
+   — without the alias, results resolve to a key nothing recognizes and get
+   silently filtered to zero with no visible error. (Hit this exact bug with
+   PBDB: label `"PBDB"` vs backendName `"Paleobiology Database"`.)
+6. `tests/fixtures/queries.py` — add an `accepted`/`synonym`/`not_found` entry.
+7. `tests/fixtures/_fetchers.py` — add a `<name>_fixtures()` generator and
+   list it in `ALL_FETCHERS`.
+8. `tests/scripts/apis_pipe/test_<name>.py` — subclass `BaseApiTest`.
+9. Generate real fixture data with `python tests/fixtures/regenerate_fixtures.py`
+   rather than hand-writing fixture JSON — it exercises the real client
+   against the live API and catches integration bugs the unit tests can't.
+   **Then `git add` the new `tests/fixtures/<name>/` directory explicitly** —
+   it's easy to run the script, see it work locally, and forget the files
+   are untracked until CI or a fresh clone fails with `FileNotFoundError`.
+   Run `git status --short tests/fixtures/<name>/` to confirm before calling
+   the feature done.
+
+For sources needing credentials beyond a simple key (OAuth2, etc.): validate
+eagerly in `__init__` and raise `ValueError` if missing (see
+`scripts/apis_pipe/tropicos.py`, `scripts/apis_pipe/mycobank.py`). Never ask
+the user to paste credentials into chat — write a throwaway probe script they
+run locally against their own `.env` values (writing output to a file if
+it's long) so real response shapes can be inspected without exposing secrets.
+If the source needs per-call dynamic headers (bearer tokens, custom Accept
+negotiation) that `SpeciesAPI._fetch`/`_fetch_JSON` can't express, consider
+whether the base class should grow an optional `headers` override instead of
+the client reimplementing the request/error-handling stack from scratch —
+check whether another existing client already hit the same wall before
+assuming it's a one-off.
+
+Don't guess field names, auth flows, or endpoint behavior for an external
+API. Look for an OpenAPI/Swagger spec first — sometimes at a predictable
+path, sometimes embedded in a Scalar/Swagger-UI page's JS config even when
+the rendered page itself shows no visible content (check the raw HTML, not
+just a rendered fetch). If no docs are reachable, get the user to run a probe
+script against the real API before writing the client.
+
+**Test the case where the query resolves to a synonym whose own record
+contains a full, self-referencing synonym network** (not just a pointer up
+to the accepted name) — some APIs (MycoBank) return the entire synonym group,
+including the queried record itself, inside the hit's own `synonymy` block.
+A naive implementation that says "skip resolving this id, it's the same as
+what we already have" for the record's own id will silently drop the exact
+name the user searched for from the output, while still returning the
+accepted name and every *other* synonym — so nothing looks obviously broken
+in a casual test. `BaseApiTest`'s standard scenarios don't assert that the
+searched synonym name itself appears in the result, so this class of bug can
+pass the whole test suite; write an explicit assertion for it when a source's
+data model makes self-reference possible.
+
 ## Workflow
 
 - Don't commit or push unless asked. If on `main`, branch first.
