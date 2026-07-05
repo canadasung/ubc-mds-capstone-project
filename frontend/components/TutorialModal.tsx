@@ -130,7 +130,13 @@ export function TutorialModal({
     <Modal
       opened={opened}
       onClose={handleClose}
+      // Plain string, not a <Title> element: Modal's own title element already
+      // renders as an <h2>, so nesting another heading (e.g. <Title order={4}>)
+      // inside it produced invalid HTML (<h2><h4>...</h4></h2>) and a React
+      // hydration mismatch. The `styles.title` override below restores the
+      // bold, larger look that <Title order={4}> used to provide.
       title={STEPS[step].title}
+      styles={{ title: { fontWeight: 700, fontSize: "var(--mantine-h4-font-size)" } }}
       size="xl"
       overlayProps={{ backgroundOpacity: 0.45, blur: 3 }}
       centered

@@ -30,6 +30,14 @@ import { Group, Stack, Switch, Text } from "@mantine/core";
 import { useFullscreen } from "@mantine/hooks";
 
 import { useFilteredRecords } from "@/lib/hooks";
+import {
+  MANTINE_BLUE_6,
+  MANTINE_BLUE_LIGHT,
+  MANTINE_BODY,
+  MANTINE_DEFAULT_BORDER,
+  MANTINE_DEFAULT_HOVER,
+  MANTINE_TEXT,
+} from "@/lib/theme";
 import { buildRelationsGraph, type GraphNode } from "@/lib/transforms";
 
 type RelNodeData = {
@@ -45,23 +53,23 @@ const HoverContext = createContext<HoverState>(null);
 
 const KIND_STYLE: Record<"source" | "genus" | "species", React.CSSProperties> = {
   source: {
-    background: "var(--mantine-color-body)",
-    border: "1px solid var(--mantine-color-default-border)",
+    background: MANTINE_BODY,
+    border: `1px solid ${MANTINE_DEFAULT_BORDER}`,
     fontWeight: 600,
     minWidth: 160,
     textAlign: "center",
   },
   genus: {
-    background: "var(--mantine-color-body)",
-    border: "1px solid var(--mantine-color-default-border)",
+    background: MANTINE_BODY,
+    border: `1px solid ${MANTINE_DEFAULT_BORDER}`,
     fontWeight: 500,
     fontStyle: "italic",
     minWidth: 140,
     textAlign: "center",
   },
   species: {
-    background: "var(--mantine-color-default-hover)",
-    border: "1.5px solid var(--mantine-color-blue-6)",
+    background: MANTINE_DEFAULT_HOVER,
+    border: `1.5px solid ${MANTINE_BLUE_6}`,
     fontStyle: "italic",
     minWidth: 180,
     textAlign: "left",
@@ -92,7 +100,7 @@ function RelNode({ data }: NodeProps) {
   const style = KIND_STYLE[d.kind as "source" | "genus" | "species"] ?? KIND_STYLE.species;
   const widthOverride = d.nodeWidth !== undefined ? { minWidth: d.nodeWidth, width: d.nodeWidth } : {};
   const highlightOverride = highlighted
-    ? { background: "var(--mantine-color-blue-light)", border: "2px solid var(--mantine-color-blue-6)" }
+    ? { background: MANTINE_BLUE_LIGHT, border: `2px solid ${MANTINE_BLUE_6}` }
     : {};
   return (
     <div
@@ -102,7 +110,7 @@ function RelNode({ data }: NodeProps) {
         whiteSpace: "pre-line",
         fontSize: 12,
         fontFamily: "monospace",
-        color: "var(--mantine-color-text)",
+        color: MANTINE_TEXT,
         cursor: d.url ? "pointer" : "default",
         boxShadow: "1px 2px 4px rgba(0,0,0,0.1)",
         ...style,
@@ -163,7 +171,7 @@ function ElbowEdge({
   return (
     <path
       d={d}
-      stroke="var(--mantine-color-default-border)"
+      stroke={MANTINE_DEFAULT_BORDER}
       strokeWidth={1}
       fill="none"
       className="react-flow__edge-path"
@@ -285,7 +293,7 @@ export function RelationsView() {
         : alignByGenus && genusNodeIds.has(e.target)
         ? "sgnedge"
         : "smoothstep",
-      style: { stroke: "var(--mantine-color-default-border)" },
+      style: { stroke: MANTINE_DEFAULT_BORDER },
     }));
     const genusElbowX = GENUS_ELBOW_X + genusOffset;
 
@@ -333,9 +341,9 @@ export function RelationsView() {
       style={{
         width: "100%",
         height: fullscreen ? "100vh" : 680,
-        border: "1px solid var(--mantine-color-default-border)",
+        border: `1px solid ${MANTINE_DEFAULT_BORDER}`,
         borderRadius: fullscreen ? 0 : 8,
-        background: "var(--mantine-color-body)",
+        background: MANTINE_BODY,
       }}
     >
       <ReactFlow
@@ -352,7 +360,7 @@ export function RelationsView() {
         nodesConnectable={false}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="var(--mantine-color-default-border)" />
+        <Background color={MANTINE_DEFAULT_BORDER} />
         <Controls showInteractive={false}>
           <ControlButton
             onClick={toggleFullscreen}
