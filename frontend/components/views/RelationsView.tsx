@@ -45,23 +45,23 @@ const HoverContext = createContext<HoverState>(null);
 
 const KIND_STYLE: Record<"source" | "genus" | "species", React.CSSProperties> = {
   source: {
-    background: "#ffffff",
-    border: "1px solid #adb5bd",
+    background: "var(--mantine-color-body)",
+    border: "1px solid var(--mantine-color-default-border)",
     fontWeight: 600,
     minWidth: 160,
     textAlign: "center",
   },
   genus: {
-    background: "#ffffff",
-    border: "1px solid #adb5bd",
+    background: "var(--mantine-color-body)",
+    border: "1px solid var(--mantine-color-default-border)",
     fontWeight: 500,
     fontStyle: "italic",
     minWidth: 140,
     textAlign: "center",
   },
   species: {
-    background: "#f8f9fa",
-    border: "1.5px solid #74c0fc",
+    background: "var(--mantine-color-default-hover)",
+    border: "1.5px solid var(--mantine-color-blue-6)",
     fontStyle: "italic",
     minWidth: 180,
     textAlign: "left",
@@ -92,7 +92,7 @@ function RelNode({ data }: NodeProps) {
   const style = KIND_STYLE[d.kind as "source" | "genus" | "species"] ?? KIND_STYLE.species;
   const widthOverride = d.nodeWidth !== undefined ? { minWidth: d.nodeWidth, width: d.nodeWidth } : {};
   const highlightOverride = highlighted
-    ? { background: "#d0ebff", border: "2px solid #228be6" }
+    ? { background: "var(--mantine-color-blue-light)", border: "2px solid var(--mantine-color-blue-6)" }
     : {};
   return (
     <div
@@ -102,6 +102,7 @@ function RelNode({ data }: NodeProps) {
         whiteSpace: "pre-line",
         fontSize: 12,
         fontFamily: "monospace",
+        color: "var(--mantine-color-text)",
         cursor: d.url ? "pointer" : "default",
         boxShadow: "1px 2px 4px rgba(0,0,0,0.1)",
         ...style,
@@ -159,7 +160,15 @@ function ElbowEdge({
 }) {
   const ex = Math.max(sourceX + 8, elbowX);
   const d = `M${sourceX},${sourceY} H${ex} V${targetY} H${targetX}`;
-  return <path d={d} stroke="#adb5bd" strokeWidth={1} fill="none" className="react-flow__edge-path" />;
+  return (
+    <path
+      d={d}
+      stroke="var(--mantine-color-default-border)"
+      strokeWidth={1}
+      fill="none"
+      className="react-flow__edge-path"
+    />
+  );
 }
 
 /**
@@ -276,7 +285,7 @@ export function RelationsView() {
         : alignByGenus && genusNodeIds.has(e.target)
         ? "sgnedge"
         : "smoothstep",
-      style: { stroke: "#adb5bd" },
+      style: { stroke: "var(--mantine-color-default-border)" },
     }));
     const genusElbowX = GENUS_ELBOW_X + genusOffset;
 
@@ -324,9 +333,9 @@ export function RelationsView() {
       style={{
         width: "100%",
         height: fullscreen ? "100vh" : 680,
-        border: "1px solid #e9ecef",
+        border: "1px solid var(--mantine-color-default-border)",
         borderRadius: fullscreen ? 0 : 8,
-        background: "#fff",
+        background: "var(--mantine-color-body)",
       }}
     >
       <ReactFlow
@@ -343,7 +352,7 @@ export function RelationsView() {
         nodesConnectable={false}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#fafafa" />
+        <Background color="var(--mantine-color-default-border)" />
         <Controls showInteractive={false}>
           <ControlButton
             onClick={toggleFullscreen}

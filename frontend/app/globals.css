@@ -12,3 +12,21 @@ body {
 .queryRow td {
   font-weight: 700;
 }
+
+/*
+ * React Flow's Controls/ControlButton (Relations view) ship their own default
+ * light-only stylesheet (imported separately from Mantine's theme), so they
+ * do not follow Mantine's color scheme automatically. Override them here
+ * using Mantine's [data-mantine-color-scheme] attribute on <html>.
+ */
+[data-mantine-color-scheme="dark"] .react-flow__controls-button {
+  background: var(--mantine-color-body);
+  border-bottom-color: var(--mantine-color-default-border);
+  color: var(--mantine-color-text);
+}
+[data-mantine-color-scheme="dark"] .react-flow__controls-button:hover {
+  background: var(--mantine-color-default-hover);
+}
+[data-mantine-color-scheme="dark"] .react-flow__attribution {
+  background: var(--mantine-color-body);
+}
