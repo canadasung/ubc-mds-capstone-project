@@ -11,7 +11,6 @@ import {
   Stack,
   Stepper,
   Text,
-  Title,
 } from "@mantine/core";
 
 const COOKIE_NAME = "tutorial_dismissed";
@@ -131,7 +130,7 @@ export function TutorialModal({
     <Modal
       opened={opened}
       onClose={handleClose}
-      title={<Title order={4}>{STEPS[step].title}</Title>}
+      title={STEPS[step].title}
       size="xl"
       overlayProps={{ backgroundOpacity: 0.45, blur: 3 }}
       centered

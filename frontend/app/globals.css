@@ -30,3 +30,16 @@ body {
 [data-mantine-color-scheme="dark"] .react-flow__attribution {
   background: var(--mantine-color-body);
 }
+
+/*
+ * ColorSchemeToggle renders both the sun and moon icons unconditionally (see
+ * that component for why) and relies on this CSS, keyed off Mantine's
+ * [data-mantine-color-scheme] attribute, to show only the one matching the
+ * current scheme.
+ */
+[data-mantine-color-scheme="light"] .color-scheme-icon-light {
+  display: none;
+}
+[data-mantine-color-scheme="dark"] .color-scheme-icon-dark {
+  display: none;
+}
