@@ -10,9 +10,9 @@
  * block per record (API, status, author, source). A year card is treated as
  * accepted when any of its records is accepted: accepted years display square
  * (green), synonym-only years rounded (purple), and mixed years a split
- * square-over-rounded border. Axis dots are uniform black circles and do not
- * encode source or status. Undated entries appear in a collapsible table below
- * either view.
+ * square-over-rounded border. Axis dots use the theme's text color (uniform,
+ * not encoding source or status) so they stay visible in both light and dark
+ * mode. Undated entries appear in a collapsible table below either view.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -33,6 +33,12 @@ import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 
 import { useFilteredRecords } from "@/lib/hooks";
 import { useSearchStore } from "@/lib/store";
+import {
+  MANTINE_BODY,
+  MANTINE_DEFAULT_BORDER,
+  MANTINE_DIMMED,
+  MANTINE_TEXT,
+} from "@/lib/theme";
 import {
   buildTimeline,
   groupTimelineByYear,
@@ -64,7 +70,7 @@ const COLOR_LINK = "#1c7ed6";
 function statusColor(status: string): string {
   if (status === "Accepted") return COLOR_ACCEPTED;
   if (status === "Synonym") return COLOR_SYNONYM;
-  return "#888";
+  return MANTINE_DIMMED;
 }
 
 /** Extra horizontal margin in pixels past the first/last card on the axis. */
@@ -329,7 +335,7 @@ function ExternalLinkIcon() {
  *     its section (used for the first record after a section separator).
  */
 function RecordBlock({ entry, first }: { entry: TimelineEntry; first?: boolean }) {
-  const label = (text: string) => <span style={{ color: "#888" }}>{text}</span>;
+  const label = (text: string) => <span style={{ color: MANTINE_DIMMED }}>{text}</span>;
   return (
     <div style={{ marginTop: first ? 0 : 8 }}>
       <div>
@@ -403,7 +409,7 @@ function TimelineCard({ group, isOpen, onToggle }: TimelineCardProps) {
     cursor: "pointer",
     fontFamily: "Courier New, monospace",
     fontSize: 13,
-    color: "#333",
+    color: MANTINE_TEXT,
     maxWidth: isOpen ? 300 : 260,
     minWidth: 120,
     textAlign: isOpen ? "left" : "center",
@@ -425,7 +431,7 @@ function TimelineCard({ group, isOpen, onToggle }: TimelineCardProps) {
             borderRight: `2px solid ${COLOR_ACCEPTED}`,
             borderRadius: 0,
             padding: "10px 14px",
-            backgroundColor: "white",
+            backgroundColor: MANTINE_BODY,
           }}
         >
           <div style={{ fontWeight: "bold", fontSize: 15, marginBottom: 4 }}>
@@ -442,7 +448,7 @@ function TimelineCard({ group, isOpen, onToggle }: TimelineCardProps) {
             borderBottom: `2px solid ${COLOR_SYNONYM}`,
             borderRadius: "0 0 10px 10px",
             padding: "10px 14px",
-            backgroundColor: "white",
+            backgroundColor: MANTINE_BODY,
           }}
         >
           {group.synonyms.map((e, i) => (
@@ -462,13 +468,21 @@ function TimelineCard({ group, isOpen, onToggle }: TimelineCardProps) {
       border: "2px solid transparent",
       borderRadius: "0 0 10px 10px",
       background:
-        "linear-gradient(#fff, #fff) padding-box, " +
+        `linear-gradient(${MANTINE_BODY}, ${MANTINE_BODY}) padding-box, ` +
         `linear-gradient(to bottom, ${COLOR_ACCEPTED} 50%, ${COLOR_SYNONYM} 50%) border-box`,
     };
   } else if (hasAccepted) {
-    borderStyle = { border: `2px solid ${COLOR_ACCEPTED}`, borderRadius: 0, backgroundColor: "white" };
+    borderStyle = {
+      border: `2px solid ${COLOR_ACCEPTED}`,
+      borderRadius: 0,
+      backgroundColor: MANTINE_BODY,
+    };
   } else {
-    borderStyle = { border: `2px solid ${COLOR_SYNONYM}`, borderRadius: 10, backgroundColor: "white" };
+    borderStyle = {
+      border: `2px solid ${COLOR_SYNONYM}`,
+      borderRadius: 10,
+      backgroundColor: MANTINE_BODY,
+    };
   }
 
   return (
@@ -501,7 +515,7 @@ function TimelineCard({ group, isOpen, onToggle }: TimelineCardProps) {
             representative.name
           )}
           {group.count > 1 && (
-            <div style={{ color: "#888", fontWeight: "normal", fontSize: 11 }}>
+            <div style={{ color: MANTINE_DIMMED, fontWeight: "normal", fontSize: 11 }}>
               +{group.count - 1} more
             </div>
           )}
@@ -665,7 +679,7 @@ function VerticalTimeline({ layout, groups, expanded, onToggle }: VerticalTimeli
           top: 0,
           bottom: 0,
           width: 2,
-          backgroundColor: "#bdc3c7",
+          backgroundColor: MANTINE_DEFAULT_BORDER,
           zIndex: 0,
         }}
       />
@@ -681,7 +695,7 @@ function VerticalTimeline({ layout, groups, expanded, onToggle }: VerticalTimeli
             transform: "translateX(-50%)",
             width: 16,
             height: 3,
-            backgroundColor: "#868e96",
+            backgroundColor: MANTINE_DIMMED,
             zIndex: 0,
           }}
         />
@@ -706,7 +720,7 @@ function VerticalTimeline({ layout, groups, expanded, onToggle }: VerticalTimeli
                 left: isLeft ? undefined : "50%",
                 right: isLeft ? "50%" : undefined,
                 width: item.dist,
-                borderTop: "1px dashed #bdc3c7",
+                borderTop: `1px dashed ${MANTINE_DEFAULT_BORDER}`,
                 zIndex: 0,
               }}
             />
@@ -737,8 +751,8 @@ function VerticalTimeline({ layout, groups, expanded, onToggle }: VerticalTimeli
                 fontWeight: "bold",
                 fontSize: 11,
                 lineHeight: 1,
-                color: "#333",
-                backgroundColor: "rgba(255,255,255,0.85)",
+                color: MANTINE_TEXT,
+                backgroundColor: MANTINE_BODY,
                 padding: "1px 3px",
                 whiteSpace: "nowrap",
                 zIndex: 2,
@@ -758,8 +772,8 @@ function VerticalTimeline({ layout, groups, expanded, onToggle }: VerticalTimeli
                 width: 10,
                 height: 10,
                 borderRadius: "50%",
-                backgroundColor: "#000",
-                boxShadow: "0 0 0 2px white",
+                backgroundColor: MANTINE_TEXT,
+                boxShadow: `0 0 0 2px ${MANTINE_BODY}`,
                 zIndex: 3,
               }}
             />
@@ -940,7 +954,7 @@ function HorizontalTimeline({ layout, groups, expanded, onToggle }: HorizontalTi
           right: 0,
           height: 2,
           transform: "translateY(-50%)",
-          backgroundColor: "#bdc3c7",
+          backgroundColor: MANTINE_DEFAULT_BORDER,
           zIndex: 0,
         }}
       />
@@ -956,7 +970,7 @@ function HorizontalTimeline({ layout, groups, expanded, onToggle }: HorizontalTi
             transform: "translateY(-50%)",
             width: 3,
             height: 26,
-            backgroundColor: "#868e96",
+            backgroundColor: MANTINE_DIMMED,
             zIndex: 0,
           }}
         />
@@ -981,7 +995,7 @@ function HorizontalTimeline({ layout, groups, expanded, onToggle }: HorizontalTi
                 top: isTop ? nearEdge : axisY,
                 transform: "translateX(-50%)",
                 height: item.dist,
-                borderLeft: "1px dashed #bdc3c7",
+                borderLeft: `1px dashed ${MANTINE_DEFAULT_BORDER}`,
                 zIndex: 0,
               }}
             />
@@ -1010,8 +1024,8 @@ function HorizontalTimeline({ layout, groups, expanded, onToggle }: HorizontalTi
                 fontWeight: "bold",
                 fontSize: 11,
                 lineHeight: 1,
-                color: "#333",
-                backgroundColor: "rgba(255,255,255,0.85)",
+                color: MANTINE_TEXT,
+                backgroundColor: MANTINE_BODY,
                 padding: "1px 3px",
                 whiteSpace: "nowrap",
                 zIndex: 2,
@@ -1031,8 +1045,8 @@ function HorizontalTimeline({ layout, groups, expanded, onToggle }: HorizontalTi
                 width: 10,
                 height: 10,
                 borderRadius: "50%",
-                backgroundColor: "#000",
-                boxShadow: "0 0 0 2px white",
+                backgroundColor: MANTINE_TEXT,
+                boxShadow: `0 0 0 2px ${MANTINE_BODY}`,
                 zIndex: 3,
               }}
             />
@@ -1229,22 +1243,22 @@ function ZoomControls({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: "#fff",
-    color: "#495057",
+    background: MANTINE_BODY,
+    color: MANTINE_TEXT,
     cursor: "pointer",
     fontSize: 20,
     lineHeight: 1,
   };
-  const divider = <div style={{ height: 1, background: "#dee2e6" }} />;
+  const divider = <div style={{ height: 1, background: MANTINE_DEFAULT_BORDER }} />;
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
-        border: "1px solid #ced4da",
+        border: `1px solid ${MANTINE_DEFAULT_BORDER}`,
         borderRadius: 6,
         overflow: "hidden",
-        background: "#fff",
+        background: MANTINE_BODY,
         boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
       }}
     >
@@ -1638,14 +1652,18 @@ export function TimelineView() {
 
           <div
             ref={fullscreenRef}
-            style={{ position: "relative", height: fullscreen ? "100vh" : undefined, background: "#fff" }}
+            style={{
+              position: "relative",
+              height: fullscreen ? "100vh" : undefined,
+              background: MANTINE_BODY,
+            }}
           >
             <div
               ref={canvasRef}
               style={{
                 height: fullscreen ? "100%" : CANVAS_HEIGHT,
                 overflow: "auto",
-                border: "1px solid #e9ecef",
+                border: `1px solid ${MANTINE_DEFAULT_BORDER}`,
                 borderRadius: fullscreen ? 0 : 8,
               }}
             >

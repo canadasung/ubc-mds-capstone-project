@@ -20,6 +20,8 @@ declare module "@tabler/icons-react" {
   export const IconAlertTriangle: Icon;
   export const IconCircleCheck: Icon;
   export const IconX: Icon;
+  export const IconSun: Icon;
+  export const IconMoon: Icon;
   const _default: Record<string, Icon>;
   export default _default;
 }

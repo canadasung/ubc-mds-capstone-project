@@ -23,6 +23,7 @@ import { ViewSwitcher } from "@/components/ViewSwitcher";
 import { ResultsSummary } from "@/components/ResultsSummary";
 import { ResultsArea } from "@/components/ResultsArea";
 import { TutorialModal, hasTutorialCookie } from "@/components/TutorialModal";
+import { ColorSchemeToggle } from "@/components/ColorSchemeToggle";
 import { useSearchStore } from "@/lib/store";
 import { useLiveSearchEffect } from "@/lib/hooks";
 
@@ -61,14 +62,17 @@ export default function Page() {
                 Species Name Synonym Search
               </Title>
             </Group>
-            <Button
-              size="compact-sm"
-              variant="subtle"
-              leftSection={<IconInfoCircle size={16} />}
-              onClick={() => setTutorialOpen(true)}
-            >
-              Tutorial
-            </Button>
+            <Group gap="xs" wrap="nowrap">
+              <ColorSchemeToggle />
+              <Button
+                size="compact-sm"
+                variant="subtle"
+                leftSection={<IconInfoCircle size={16} />}
+                onClick={() => setTutorialOpen(true)}
+              >
+                Tutorial
+              </Button>
+            </Group>
           </Group>
         </AppShell.Header>
 
