@@ -134,11 +134,19 @@ data model makes self-reference possible.
 
 ## Claude Code skills
 
-Step-by-step playbooks for this project's three recurring tasks live as
-Claude Code Skills under `.claude/skills/` (`add-api-source`, `update-readme`,
-`deploy`) — invokable directly (`/add-api-source`, etc.) or auto-triggered
-when the matching task comes up. They reference this file for conventions
-rather than duplicate them, so update both if a workflow changes.
+Step-by-step playbooks for this project's recurring tasks live as Claude Code
+Skills under `.claude/skills/` — invokable directly (`/add-api-source`, etc.)
+or auto-triggered when the matching task comes up. They reference this file
+for conventions rather than duplicate them, so update both if a workflow
+changes.
+
+- `add-api-source` — integrating a new external taxonomic data source.
+- `update-readme` — keeping the three README files accurate.
+- `deploy` — pushing frontend/backend changes live (Vercel + Hugging Face).
+- `update-claude-md` — capturing a new lesson/gotcha into this file.
+- `debug-hydration-mismatch` — diagnosing React/Next.js SSR-vs-client bugs.
+- `refresh-fixtures` — checking recorded test fixtures against live APIs for
+  upstream drift, not just when adding a new source.
 
 ## Workflow
 
