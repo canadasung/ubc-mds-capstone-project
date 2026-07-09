@@ -132,6 +132,14 @@ searched synonym name itself appears in the result, so this class of bug can
 pass the whole test suite; write an explicit assertion for it when a source's
 data model makes self-reference possible.
 
+## Claude Code skills
+
+Step-by-step playbooks for this project's three recurring tasks live as
+Claude Code Skills under `.claude/skills/` (`add-api-source`, `update-readme`,
+`deploy`) — invokable directly (`/add-api-source`, etc.) or auto-triggered
+when the matching task comes up. They reference this file for conventions
+rather than duplicate them, so update both if a workflow changes.
+
 ## Workflow
 
 - Don't commit or push unless asked. If on `main`, branch first.
