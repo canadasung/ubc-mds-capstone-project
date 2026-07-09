@@ -220,5 +220,5 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Claude
-.claude/
+# Claude (share project-level config/skills; keep personal overrides local)
+.claude/settings.local.json
